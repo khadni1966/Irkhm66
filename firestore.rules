@@ -91,6 +91,18 @@ service cloud.firestore {
         && request.resource.data.driverId == uid();
     }
 
+    // A confirmed rider's live position for one booking, readable by that booking's driver only.
+    match /rlive/{id} {
+      allow get: if signedIn() && (resource == null || resource.data.riderId == uid()
+        || resource.data.driverId == uid() || isAdmin());
+      allow create: if signedIn() && request.resource.data.riderId == uid()
+        && get(/databases/$(database)/documents/requests/$(id)).data.riderId == uid()
+        && get(/databases/$(database)/documents/requests/$(id)).data.driverId == request.resource.data.driverId;
+      allow update: if signedIn() && resource.data.riderId == uid()
+        && request.resource.data.riderId == uid()
+        && request.resource.data.driverId == resource.data.driverId;
+    }
+
     // Cash the admin collected from a driver against the 10% fee.
     match /payments/{id} {
       allow read: if signedIn() && (resource.data.driverId == uid() || isAdmin());
