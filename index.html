@@ -149,7 +149,7 @@ var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
 var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
-var CURVE=[[0,2.5],[18,4],[24,5],[30,6],[50,8.5],[80,10]]; // kilometres -> one rider's share of the cost in dollars; the shortest ride is $2.50 and long rides cost less per km
+var CURVE=[[0,0],[18,4],[24,5],[30,6],[50,8.5],[80,10]]; // kilometres -> one rider's share of the cost in dollars; short rides are charged by the kilometre and long rides cost less per km
 var TERMS_V=3;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
@@ -259,7 +259,7 @@ function at(R,c){var i=1;while(i<R.cum.length-1&&R.cum[i]<c)i++;var seg=(R.cum[i
 function sub(R,c0,c1){var out=[at(R,c0)];for(var i=0;i<R.path.length;i++)if(R.cum[i]>c0&&R.cum[i]<c1)out.push(R.path[i]);out.push(at(R,c1));return out}
 function etaOn(R,dep,c){return new Date(+dep+c/total(R)*R.dur*1000)}
 function curve(m){var k=m/1000,c=CURVE,last=c[c.length-1],i=1;if(k>=last[0])return last[1]+(k-last[0])*.05;while(c[i][0]<k)i++;var a=c[i-1],b=c[i];return a[1]+(b[1]-a[1])*(k-a[0])/(b[0]-a[0])}
-function capPrice(m){return Math.round(curve(m)*2)/2}
+function capPrice(m){return Math.max(.5,Math.round(curve(m)*2)/2)}
 // a rider who joins for part of the road shares what that distance is worth, lowered by the same proportion the driver lowered the full ride
 function segPrice(R,seg){var road=R.dist||total(R),ratio=Math.min(1,R.price/capPrice(road));return Math.max(.5,Math.round(capPrice(seg/total(R)*road)*ratio*2)/2)}
 // the cost is split between everyone in the car, driver included: the stored amount is the share when one rider is aboard,
