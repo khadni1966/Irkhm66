@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>خدني · تجربة سائق وراكب</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700&family=Readex+Pro:wght@400;500;600&display=swap">
+<style>
+/* Khedni trial on real Google Maps. Map on top, working sheet under it. One phone plays both driver and rider. */
+:root{
+  --bg:#F3F5F2;--surface:#FFFFFF;--ink:#0E1F1A;--muted:#4F5F59;--line:#DCE3DF;--seg:#E7ECE8;
+  --brand:#0B5D4B;--brand-ink:#FFFFFF;--brand-soft:#D9EBE5;--brand-deep:#073F33;
+  --sun:#F5B921;--sun-ink:#0E1F1A;--sun-soft:#FFF1C7;--sun-soft-ink:#3F3A22;
+  --danger:#B3261E;--danger-soft:#FBE4E2;--route:#1A6FE0;
+  --display:'Alexandria','Readex Pro',Tahoma,sans-serif;--body:'Readex Pro',Tahoma,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;display:flex;flex-direction:column}
+h1,h2,h3,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.sub{font-size:13px;color:var(--muted)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 18px;border:0;border-radius:16px;font-size:16px;font-weight:600;width:100%}
+.btn.pri{background:var(--brand);color:var(--brand-ink)}
+.btn.sun{background:var(--sun);color:var(--sun-ink)}
+.btn.ghost{background:transparent;border:1px solid var(--line)}
+.btn.sm{min-height:44px;width:auto;font-size:14px;border-radius:12px;padding:0 14px;flex:none}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.grow{flex:1 1 auto;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px}
+h2{font-family:var(--display);font-size:18px;overflow-wrap:anywhere}
+
+/* key gate */
+#gate{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:28px 22px;background:var(--brand);color:#fff;overflow-y:auto}
+#gate h1{font-family:var(--display);font-size:52px;line-height:1.1}
+#gate p{color:rgba(255,255,255,.9)}
+#gate label{font-size:13px}
+#gate input{width:100%;min-height:54px;padding:0 14px;border:0;border-radius:14px;background:#fff;color:var(--ink);font-size:15px;direction:ltr;text-align:left}
+#gate .note{font-size:13px;color:rgba(255,255,255,.85)}
+#gate .gerr{background:#fff;color:var(--danger);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:500}
+
+/* app */
+#app{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-family:var(--display);font-size:22px;font-weight:700;color:var(--brand)}
+.chipbtn{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px;font-weight:600}
+.mapwrap{position:relative;flex:1 1 36%;min-height:220px}
+#map{position:absolute;inset:0}
+.hint{position:absolute;top:10px;inset-inline:10px;padding:8px 12px;border-radius:12px;background:var(--ink);color:#fff;font-size:13px;text-align:center}
+.sheet{flex:0 1 auto;max-height:62%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);border-radius:22px 22px 0 0;margin-top:-16px;position:relative}
+.seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--seg)}
+.seg button{flex:1 1 0;min-height:44px;border:0;border-radius:999px;background:transparent;font-size:15px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);font-weight:600}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0;position:relative}
+.field label,.lbl{font-size:12px;color:var(--muted)}
+.inrow{display:flex;gap:8px}
+input[type=text],input[type=time],input[type=number],select{width:100%;min-height:52px;padding:0 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font-size:15px;font-weight:600}
+.pinbtn{flex:none;width:52px;height:52px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--brand)}
+.pinbtn[aria-pressed="true"]{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
+.sug{list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;flex-direction:column;gap:2px}
+.sug button{display:block;width:100%;min-height:44px;padding:8px 10px;border:0;border-radius:10px;background:none;text-align:start;font-size:14px}
+.sug button:hover,.sug button:focus-visible{background:var(--seg)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.err{color:var(--danger);font-size:13px;font-weight:500}
+.rcard{display:flex;flex-direction:column;gap:8px;width:100%;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--surface);text-align:start}
+button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);padding:13px}
+.rcard .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.rcard .name{font-size:15px;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.rcard .dur{font-family:var(--display);font-size:26px;font-weight:700;color:var(--brand);flex:none;font-variant-numeric:tabular-nums}
+.rcard .meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted)}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.tag.fast{background:var(--brand-soft);color:var(--brand-deep)}
+.tag.jam{background:var(--sun-soft);color:var(--sun-soft-ink)}
+.banner{padding:10px 12px;border-radius:14px;background:var(--sun-soft);color:var(--sun-soft-ink);font-size:14px}
+.okbox{padding:12px;border-radius:14px;background:var(--brand-soft);color:var(--brand-deep);font-size:14px}
+.box{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:18px}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.kv span:first-child{color:var(--muted)}
+.kv b{font-weight:600}
+.big{font-family:var(--display);font-size:34px;font-weight:700;line-height:1;color:var(--brand);font-variant-numeric:tabular-nums}
+.stepper{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:0 4px;border:1px solid var(--line);border-radius:14px}
+.stepper button{width:44px;height:44px;border:0;border-radius:12px;background:var(--seg);font-size:20px;font-weight:600}
+.stepper b{font-family:var(--display);font-size:18px}
+.spin{width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;animation:rot 1s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+#errbox{position:fixed;inset-inline:10px;bottom:10px;z-index:50;max-height:60%;overflow:auto;padding:14px;border-radius:16px;background:var(--danger-soft);color:var(--ink);border:2px solid var(--danger);display:flex;flex-direction:column;gap:8px}
+#errbox h3{font-size:16px;color:var(--danger)}
+#errbox pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;direction:ltr;text-align:left;background:#fff;border-radius:10px;padding:8px}
+</style>
+</head>
+<body>
+
+<section id="gate">
+  <div>
+    <h1 id="g-title">خدني</h1>
+    <p id="g-sub"></p>
+  </div>
+  <form id="keyform" class="col" novalidate>
+    <div class="col" style="gap:4px">
+      <label for="key" id="g-label"></label>
+      <input type="text" id="key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza...">
+    </div>
+    <div class="gerr" id="g-err" role="alert" hidden></div>
+    <button class="btn sun" type="submit" id="g-go"></button>
+  </form>
+  <p class="note" id="g-note"></p>
+  <button class="btn ghost" type="button" id="g-lang" style="border-color:rgba(255,255,255,.5);color:#fff"></button>
+</section>
+
+<section id="app" hidden>
+  <div class="top">
+    <span class="brand" id="brand"></span>
+    <div class="row" style="gap:6px">
+      <button class="chipbtn" type="button" id="b-lang"></button>
+      <button class="chipbtn" type="button" id="b-key"></button>
+    </div>
+  </div>
+  <div class="mapwrap"><div id="map"></div><div class="hint" id="hint" hidden></div></div>
+  <div class="sheet" id="sheet"></div>
+</section>
+
+<div id="errbox" role="alert" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+
+/* ---------- storage (may be unavailable when the file is opened locally) ---------- */
+function sget(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function sset(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function sdel(k){try{localStorage.removeItem(k)}catch(e){}}
+
+/* keep the last console errors: Google writes the exact reason there, and a phone has no console to read */
+var LOG=[];
+['error','warn'].forEach(function(k){var o=console[k];console[k]=function(){try{LOG.push(Array.prototype.slice.call(arguments).map(String).join(' '));if(LOG.length>10)LOG.shift()}catch(e){}return o.apply(console,arguments)}});
+
+/* ---------- state ---------- */
+function blank(){return {text:'',lat:null,lng:null}}
+var S={lang:sget('kh-lang')==='en'?'en':'ar',key:sget('kh-key')||'',role:'driver',
+  from:blank(),to:blank(),rfrom:blank(),rto:blank(),sug:{from:[],to:[],rfrom:[],rto:[]},
+  day:1,time:'07:30',pick:null,busy:false,formErr:'',
+  routes:null,sel:0,dep:null,confirmed:false,pt:null,seats:3,price:null,
+  ride:null,req:null,match:null,owed:0};
+var LIMIT=800; // metres: how far a rider's point may be from the driver's road and still count as "on the way"
+var FEE=0.10;  // Khedni's share, taken from the driver's part
+function T(ar,en){return S.lang==='en'?en:ar}
+
+/* ---------- errors shown on screen, so a screenshot is enough to debug ---------- */
+function showErr(title,detail,hint){
+  var b=$('#errbox');
+  b.innerHTML='<h3>'+esc(title)+'</h3>'+(hint?'<p>'+esc(hint)+'</p>':'')+(detail?'<pre>'+esc(detail)+'</pre>':'')+
+    '<button class="btn sm ghost" type="button" id="errclose">'+T('سكّر','Close')+'</button>';
+  b.hidden=false;$('#errclose').onclick=function(){b.hidden=true};
+}
+function explain(msg){
+  msg=String(msg||'');
+  if(/API key not valid|InvalidKey|API_KEY_INVALID/i.test(msg))return T('المفتاح مش صحيح. تأكد إنك نسخته كامل.','The key is not valid. Check that you copied all of it.');
+  if(/has not been used|is disabled|SERVICE_DISABLED|not activated|ApiNotActivated/i.test(msg))return T('في خدمة مش مفعّلة بحساب جوجل. اسمها مكتوب بالرسالة تحت: فعّلها من صفحة جوجل.','A Google service is not enabled. Its name is in the message below: enable it in the Google console.');
+  if(/RESOURCE_EXHAUSTED|quota|OVER_QUERY_LIMIT/i.test(msg))return T('وصلت للسقف اليومي اللي حطّيته. بيرجع يشتغل بكرا، أو ارفع السقف.','You reached the daily cap you set. It works again tomorrow, or raise the cap.');
+  if(/billing|BillingNotEnabled/i.test(msg))return T('الفوترة مش مفعّلة عالمشروع.','Billing is not enabled on the project.');
+  if(/referer|RefererNotAllowed|PERMISSION_DENIED|API_KEY_.*BLOCKED/i.test(msg))return T('المفتاح مقيّد وما بيسمح لهالصفحة أو لهالخدمة. راجع القيود بصفحة المفتاح.','The key is restricted and does not allow this page or this service. Review its restrictions on the key page.');
+  if(/Failed to fetch|NetworkError|load failed/i.test(msg))return T('ما قدرنا نوصل لجوجل. تأكد من الإنترنت وجرّب مرة تانية.','Could not reach Google. Check your connection and try again.');
+  return '';
+}
+window.addEventListener('error',function(e){showErr(T('صار خطأ بالصفحة','Something went wrong on the page'),(e.message||'')+(e.filename?'\n'+e.filename+':'+e.lineno:''),'')});
+window.addEventListener('unhandledrejection',function(e){var m=(e.reason&&(e.reason.message||e.reason))||'';showErr(T('صار خطأ','Something went wrong'),String(m),explain(m))});
+function mapErrHint(m){
+  if(m==='ApiNotActivatedMapError')return T('خدمة Maps JavaScript API مش مفعّلة بالمشروع. فعّلها، نطور دقيقتين، وافتح الصفحة من جديد.','The Maps JavaScript API is not enabled on the project. Enable it, wait two minutes, and reopen this page.');
+  if(m==='InvalidKeyMapError')return T('المفتاح مش صحيح أو مش كامل. انسخه من جديد واكبس "المفتاح" فوق.','The key is wrong or incomplete. Copy it again and tap "Key" above.');
+  if(m==='BillingNotEnabledMapError')return T('الفوترة مش مربوطة بهالمشروع.','Billing is not linked to this project.');
+  if(m==='RefererNotAllowedMapError')return T('المفتاح مقيّد على مواقع محدّدة وهالصفحة مش منها. حط Application restrictions على None مؤقتاً.','The key is restricted to specific websites and this page is not one of them. Set Application restrictions to None for now.');
+  if(m==='ApiTargetBlockedMapError')return T('المفتاح مقيّد وما بيسمح بـMaps JavaScript API. ضيفها بـAPI restrictions.','The key is restricted and does not allow the Maps JavaScript API. Add it under API restrictions.');
+  if(m==='ExpiredKeyMapError')return T('المفتاح منتهي أو لسا جديد. نطور 5 دقايق وجرّب.','The key has expired or is too new. Wait 5 minutes and try again.');
+  return T('المفتاح غلط، أو الفوترة مش مفعّلة، أو خدمة Maps JavaScript API مش مفعّلة. السبب بالضبط مكتوب تحت إذا جوجل عطته.','The key is wrong, billing is off, or the Maps JavaScript API is not enabled. The exact reason is below if Google gave one.')}
+window.gm_authFailure=function(){setTimeout(function(){var log=LOG.join('\n'),m=(log.match(/(\w+MapError)/)||[])[1]||'';showErr(T('جوجل رفضت المفتاح','Google rejected the key')+(m?' · '+m:''),log||'gm_authFailure',mapErrHint(m))},500)};
+
+/* ---------- helpers ---------- */
+function pad(n){return ('0'+n).slice(-2)}
+function hm(d){return d.getHours()+':'+pad(d.getMinutes())}
+function durTxt(sec){var m=Math.max(1,Math.round(sec/60));if(m<60)return m+' '+T('د','min');var h=Math.floor(m/60),r=m%60;return h+' '+T('س','h')+(r?' '+pad(r)+' '+T('د','min'):'')}
+function kmTxt(m){return (m>=10000?Math.round(m/1000):Math.round(m/100)/10)+' '+T('كم','km')}
+function mTxt(m){return m<950?Math.round(m/10)*10+' '+T('م','m'):kmTxt(m)}
+function money(n){return '<b dir="ltr">$'+String(Math.round(n*100)/100)+'</b>'}
+function secs(s){return parseInt(String(s||'0').replace('s',''),10)||0}
+function dayName(n){return n===0?T('اليوم','Today'):n===1?T('بكرا','Tomorrow'):T('بعد بكرا','In 2 days')}
+function depDate(){var p=S.time.split(':'),d=new Date();d.setDate(d.getDate()+S.day);d.setHours(+p[0]||0,+p[1]||0,0,0);return d}
+function decode(str){var i=0,lat=0,lng=0,out=[],b,shift,res;
+  while(i<str.length){shift=0;res=0;do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);lat+=(res&1)?~(res>>1):(res>>1);
+    shift=0;res=0;do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);lng+=(res&1)?~(res>>1):(res>>1);
+    out.push({lat:lat/1e5,lng:lng/1e5})}
+  return out}
+function hav(a,b){var R=6371000,x=(b.lat-a.lat)*Math.PI/180,y=(b.lng-a.lng)*Math.PI/180,s=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(y/2)*Math.sin(y/2);return 2*R*Math.asin(Math.sqrt(s))}
+function withCum(path){var c=[0];for(var i=1;i<path.length;i++)c[i]=c[i-1]+hav(path[i-1],path[i]);return c}
+function total(R){return R.cum[R.cum.length-1]||1}
+// closest point on the road itself (not just its corners): distance in metres, and how far along the road it is
+function nearestOnPath(R,p){var best={d:1e12,cum:0,pos:R.path[0]},kx=Math.cos(p.lat*Math.PI/180)*111320,ky=110540;
+  for(var i=0;i<R.path.length-1;i++){var a=R.path[i],b=R.path[i+1],ax=(a.lng-p.lng)*kx,ay=(a.lat-p.lat)*ky,bx=(b.lng-p.lng)*kx,by=(b.lat-p.lat)*ky,dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy,t=L?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/L)):0,x=ax+t*dx,y=ay+t*dy,d=Math.sqrt(x*x+y*y);
+    if(d<best.d)best={d:d,cum:R.cum[i]+t*(R.cum[i+1]-R.cum[i]),pos:{lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t}}}
+  return best}
+function at(R,c){var i=1;while(i<R.cum.length-1&&R.cum[i]<c)i++;var seg=(R.cum[i]-R.cum[i-1])||1,t=(c-R.cum[i-1])/seg,a=R.path[i-1],b=R.path[i];return {lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t}}
+function sub(R,c0,c1){var out=[at(R,c0)];for(var i=0;i<R.path.length;i++)if(R.cum[i]>c0&&R.cum[i]<c1)out.push(R.path[i]);out.push(at(R,c1));return out}
+function etaOn(R,dep,c){return new Date(dep.getTime()+c/total(R)*R.dur*1000)}
+function suggestPrice(m){return Math.max(1,Math.round(m/1000*0.05*2)/2)}
+
+/* ---------- Google: load, map, places, routes ---------- */
+var map=null,ov=[],places=null,token=null;
+function loadMaps(key){return new Promise(function(res,rej){
+  window.__khReady=function(){res()};
+  var s=document.createElement('script');
+  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&v=weekly&loading=async&libraries=places&language='+S.lang+'&region=LB&callback=__khReady';
+  s.async=true;s.onerror=function(){rej(new Error('Failed to fetch Google Maps script'))};document.head.appendChild(s)})}
+function initMap(){
+  map=new google.maps.Map($('#map'),{center:{lat:33.86,lng:35.56},zoom:11,disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',clickableIcons:false});
+  map.addListener('click',tapEvt);
+  google.maps.importLibrary('places').then(function(lib){places=lib;try{token=new lib.AutocompleteSessionToken()}catch(e){}}).catch(function(){places=null});
+}
+function tapEvt(e){onMapTap({lat:e.latLng.lat(),lng:e.latLng.lng()})}
+function add(o){ov.push(o);return o}
+function line(path,color,w,op,z,onClick){var l=add(new google.maps.Polyline({path:path,map:map,strokeColor:color,strokeWeight:w,strokeOpacity:op,zIndex:z}));l.addListener('click',onClick||tapEvt);return l}
+function pin(pos,label){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}))}
+function dot(pos,fill){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:20,icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:fill,fillOpacity:1,strokeColor:'#0E1F1A',strokeWeight:3}}))}
+function redraw(){
+  if(!map)return;ov.forEach(function(o){o.setMap(null)});ov=[];
+  if(S.role==='driver'&&!S.ride&&S.routes){
+    S.routes.forEach(function(r,i){var on=i===S.sel;if(S.confirmed&&!on)return;
+      line(r.path,on?'#1A6FE0':'#6F7D78',on?7:5,on?1:.7,on?10:1,function(e){if(i!==S.sel&&!S.confirmed){S.sel=i;S.pt=null;redraw();render()}else tapEvt(e)})});
+    var r=S.routes[S.sel];pin(r.path[0],'A');pin(r.path[r.path.length-1],'B');
+    if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');
+    return}
+  if(S.ride){var R=S.ride;line(R.path,'#1A6FE0',7,1,10);pin(R.path[0],'A');pin(R.path[R.path.length-1],'B');
+    if(S.role==='driver'){if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');if(S.req&&S.req.status!=='rejected'){dot(S.req.puPos,'#F5B921');dot(S.req.drPos,'#FFFFFF')}}}
+  if(S.role==='rider'){
+    if(S.ride&&S.match&&S.match.ok)line(sub(S.ride,S.match.pu.cum,S.match.dr.cum),'#0B5D4B',9,1,15);
+    if(S.rfrom.lat!=null)dot(S.rfrom,'#F5B921');
+    if(S.rto.lat!=null)dot(S.rto,'#FFFFFF');
+  }
+}
+function fit(paths){var b=new google.maps.LatLngBounds();paths.forEach(function(p){for(var i=0;i<p.length;i+=Math.max(1,Math.floor(p.length/60)))b.extend(p[i]);b.extend(p[p.length-1])});map.fitBounds(b,40)}
+function waypoint(p){return p.lat!=null?{location:{latLng:{latitude:p.lat,longitude:p.lng}}}:{address:p.text+(/lebanon|لبنان/i.test(p.text)?'':', Lebanon')}}
+function computeRoutes(){
+  var dep=depDate(),min=new Date(Date.now()+2*60000);
+  var body={origin:waypoint(S.from),destination:waypoint(S.to),travelMode:'DRIVE',routingPreference:'TRAFFIC_AWARE_OPTIMAL',
+    departureTime:(dep<min?min:dep).toISOString(),computeAlternativeRoutes:true,languageCode:S.lang,regionCode:'LB',units:'METRIC'};
+  return fetch('https://routes.googleapis.com/directions/v2:computeRoutes',{method:'POST',
+    headers:{'Content-Type':'application/json','X-Goog-Api-Key':S.key,'X-Goog-FieldMask':'routes.duration,routes.staticDuration,routes.distanceMeters,routes.description,routes.routeLabels,routes.polyline.encodedPolyline'},
+    body:JSON.stringify(body)})
+   .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j}})})
+   .then(function(x){
+     if(!x.ok||x.j.error)throw new Error((x.j.error&&(x.j.error.status+': '+x.j.error.message))||'Routes API error');
+     var rs=(x.j.routes||[]).filter(function(r){return r.polyline&&r.polyline.encodedPolyline});
+     if(!rs.length)throw new Error('NO_ROUTE');
+     return {dep:dep,routes:rs.map(function(r){var path=decode(r.polyline.encodedPolyline);return {path:path,cum:withCum(path),dur:secs(r.duration),stat:secs(r.staticDuration),dist:r.distanceMeters||0,desc:r.description||''}})}});
+}
+var sugTimer=0,sugSeq=0;
+function suggest(which,text){
+  clearTimeout(sugTimer);
+  if(!places||text.trim().length<2){S.sug[which]=[];paintSug(which);return}
+  sugTimer=setTimeout(function(){var seq=++sugSeq;
+    places.AutocompleteSuggestion.fetchAutocompleteSuggestions({input:text,sessionToken:token||undefined,language:S.lang,region:'lb',includedRegionCodes:['lb']})
+     .then(function(res){if(seq!==sugSeq)return;S.sug[which]=(res.suggestions||[]).filter(function(s){return s.placePrediction}).slice(0,5);paintSug(which)})
+     .catch(function(){S.sug[which]=[];paintSug(which)})},350);
+}
+function paintSug(which){var el=$('#sug-'+which);if(!el)return;var list=S.sug[which];
+  el.hidden=!list.length;
+  el.innerHTML=list.map(function(s,i){return '<li><button type="button" data-sug="'+which+'" data-i="'+i+'">'+esc(s.placePrediction.text.toString())+'</button></li>'}).join('')}
+function chooseSug(which,i){var s=S.sug[which][i];if(!s)return;var txt=s.placePrediction.text.toString(),place=s.placePrediction.toPlace();
+  var slot={text:txt,lat:null,lng:null};S[which]=slot;S.sug[which]=[];render();
+  place.fetchFields({fields:['displayName','location']}).then(function(){
+    if(place.location&&S[which]===slot){slot.lat=place.location.lat();slot.lng=place.location.lng();map.panTo({lat:slot.lat,lng:slot.lng});redraw()}
+    try{token=new places.AutocompleteSessionToken()}catch(e){}
+  }).catch(function(){/* the typed name is still sent to Google as an address */})}
+
+/* ---------- map taps: set a point, or ask when the driver passes a point ---------- */
+function onMapTap(p){
+  if(S.pick){var w=S.pick;S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};S.pick=null;if(w.charAt(0)==='r')S.match=null;redraw();render();return}
+  if(S.role!=='driver')return;
+  var R=S.ride||(S.routes&&S.routes[S.sel]);if(!R)return;
+  var n=nearestOnPath(R,p);
+  S.pt=n.d>700?{far:true}:{at:etaOn(R,S.ride?S.ride.dep:S.dep,n.cum),km:n.cum,pos:n.pos};
+  redraw();render();
+}
+/* ---------- rider: is my trip on the driver's road? ---------- */
+function findMatch(){var R=S.ride;
+  if(S.rfrom.lat==null||S.rto.lat==null)return {ok:false,why:'points'};
+  if(R.seats<1)return {ok:false,why:'full'};
+  var a=nearestOnPath(R,S.rfrom),b=nearestOnPath(R,S.rto);
+  if(a.d>LIMIT)return {ok:false,why:'farpu',d:a.d};
+  if(b.d>LIMIT)return {ok:false,why:'fardr',d:b.d};
+  if(b.cum-a.cum<300)return {ok:false,why:'order'};
+  return {ok:true,pu:a,dr:b,puAt:etaOn(R,R.dep,a.cum),drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:Math.max(.5,Math.round(R.price*(b.cum-a.cum)/total(R)*2)/2)}}
+var WHY={points:['اختار النقطتين من الاقتراحات، أو حطّهم عالخريطة بكبسة الدبّوس.','Pick both points from the suggestions, or set them on the map with the pin button.'],
+ full:['ما بقي مقاعد بهالمشوار.','No seats left on this ride.'],
+ order:['نقطة النزول لازم تكون بعد نقطة الطلعة بنفس اتجاه السائق.','Your drop-off must come after your pick-up, in the driver’s direction.']};
+
+/* ---------- views ---------- */
+var PIN='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg>';
+function roleSeg(){return '<div class="seg" role="group" aria-label="'+T('الدور','Role')+'"><button type="button" data-role="driver" aria-pressed="'+(S.role==='driver')+'">'+T('أنا سائق','I’m driving')+'</button><button type="button" data-role="rider" aria-pressed="'+(S.role==='rider')+'">'+T('أنا راكب','I need a ride')+'</button></div>'}
+function fieldHTML(which,label){var p=S[which];
+  return '<div class="field"><label for="in-'+which+'">'+label+'</label><div class="inrow"><input type="text" id="in-'+which+'" data-in="'+which+'" autocomplete="off" value="'+esc(p.text)+'" placeholder="'+T('اكتب اسم المنطقة','Type a place name')+'">'+
+   '<button type="button" class="pinbtn" data-pick="'+which+'" aria-pressed="'+(S.pick===which)+'" aria-label="'+T('اختار النقطة من الخريطة','Pick the point on the map')+'">'+PIN+'</button></div>'+
+   '<ul class="sug" id="sug-'+which+'" hidden></ul></div>'}
+function ptHTML(){
+  if(S.pt&&S.pt.far)return '<div class="banner">'+T('هالنقطة بعيدة عن طريقك. اكبس على الخط الأزرق نفسه.','That point is far from your route. Tap on the blue line itself.')+'</div>';
+  if(S.pt)return '<div class="okbox">'+T('بتمرق بهالنقطة حوالي ','You pass this point at about ')+'<b>'+hm(S.pt.at)+'</b>'+T(' (تقريبي)، بعد ',' (approximate), after ')+kmTxt(S.pt.km)+'.</div>';
+  return ''}
+function routeCard(r,i,dep,asButton){var extra=r.dur-r.stat,arr=new Date(dep.getTime()+r.dur*1000),fastest=0;
+  if(S.routes)S.routes.forEach(function(x,k){if(x.dur<S.routes[fastest].dur)fastest=k});
+  var inner='<span class="t"><span class="name">'+(r.desc?T('عن طريق ','Via ')+esc(r.desc):T('طريق ','Route ')+(i+1))+'</span><span class="dur">'+durTxt(r.dur)+'</span></span>'+
+   '<span class="meta"><span>'+kmTxt(r.dist)+'</span><span>'+T('بلا عجقة ','No traffic ')+durTxt(r.stat)+'</span><span>'+T('بتوصل ','Arrive ')+hm(arr)+'</span></span>'+
+   '<span class="meta">'+(asButton&&i===fastest&&S.routes.length>1?'<span class="tag fast">'+T('الأسرع','Fastest')+'</span>':'')+(extra>=120?'<span class="tag jam">'+T('عجقة +','Traffic +')+durTxt(extra)+'</span>':'')+'</span>';
+  return asButton?'<button type="button" class="rcard" data-route="'+i+'" aria-pressed="'+(i===S.sel)+'">'+inner+'</button>':'<div class="rcard on">'+inner+'</div>'}
+
+function driverHTML(){
+  if(S.ride)return rideHTML();
+  if(!S.routes)return '<h2>'+T('وين نازل؟','Where are you driving?')+'</h2>'+
+   fieldHTML('from',T('من وين','From'))+fieldHTML('to',T('لوين','To'))+
+   '<div class="grid2"><div class="field"><label for="in-day">'+T('أي نهار','Day')+'</label><select id="in-day">'+[0,1,2].map(function(n){return '<option value="'+n+'"'+(n===S.day?' selected':'')+'>'+dayName(n)+'</option>'}).join('')+'</select></div>'+
+   '<div class="field"><label for="in-time">'+T('ساعة الطلعة','Departure time')+'</label><input type="time" id="in-time" value="'+esc(S.time)+'"></div></div>'+
+   (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
+   '<button class="btn pri" type="button" id="go"'+(S.busy?' disabled':'')+'>'+(S.busy?'<span class="spin" aria-hidden="true"></span>'+T('عم نسأل جوجل…','Asking Google…'):T('شوف الطرقات والعجقة','Show routes and traffic'))+'</button>'+
+   '<p class="sub">'+T('الوقت محسوب على العجقة المتوقعة بهالنهار وهالساعة، مش عجقة هلق.','Times use the traffic expected on that day and hour, not the traffic right now.')+'</p>';
+  var head='<div class="row between"><div class="grow"><h2>'+esc(S.from.text)+T(' ← ',' → ')+esc(S.to.text)+'</h2><p class="sub">'+dayName(S.day)+' · '+hm(S.dep)+'</p></div><button class="btn sm ghost" type="button" id="edit">'+T('غيّر','Edit')+'</button></div>';
+  if(!S.confirmed)return head+S.routes.map(function(r,i){return routeCard(r,i,S.dep,true)}).join('')+ptHTML()+
+   '<p class="sub">'+(S.routes.length>1?T('اكبس على الطريق اللي نازل فيه، من اللايحة أو من الخريطة.','Tap the route you will take, in the list or on the map.'):T('جوجل عطت طريق واحد بس لهالمشوار.','Google returned a single route for this trip.'))+'</p>'+
+   '<button class="btn sun" type="button" id="confirm">'+T('هيدا طريقي','This is my route')+'</button>';
+  var r=S.routes[S.sel];if(S.price==null)S.price=suggestPrice(r.dist);
+  return head+routeCard(r,S.sel,S.dep,false)+ptHTML()+
+   '<div class="grid2"><div class="field"><span class="lbl">'+T('مقاعد فاضية','Free seats')+'</span><div class="stepper"><button type="button" data-seat="-1" aria-label="'+T('نقّص مقعد','Remove a seat')+'">−</button><b>'+S.seats+'</b><button type="button" data-seat="1" aria-label="'+T('زيد مقعد','Add a seat')+'">+</button></div></div>'+
+   '<div class="field"><label for="in-price">'+T('حصة المقعد لكل الطريق ($)','Seat share, full route ($)')+'</label><input type="number" id="in-price" inputmode="decimal" min="0.5" step="0.5" value="'+S.price+'"></div></div>'+
+   '<p class="sub">'+T('السعر اقتراح تجريبي، عدّله متل ما بدك. الراكب بيدفع حسب المسافة اللي بيطلعها معك.','The price is a trial suggestion; change it as you like. A rider pays for the distance they ride with you.')+'</p>'+
+   '<button class="btn sun" type="button" id="publish">'+T('انشر المشوار','Publish the ride')+'</button>'+
+   '<button class="btn ghost" type="button" id="unconfirm">'+T('اختار طريق تاني','Choose another route')+'</button>';
+}
+function rideHTML(){var R=S.ride,q=S.req,box;
+  if(!q)box='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. لتجرّب كراكب على نفس التلفون، اكبس "أنا راكب" فوق.','Your ride is published and has no requests yet. To try it as a rider on this phone, tap "I need a ride" above.')+'</div>';
+  else if(q.status==='pending')box='<div class="box" style="border:2px solid var(--route)"><span class="lbl">'+T('طلب جديد','New request')+'</span>'+
+    '<div class="kv"><span>'+T('بيطلع من','Gets in at')+'</span><b>'+esc(q.puText)+'</b></div><div class="kv"><span>'+T('بتوصل لعنده','You reach them')+'</span><b>'+hm(q.puAt)+'</b></div>'+
+    '<div class="kv"><span>'+T('بينزل بـ','Gets out at')+'</span><b>'+esc(q.drText)+'</b></div><div class="kv"><span>'+T('بيدفعلك كاش','Pays you in cash')+'</span>'+money(q.price)+'</div>'+
+    '<div class="grid2"><button class="btn ghost" type="button" id="reject">'+T('رفض','Decline')+'</button><button class="btn pri" type="button" id="accept">'+T('قبول','Accept')+'</button></div></div>';
+  else if(q.status==='accepted')box='<div class="okbox"><b>'+T('الراكب مأكّد.','Rider confirmed.')+'</b> '+T('بتاخده من '+esc(q.puText)+' حوالي '+hm(q.puAt)+'، وبينزل بـ'+esc(q.drText)+'. بيدفعلك كاش ','Pick them up at '+esc(q.puText)+' at about '+hm(q.puAt)+'; they get out at '+esc(q.drText)+'. They pay you in cash ')+money(q.price)+T('، ورسم خدني 10% ',', and Khedni’s 10% fee is ')+money(q.fee)+'.</div>';
+  else box='<div class="banner">'+T('رفضت الطلب. المقاعد بعدها فاضية.','You declined the request. Your seats are still free.')+'</div>';
+  return '<div class="row between"><div class="grow"><h2>'+esc(R.fromText)+T(' ← ',' → ')+esc(R.toText)+'</h2><p class="sub">'+dayName(R.day)+' · '+hm(R.dep)+' · '+T('منشور','published')+'</p></div></div>'+
+   '<div class="box"><div class="kv"><span>'+T('الطريق','Route')+'</span><b>'+(R.desc?esc(R.desc):'—')+'</b></div><div class="kv"><span>'+T('الوقت بالعجقة','Time with traffic')+'</span><b>'+durTxt(R.dur)+' · '+kmTxt(R.dist)+'</b></div>'+
+   '<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seats+'</b></div><div class="kv"><span>'+T('حصة المقعد لكل الطريق','Seat share, full route')+'</span>'+money(R.price)+'</div>'+
+   '<div class="kv"><span>'+T('عليك لخدني (10%)','You owe Khedni (10%)')+'</span>'+money(S.owed)+'</div></div>'+box+ptHTML()+
+   '<button class="btn ghost" type="button" id="cancelride">'+T('الغي المشوار وحط واحد جديد','Cancel this ride and post a new one')+'</button>';
+}
+function riderHTML(){var R=S.ride,q=S.req;
+  if(!R)return '<h2>'+T('ما في مشوار منشور بعد','No ride published yet')+'</h2><div class="banner">'+T('هالتجربة على تلفون واحد: اكبس "أنا سائق"، اختار طريقك، واكبس "انشر المشوار". بعدها ارجع لهون كراكب.','This trial runs on one phone: tap "I’m driving", choose your route and tap "Publish the ride". Then come back here as a rider.')+'</div>';
+  var head='<div class="box"><span class="lbl">'+T('مشوار منشور','Published ride')+'</span><div class="kv"><span>'+esc(R.fromText)+T(' ← ',' → ')+esc(R.toText)+'</span><b>'+dayName(R.day)+' '+hm(R.dep)+'</b></div><div class="kv"><span>'+(R.desc?T('عن طريق ','Via ')+esc(R.desc):'')+'</span><b>'+R.seats+' '+T('مقاعد','seats')+'</b></div></div>';
+  if(q&&q.status==='pending')return head+'<div class="banner"><b>'+T('طلبك عند السائق.','Your request is with the driver.')+'</b> '+T('لأنه عم نجرّب على تلفون واحد، اكبس "أنا سائق" فوق لتقبله أو ترفضه.','Because this trial runs on one phone, tap "I’m driving" above to accept or decline it.')+'</div>'+
+    '<div class="kv"><span>'+T('بتطلع حوالي','You get in at about')+'</span><b>'+hm(q.puAt)+'</b></div><div class="kv"><span>'+T('كاش للسائق','Cash to the driver')+'</span>'+money(q.price)+'</div>'+
+    '<button class="btn ghost" type="button" id="rcancel">'+T('إلغاء الطلب','Cancel request')+'</button>';
+  if(q&&q.status==='accepted')return head+'<div class="okbox"><b>'+T('السائق قبل. مقعدك مأكّد.','The driver accepted. Your seat is confirmed.')+'</b></div>'+
+    '<div class="row"><span class="big" dir="ltr">'+hm(q.puAt)+'</span><div class="grow"><b>'+T('السائق بيوصل لعندك (تقريبي)','The driver reaches you (approximate)')+'</b><p class="sub">'+esc(q.puText)+'</p></div></div>'+
+    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(q.drAt)+' · '+esc(q.drText)+'</b></div><div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(q.price)+'</div>'+
+    '<button class="btn ghost" type="button" id="rcancel">'+T('إلغاء الحجز','Cancel booking')+'</button>';
+  var m=S.match,res='';
+  if(q&&q.status==='rejected'&&!m)res='<div class="banner">'+T('السائق رفض طلبك. فيك تجرّب نقطة تانية.','The driver declined your request. You can try another point.')+'</div>';
+  if(m&&!m.ok)res='<p class="err" role="alert">'+(m.why==='farpu'?T('نقطة الطلعة بعيدة '+mTxt(m.d)+' عن طريق السائق. هالمشوار ما بيمرق حدّك.','Your pick-up is '+mTxt(m.d)+' from the driver’s road. This ride does not pass near you.'):m.why==='fardr'?T('نقطة النزول بعيدة '+mTxt(m.d)+' عن طريق السائق.','Your drop-off is '+mTxt(m.d)+' from the driver’s road.'):T(WHY[m.why][0],WHY[m.why][1]))+'</p>';
+  if(m&&m.ok)res='<div class="box" style="border:2px solid var(--brand)"><div class="row"><span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+T('السائق بيمرق حدّك (تقريبي)','The driver passes you (approximate)')+'</b><p class="sub">'+T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you')+'</p></div></div>'+
+    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(m.drAt)+'</b></div><div class="kv"><span>'+T('بتطلع معه','You ride')+'</span><b>'+kmTxt(m.m)+'</b></div>'+
+    '<div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(m.price)+'</div><div class="kv"><span>'+T('رسم عليك','Fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
+    '<button class="btn pri" type="button" id="rreq">'+T('اطلب مقعد','Request a seat')+'</button></div>';
+  return head+fieldHTML('rfrom',T('من وين بتطلع','Where you get in'))+fieldHTML('rto',T('لوين نازل','Where you get out'))+
+   '<button class="btn sun" type="button" id="rgo">'+T('بيمرق حدّي؟','Does it pass near me?')+'</button>'+res;
+}
+var PICKTXT={from:['نقطة الانطلاق','start point'],to:['نقطة الوصول','destination'],rfrom:['وين بتطلع','where you get in'],rto:['وين بتنزل','where you get out']};
+function render(){
+  $('#brand').textContent=T('خدني','Khedni');$('#b-lang').textContent=T('English','عربي');$('#b-key').textContent=T('المفتاح','Key');
+  var h=$('#hint');
+  if(S.pick){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}else h.hidden=true;
+  var active=document.activeElement&&document.activeElement.id,pos=null;
+  if(active&&/^in-(r?from|r?to)$/.test(active)){try{pos=document.activeElement.selectionStart}catch(e){}}else active=null;
+  $('#sheet').innerHTML=roleSeg()+(S.role==='driver'?driverHTML():riderHTML());
+  ['from','to','rfrom','rto'].forEach(paintSug);
+  if(active){var el=document.getElementById(active);if(el){el.focus();if(pos!=null){try{el.setSelectionRange(pos,pos)}catch(e){}}}}
+}
+function gateText(){
+  document.documentElement.lang=S.lang;document.documentElement.dir=T('rtl','ltr');
+  $('#g-title').textContent=T('خدني','Khedni');
+  $('#g-sub').textContent=T('تجربة السائق والراكب على خرائط جوجل الحقيقية.','Driver and rider trial on real Google Maps.');
+  $('#g-label').textContent=T('الصق مفتاح جوجل هون','Paste your Google key here');
+  $('#g-go').textContent=T('افتح الخريطة','Open the map');
+  $('#g-note').textContent=T('المفتاح بيضل على تلفونك بس. ما بينبعت لحدا غير جوجل.','The key stays on your phone only. It is sent to nobody but Google.');
+  $('#g-lang').textContent=T('English','عربي');
+}
+
+/* ---------- events ---------- */
+function start(key){
+  S.key=key;$('#g-go').disabled=true;$('#g-go').textContent=T('عم نحمّل الخريطة…','Loading the map…');
+  loadMaps(key).then(function(){sset('kh-key',key);$('#gate').hidden=true;$('#app').hidden=false;initMap();render()})
+   .catch(function(){$('#g-go').disabled=false;gateText();var g=$('#g-err');g.hidden=false;g.textContent=T('ما قدرنا نحمّل خرائط جوجل. إذا الملف مفتوح من جوّا تطبيق Claude، نزّله وافتحه بـChrome.','Could not load Google Maps. If this file is open inside the Claude app, download it and open it in Chrome.')});
+}
+$('#keyform').addEventListener('submit',function(e){e.preventDefault();var k=$('#key').value.trim(),g=$('#g-err');
+  if(!/^AIza[\w-]{30,}$/.test(k)){g.hidden=false;g.textContent=T('المفتاح لازم يبلّش بـAIza ويكون حوالي 39 حرف. انسخه كامل من كبسة النسخ.','The key must start with AIza and be about 39 characters. Copy all of it with the copy button.');return}
+  g.hidden=true;start(k)});
+function switchLang(){S.lang=S.lang==='en'?'ar':'en';sset('kh-lang',S.lang);if(window.google&&google.maps){location.reload()}else gateText()}
+$('#g-lang').addEventListener('click',switchLang);
+$('#b-lang').addEventListener('click',switchLang);
+$('#b-key').addEventListener('click',function(){sdel('kh-key');location.reload()});
+document.addEventListener('input',function(e){var w=e.target.dataset&&e.target.dataset.in;
+  if(w){S[w]={text:e.target.value,lat:null,lng:null};if(w.charAt(0)==='r')S.match=null;suggest(w,e.target.value)}
+  if(e.target.id==='in-time')S.time=e.target.value||'07:30';
+  if(e.target.id==='in-price'){var v=parseFloat(e.target.value);if(v>0)S.price=Math.round(v*100)/100}});
+document.addEventListener('change',function(e){if(e.target.id==='in-day')S.day=+e.target.value});
+document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;
+  if(t.dataset.sug){chooseSug(t.dataset.sug,+t.dataset.i);return}
+  if(t.dataset.pick){S.pick=S.pick===t.dataset.pick?null:t.dataset.pick;render();return}
+  if(t.dataset.role){S.role=t.dataset.role;S.pick=null;S.pt=null;redraw();render();if(S.ride)fit([S.ride.path]);return}
+  if(t.dataset.seat){S.seats=Math.max(1,Math.min(6,S.seats+(+t.dataset.seat)));render();return}
+  if(t.dataset.route&&!S.confirmed){S.sel=+t.dataset.route;S.pt=null;redraw();render();return}
+  switch(t.id){
+   case 'go':
+    if(!S.from.text.trim()||!S.to.text.trim()){S.formErr=T('حط من وين ولوين.','Enter both places.');render();return}
+    if(depDate()<new Date()){S.formErr=T('هالساعة مرقت. اختار وقت جاي.','That time has passed. Pick a later time.');render();return}
+    S.formErr='';S.busy=true;S.pick=null;render();
+    computeRoutes().then(function(res){S.busy=false;S.routes=res.routes;S.dep=res.dep;S.sel=0;S.confirmed=false;S.pt=null;S.price=null;redraw();fit(S.routes.map(function(r){return r.path}));render()})
+     .catch(function(err){S.busy=false;var m=String(err&&err.message||err);
+       if(m==='NO_ROUTE'||/NOT_FOUND|ZERO_RESULTS|geocod/i.test(m)){S.formErr=T('جوجل ما لقت طريق أو ما عرفت وحدة من المنطقتين. اختار من الاقتراحات أو حط النقطة عالخريطة.','Google found no route or did not recognise one of the places. Pick from the suggestions or set the point on the map.')}
+       else showErr(T('ما قدرنا نجيب الطرقات','Could not get the routes'),m,explain(m));
+       render()});
+    return;
+   case 'edit':S.routes=null;S.confirmed=false;S.pt=null;redraw();render();return;
+   case 'confirm':S.confirmed=true;redraw();render();return;
+   case 'unconfirm':S.confirmed=false;S.pt=null;redraw();render();return;
+   case 'publish':var r=S.routes[S.sel];
+    S.ride={fromText:S.from.text,toText:S.to.text,day:S.day,dep:S.dep,path:r.path,cum:r.cum,dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc,seats:S.seats,price:S.price||suggestPrice(r.dist)};
+    S.req=null;S.match=null;S.pt=null;redraw();render();return;
+   case 'cancelride':S.ride=null;S.req=null;S.match=null;S.routes=null;S.confirmed=false;S.pt=null;redraw();render();return;
+   case 'accept':S.req.status='accepted';S.req.fee=Math.round(S.req.price*FEE*100)/100;S.owed=Math.round((S.owed+S.req.fee)*100)/100;S.ride.seats=Math.max(0,S.ride.seats-1);redraw();render();return;
+   case 'reject':S.req.status='rejected';redraw();render();return;
+   case 'rgo':S.match=findMatch();if(S.req&&S.req.status==='rejected')S.req=null;redraw();render();if(S.match.ok)fit([sub(S.ride,S.match.pu.cum,S.match.dr.cum)]);return;
+   case 'rreq':var m=S.match;S.req={status:'pending',puText:S.rfrom.text,drText:S.rto.text,puAt:m.puAt,drAt:m.drAt,price:m.price,fee:0,puPos:m.pu.pos,drPos:m.dr.pos};render();return;
+   case 'rcancel':if(S.req&&S.req.status==='accepted'){S.owed=Math.max(0,Math.round((S.owed-S.req.fee)*100)/100);S.ride.seats+=1}S.req=null;redraw();render();return;
+  }
+});
+
+gateText();
+if(S.key){$('#key').value=S.key;start(S.key)}
+})();
+</script>
+</body>
+</html>
