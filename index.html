@@ -149,7 +149,7 @@ var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
 var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
-var COST_KM=0.20; // rough running cost of a car per km in dollars (fuel and wear); a rider's share may not pass half of it
+var COST_KM=0.40; // full cost of running a private car per km in dollars (fuel, maintenance, tyres, insurance, wear); a rider's share may not pass half of it
 var TERMS_V=2;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
@@ -258,8 +258,8 @@ function nearestOnPath(R,p){var best={d:1e12,cum:0,pos:R.path[0]},kx=Math.cos(p.
 function at(R,c){var i=1;while(i<R.cum.length-1&&R.cum[i]<c)i++;var seg=(R.cum[i]-R.cum[i-1])||1,t=(c-R.cum[i-1])/seg,a=R.path[i-1],b=R.path[i];return {lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t}}
 function sub(R,c0,c1){var out=[at(R,c0)];for(var i=0;i<R.path.length;i++)if(R.cum[i]>c0&&R.cum[i]<c1)out.push(R.path[i]);out.push(at(R,c1));return out}
 function etaOn(R,dep,c){return new Date(+dep+c/total(R)*R.dur*1000)}
-function suggestPrice(m){return Math.max(1,Math.round(m/1000*0.05*2)/2)}
 function capPrice(m){return Math.max(1,Math.floor(m/1000*COST_KM/2*2)/2)}
+function suggestPrice(m){return Math.max(1,Math.round(capPrice(m)*.85*2)/2)}
 // a ride as stored keeps its road as Google's encoded line; decode it once per ride
 var HY={};
 function hyd(r){var h=HY[r.id];if(!h||h.poly!==r.poly){var p=decode(r.poly||'');h=HY[r.id]={poly:r.poly,path:p,cum:withCum(p)}}r.path=h.path;r.cum=h.cum;return r}
@@ -556,8 +556,8 @@ var TERMS=[
   'What Khedni is','Khedni is a platform that introduces a driver already making a trip to a rider going the same way. Khedni is not a transport or taxi company: it owns no cars, employs no drivers, and sets neither the route nor the time.'],
  ['المشوار اتفاق بينكم','كل مشوار هو اتفاق مباشر بين السائق والراكب، وبيصير على مسؤوليتهم. الطرفين أحرار يقبلوا أو يرفضوا أي طلب.',
   'The ride is between you','Every ride is a direct agreement between the driver and the rider, made at their own responsibility. Either may accept or decline any request.'],
- ['تقاسم كلفة، مش أجرة','المبلغ اللي بيدفعه الراكب هو مشاركة بكلفة المشوار (بنزين واستهلاك سيارة)، مش أجرة نقل. خدني بتحط سقف للمبلغ على قد الكلفة. ممنوع استعمال خدني للشغل كتاكسي أو للربح من نقل الركّاب.',
-  'Cost sharing, not a fare','What the rider pays is a share of the trip’s cost (fuel and wear), not a transport fare. Khedni caps the amount at the level of that cost. Using Khedni to work as a taxi or to profit from carrying passengers is not allowed.'],
+ ['تقاسم كلفة، مش أجرة','المبلغ اللي بيدفعه الراكب هو مشاركة بكلفة المشوار (بنزين، صيانة، واستهلاك سيارة)، مش أجرة نقل. خدني بتحط سقف للمبلغ على قد الكلفة. ممنوع استعمال خدني للشغل كتاكسي أو للربح من نقل الركّاب.',
+  'Cost sharing, not a fare','What the rider pays is a share of the trip’s cost (fuel, maintenance and wear), not a transport fare. Khedni caps the amount at the level of that cost. Using Khedni to work as a taxi or to profit from carrying passengers is not allowed.'],
  ['تعهّد السائق','السائق بيأكّد إنو معه دفتر سواقة صالح، وإنو السيارة مسجّلة وميكانيكها ماشي وعليها تأمين ساري بيغطّي الركّاب، وإنو بيلتزم بقانون السير وما بيسوق تعبان أو تحت تأثير كحول أو مخدّرات.',
   'The driver’s undertaking','The driver confirms that they hold a valid driving licence, that the car is registered, roadworthy and covered by valid insurance that includes passengers, and that they follow traffic law and never drive tired or under the influence of alcohol or drugs.'],
  ['التأمين','تأمين السيارة والركّاب على مسؤولية السائق وحده. خدني ما بتقدّم أي تأمين. الراكب بيطلع وهو عارف هالشي.',
@@ -713,7 +713,7 @@ function newRideHTML(){
   return head+routeCard(r,S.sel,S.dep,false)+ptHTML()+
    '<div class="grid2"><div class="field"><span class="lbl">'+T('مقاعد فاضية','Free seats')+'</span><div class="stepper"><button type="button" data-seat="-1" aria-label="'+T('نقّص مقعد','Remove a seat')+'">−</button><b>'+S.seats+'</b><button type="button" data-seat="1" aria-label="'+T('زيد مقعد','Add a seat')+'">+</button></div></div>'+
    '<div class="field"><label for="in-price">'+T('مشاركة الراكب بكلفة كل الطريق ($)','Rider’s share of the cost, full route ($)')+'</label><input type="number" id="in-price" inputmode="decimal" min="0.5" max="'+capPrice(r.dist)+'" step="0.5" value="'+S.price+'"></div></div>'+
-   '<p class="sub">'+T('هيدي مشاركة بكلفة المشوار (بنزين واستهلاك سيارة)، مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+' لهالمسافة. الراكب بيشارك على قد المسافة اللي بيطلعها معك، وخدني بتاخد 10% من مشاركته.','This is a share of the trip’s cost (fuel and wear), not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+' for this distance. A rider shares in proportion to the distance they ride with you, and Khedni takes 10% of that share.')+'</p>'+
+   '<p class="sub">'+T('هيدي مشاركة بكلفة المشوار (بنزين، صيانة، واستهلاك سيارة)، مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+' لهالمسافة. الراكب بيشارك على قد المسافة اللي بيطلعها معك، وخدني بتاخد 10% من مشاركته.','This is a share of the trip’s cost (fuel, maintenance and wear), not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+' for this distance. A rider shares in proportion to the distance they ride with you, and Khedni takes 10% of that share.')+'</p>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
    '<button class="btn sun" type="button" id="publish"'+(S.busy?' disabled':'')+'>'+T('انشر المشوار','Publish the ride')+'</button>'+
    '<button class="btn ghost" type="button" id="unconfirm">'+T('اختار طريق تاني','Choose another route')+'</button>';
