@@ -49,6 +49,11 @@ h3{font-family:var(--display);font-size:15px;margin-top:6px}
 #gate .note{font-size:13px;color:rgba(255,255,255,.85)}
 #gate .gerr{background:#fff;color:var(--danger);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:500}
 #gate .btn.ghost{border-color:rgba(255,255,255,.5);color:#fff}
+#gate input[type=checkbox]{width:24px;height:24px;min-height:24px;flex:none;padding:0;accent-color:var(--sun)}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5}
+.lnk{background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:600;text-decoration:underline}
+.terms{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:10px;font-size:14px;line-height:1.6}
+.terms b{display:block}
 #gate .seg{background:rgba(255,255,255,.16)}
 #gate .seg button{color:#fff}
 #gate .seg button[aria-pressed="true"]{background:#fff;color:var(--brand-deep)}
@@ -138,6 +143,7 @@ var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
 var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
+var TERMS_V=1;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
 var $=function(s){return document.querySelector(s)};
@@ -154,7 +160,7 @@ var LOG=[];
 function blank(){return {text:'',lat:null,lng:null}}
 var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   gate:'boot',bootMsg:'',bootFail:false,keyErr:'',
-  af:{mode:'in',name:'',phone:'',pw:'',drv:false,car:'',plate:'',show:false,err:'',busy:false},
+  af:{mode:'in',name:'',phone:'',pw:'',drv:false,car:'',plate:'',show:false,terms:false,err:'',busy:false},agreed:null,termsFrom:'auth',
   user:null,me:null,admin:false,cfg:null,
   role:sget('kh-role')||'',view:'main',
   dv:'home',rideId:null,from:blank(),to:blank(),day:1,time:'07:30',busy:false,formErr:'',routes:null,sel:0,dep:null,confirmed:false,pt:null,seats:3,price:null,
@@ -266,7 +272,7 @@ function boot(){
 }
 function onAuth(u){
   unsubs.forEach(function(fn){try{fn()}catch(e){}});unsubs=[];got={rides:false,reqs:false};
-  unwatchLive();unwatchRL();S.offer=null;S.ph={};PHW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.ad=null;
+  unwatchLive();unwatchRL();S.agreed=null;S.offer=null;S.ph={};PHW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.ad=null;
   S.view='main';S.dv='home';S.rv='home';S.routes=null;S.confirmed=false;S.found=null;S.pick=null;S.pt=null;
   if(!u){S.gate='auth';showGate();return}
   S.gate='boot';S.bootMsg=T('عم نفتح حسابك…','Opening your account…');showGate();
@@ -278,7 +284,7 @@ function onAuth(u){
 }
 function enter(){
   var uid=S.user.uid,f=F.f;
-  photo(uid);
+  photo(uid);checkConsent();
   if(S.role!=='driver'&&S.role!=='rider')S.role=S.me.dstatus&&S.me.dstatus!=='none'?'driver':'rider';
   f.getDoc(ref('adminping','x')).then(function(){S.admin=true;paint()}).catch(function(){S.admin=false});
   listen(f.query(col('rides'),f.where('driverId','==',uid)),function(s){S.myRides=rows(s).map(hyd);got.rides=true;upkeep();paint()},T('المشاوير','rides'));
@@ -306,6 +312,7 @@ function ledger(){var fees=0,paid=0;S.inReqs.forEach(function(q){if(q.status==='
 /* ---------- Google: load, map, places, routes ---------- */
 var map=null,ov=[],places=null,token=null,mapState='none';
 function ensureMap(){
+  if(S.agreed!==true){if(S.agreed===false&&S.gate!=='agree'){S.gate='agree';showGate()}return}
   if(mapState==='ready'){if(S.gate){hideGate();initMap();paint()}return}
   if(mapState==='loading')return;
   var key=(S.cfg&&S.cfg.mapsKey)||S.localKey;
@@ -502,6 +509,42 @@ function liveInfo(q){var L=S.live;if(!L||!L.on||L.lat==null)return null;var age=
 setInterval(function(){if(!S.gate&&(liveId||Object.keys(RL).length))paint()},15000);
 
 /* ---------- screens before the app: sign in, profile, maps key ---------- */
+/* ---------- terms of use: a first draft for the trial, to be replaced by the lawyer's text ---------- */
+var TERMS=[
+ ['شو هي خدني','خدني منصّة بتعرّف سائق نازل عطريقه على راكب رايح بنفس الاتجاه. خدني مش شركة نقل ولا تاكسي: ما بتملك سيارات، ما بتوظّف سائقين، وما بتحدّد الطريق ولا الوقت.',
+  'What Khedni is','Khedni is a platform that introduces a driver already making a trip to a rider going the same way. Khedni is not a transport or taxi company: it owns no cars, employs no drivers, and sets neither the route nor the time.'],
+ ['المشوار اتفاق بينكم','كل مشوار هو اتفاق مباشر بين السائق والراكب، وبيصير على مسؤوليتهم. الطرفين أحرار يقبلوا أو يرفضوا أي طلب.',
+  'The ride is between you','Every ride is a direct agreement between the driver and the rider, made at their own responsibility. Either may accept or decline any request.'],
+ ['تقاسم كلفة، مش أجرة','المبلغ اللي بيدفعه الراكب هو مشاركة بكلفة المشوار (بنزين واستهلاك سيارة)، مش أجرة نقل. ممنوع استعمال خدني للشغل كتاكسي أو للربح من نقل الركّاب.',
+  'Cost sharing, not a fare','What the rider pays is a share of the trip’s cost (fuel and wear), not a transport fare. Using Khedni to work as a taxi or to profit from carrying passengers is not allowed.'],
+ ['تعهّد السائق','السائق بيأكّد إنو معه دفتر سواقة صالح، وإنو السيارة مسجّلة وميكانيكها ماشي وعليها تأمين ساري بيغطّي الركّاب، وإنو بيلتزم بقانون السير وما بيسوق تعبان أو تحت تأثير كحول أو مخدّرات.',
+  'The driver’s undertaking','The driver confirms that they hold a valid driving licence, that the car is registered, roadworthy and covered by valid insurance that includes passengers, and that they follow traffic law and never drive tired or under the influence of alcohol or drugs.'],
+ ['التأمين','تأمين السيارة والركّاب على مسؤولية السائق وحده. خدني ما بتقدّم أي تأمين. الراكب بيطلع وهو عارف هالشي.',
+  'Insurance','Insuring the car and its passengers is the driver’s responsibility alone. Khedni provides no insurance. The rider travels knowing this.'],
+ ['الحوادث والأضرار','ضمن اللي بيسمح فيه القانون، خدني مش مسؤولة عن أي حادث، إصابة، ضرر، سرقة، تأخير، إلغاء، أو تصرّف من أي مستخدم قبل المشوار أو خلاله أو بعده. المسؤولية على السائق والراكب.',
+  'Accidents and damage','To the extent the law allows, Khedni is not responsible for any accident, injury, damage, theft, delay, cancellation or conduct of any user before, during or after a ride. Responsibility lies with the driver and the rider.'],
+ ['السلوك','الاحترام واجب. ممنوع التحرّش، العنف، التهديد، التمييز، أو طلب مصاري زيادة عن المتّفق عليه. الإدارة بتقدر توقّف أي حساب بيخالف، وبتبلّغ السلطات إذا لزم.',
+  'Conduct','Respect is required. Harassment, violence, threats, discrimination or asking for more money than agreed are forbidden. The admin may suspend any account that breaks this and may report to the authorities.'],
+ ['العمر والمعلومات الصحيحة','لازم يكون عمرك 18 سنة أو أكتر، والاسم والرقم والصورة وأوراق السيارة اللي بتحطّهم يكونوا إلك وصحيحين.',
+  'Age and true information','You must be 18 or older, and the name, number, photo and car details you give must be your own and true.'],
+ ['رسم خدني','خدني بتاخد 10% من حصة السائق عن كل راكب مأكّد. الراكب ما بيدفع رسم لخدني. بهالنسخة التجريبية الدفع كاش بين الراكب والسائق.',
+  'Khedni’s fee','Khedni takes 10% of the driver’s share for each confirmed rider. The rider pays Khedni nothing. In this trial version payment is in cash between rider and driver.'],
+ ['معلوماتك','منحفظ اسمك، رقمك، صورتك، سيارتك ومشاويرك. رقمك بتشوفه الإدارة بس. صورتك واسمك بيشوفهم اللي طالع معك. موقعك بينبعت بس لما إنت تكبس "شارك موقعي"، وبس للطرف التاني بالمشوار. ممكن نسلّم معلومات للسلطات إذا القانون طلب.',
+  'Your information','We store your name, number, photo, car and rides. Only the admin sees your number. The person you ride with sees your photo and name. Your location is sent only when you tap “share my location”, and only to the other party of that ride. We may hand information to the authorities when the law requires.'],
+ ['الأوقات تقريبية','أوقات الوصول والعجقة جايين من خرائط جوجل وهنّي تقديرات، مش ضمانة.',
+  'Times are estimates','Arrival and traffic times come from Google Maps and are estimates, not guarantees.'],
+ ['نسخة تجريبية','هيدي نسخة تجريبية. الشروط ممكن تتغيّر، وساعتها منطلب موافقتك من جديد. القانون اللبناني هو المطبّق.',
+  'Trial version','This is a trial version. The terms may change, and we will then ask for your agreement again. Lebanese law applies.']
+];
+function termsHTML(){return '<ol class="terms">'+TERMS.map(function(t){return '<li><b>'+T(t[0],t[2])+'</b>'+T(t[1],t[3])+'</li>'}).join('')+'</ol><p class="sub" style="color:inherit;opacity:.8">'+T('مسودة تجريبية · النسخة ','Trial draft · version ')+TERMS_V+'</p>'}
+var AG={};
+function agreeLocal(uid){AG[uid]=1;sset('kh-terms-'+uid,String(TERMS_V))}
+function agreeRemote(uid){F.f.setDoc(ref('consents',uid),{v:TERMS_V,at:Date.now()}).catch(function(){})}
+function hasAgreed(uid){return !!AG[uid]||sget('kh-terms-'+uid)===String(TERMS_V)}
+function checkConsent(){var uid=S.user.uid,local=hasAgreed(uid);S.agreed=local?true:null;
+  F.f.getDoc(ref('consents',uid)).then(function(x){var ok=x.exists()&&x.data().v===TERMS_V;if(ok)agreeLocal(uid);else if(local)agreeRemote(uid);return ok}).catch(function(){return false})
+   .then(function(ok){if(!S.user||S.user.uid!==uid||local)return;S.agreed=ok;if(S.cfg)ensureMap()})}
+function chkTerms(){return '<label class="chk"><input type="checkbox" id="af-terms"'+(S.af.terms?' checked':'')+'><span>'+T('قرأت ','I have read the ')+'<button type="button" class="lnk" id="seeterms">'+T('شروط الاستخدام','terms of use')+'</button>'+T(' ووافقت عليها، وعمري 18 سنة أو أكتر.',' and agree to them, and I am 18 or older.')+'</span></label>'}
 function gin(k,label,type,val,ph,ac,ltr){return '<div class="col" style="gap:4px"><label for="af-'+k+'">'+label+'</label><input id="af-'+k+'" data-af="'+k+'" type="'+type+'" value="'+esc(val)+'" placeholder="'+esc(ph)+'" autocomplete="'+ac+'"'+(ltr?' class="ltr"':'')+(type==='tel'?' inputmode="tel"':'')+'></div>'}
 function drvPart(){var a=S.af;
   return '<div class="col" style="gap:4px"><span class="glbl">'+T('كيف بدّك تستعمل خدني؟','How will you use Khedni?')+'</span><div class="seg" role="group"><button type="button" data-drv="0" aria-pressed="'+(!a.drv)+'">'+T('أنا راكب','I’m a rider')+'</button><button type="button" data-drv="1" aria-pressed="'+a.drv+'">'+T('أنا سائق','I’m a driver')+'</button></div></div>'+
@@ -510,6 +553,9 @@ function drvPart(){var a=S.af;
 function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني','Khedni')+'</h1><p>'+sub+'</p></div>'},
   foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
   err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
+  if(S.gate==='terms')return '<div class="gwrap">'+head(T('شروط الاستخدام','Terms of use'))+termsHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
+  if(S.gate==='agree')return '<div class="gwrap">'+head(T('قبل ما تكمّل، اقرا الشروط ووافق عليها.','Before you continue, read the terms and agree to them.'))+termsHTML()+
+    '<button class="btn sun" type="button" id="agree">'+T('قرأت ووافقت، وعمري 18 أو أكتر','I have read and agree, and I am 18 or older')+'</button>'+foot+'</div>';
   if(S.gate==='boot')return '<div class="gwrap">'+head(T('مشوارك اليومي، مع حدا نازل عطريقك.','Your daily trip, with someone already going your way.'))+
     '<div class="gload" role="status">'+(S.bootFail?'':'<span class="spin" aria-hidden="true"></span>')+'<span>'+esc(S.bootMsg)+'</span></div>'+(S.bootFail||S.user?foot:'')+'</div>';
   if(S.gate==='key')return '<div class="gwrap">'+head(T('الخريطة بدها مفتاح جوجل.','The map needs a Google key.'))+
@@ -517,7 +563,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني
     (S.keyErr?'<div class="gerr" role="alert">'+esc(S.keyErr)+'</div>':'')+'<button class="btn sun" type="submit">'+T('افتح الخريطة','Open the map')+'</button></form>'+
     '<p class="note">'+T('إذا إنت مش صاحب التطبيق: الإدارة بعد ما فعّلت الخريطة. جرّب بعد شوي.','If you are not the app owner: the admin has not switched the map on yet. Try again later.')+'</p>'+foot+'</div>';
   if(S.gate==='profile')return '<div class="gwrap">'+head(T('بقي خطوة: كمّل حسابك.','One step left: finish your account.'))+
-    '<form id="profform" class="col" novalidate>'+gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name')+drvPart()+err+
+    '<form id="profform" class="col" novalidate>'+gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name')+drvPart()+chkTerms()+err+
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+T('كمّل','Continue')+'</button></form>'+foot+'</div>';
   var up=a.mode==='up';
   return '<div class="gwrap">'+head(T('مشوارك اليومي، مع حدا نازل عطريقك.','Your daily trip, with someone already going your way.'))+
@@ -526,7 +572,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني
     (up?gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name'):'')+
     gin('phone',T('رقم التلفون','Phone number'),'tel',a.phone,'70 123 456','tel',true)+
     '<div class="col" style="gap:4px"><label for="af-pw">'+(up?T('كلمة سر (6 أحرف أو أكتر)','Password (6 characters or more)'):T('كلمة السر','Password'))+'</label><div class="pwrow"><input id="af-pw" data-af="pw" class="ltr" type="'+(a.show?'text':'password')+'" value="'+esc(a.pw)+'" autocomplete="'+(up?'new-password':'current-password')+'"><button type="button" id="af-show" aria-pressed="'+a.show+'">'+(a.show?T('خبّي','Hide'):T('بيّن','Show'))+'</button></div></div>'+
-    (up?drvPart():'')+err+
+    (up?drvPart()+chkTerms():'')+err+
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+(a.busy?T('لحظة…','One moment…'):up?T('اعمل الحساب','Create the account'):T('ادخل','Sign in'))+'</button></form>'+
     '<p class="note">'+(up?T('رقمك ما بيبيّن لا للسائق ولا للراكب. بتشوفه الإدارة بس.','Your number is not shown to drivers or riders. Only the admin sees it.'):T('نسيت كلمة السر؟ احكي مع الإدارة.','Forgot your password? Contact the admin.'))+'</p>'+foot+'</div>';
 }
@@ -542,6 +588,7 @@ function checkProfile(){var a=S.af;
   if(a.name.trim().length<2)return T('اكتب اسمك.','Enter your name.');
   if(a.drv&&a.car.trim().length<2)return T('اكتب نوع السيارة.','Enter the car model.');
   if(a.drv&&a.plate.trim().length<2)return T('اكتب رقم اللوحة.','Enter the plate number.');
+  if(!a.terms)return T('لازم توافق على شروط الاستخدام لتكمّل. حط علامة الصح تحت.','You need to agree to the terms of use to continue. Tick the box below.');
   return ''}
 function doAuth(){var a=S.af,up=a.mode==='up',ph=normPhone(a.phone);
   a.err=!ph?T('رقم التلفون مش مظبوط. اكتبه متل: 70 123 456 أو 03 123 456.','That phone number does not look right. Write it like 70 123 456 or 03 123 456.'):a.pw.length<6?T('كلمة السر لازم تكون 6 أحرف أو أكتر.','The password must be 6 characters or more.'):up?checkProfile():'';
@@ -549,7 +596,7 @@ function doAuth(){var a=S.af,up=a.mode==='up',ph=normPhone(a.phone);
   a.busy=true;showGate();
   var p;
   if(up){creating=true;if(a.drv)S.role='driver';
-    p=F.a.createUserWithEmailAndPassword(auth,ph+MAIL,a.pw).then(function(c){return F.f.setDoc(ref('users',c.user.uid),profileData(ph))}).then(function(){creating=false})}
+    p=F.a.createUserWithEmailAndPassword(auth,ph+MAIL,a.pw).then(function(c){agreeLocal(c.user.uid);return F.f.setDoc(ref('users',c.user.uid),profileData(ph)).then(function(){agreeRemote(c.user.uid)})}).then(function(){creating=false})}
   else p=F.a.signInWithEmailAndPassword(auth,ph+MAIL,a.pw);
   p.then(function(){a.busy=false;a.pw='';a.err=''})
    .catch(function(e){var was=creating;creating=false;a.busy=false;a.err=authErr(e);
@@ -558,7 +605,8 @@ function doAuth(){var a=S.af,up=a.mode==='up',ph=normPhone(a.phone);
 }
 function doProfile(){var a=S.af;a.err=checkProfile();if(a.err){showGate();return}
   var ph=String(S.user.email||'').split('@')[0];a.busy=true;showGate();if(a.drv)S.role='driver';
-  F.f.setDoc(ref('users',S.user.uid),profileData(ph)).then(function(){a.busy=false;a.err=''})
+  var me=S.user.uid;agreeLocal(me);
+  F.f.setDoc(ref('users',me),profileData(ph)).then(function(){a.busy=false;a.err='';agreeRemote(me)})
    .catch(function(e){a.busy=false;a.err=authErr(e);if(S.gate)showGate()});
 }
 function signOut(){if(S.track)stopTrack();S.af.pw='';S.af.err='';S.af.mode='in';F.a.signOut(auth).catch(function(e){dbErr(T('الخروج','sign out'),e)})}
@@ -729,6 +777,7 @@ function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
    ledgerHTML()+
    (S.admin?'<button class="btn pri" type="button" id="toadmin">'+T('لوحة الإدارة','Admin panel')+'</button>':'')+
    (!shared&&S.localKey?'<button class="btn ghost" type="button" id="chkey">'+T('غيّر مفتاح الخرائط على هالتلفون','Change the maps key on this phone')+'</button>':'')+
+   '<button class="btn ghost" type="button" id="viewterms">'+T('شروط الاستخدام','Terms of use')+'</button>'+
    '<button class="btn ghost" type="button" id="signout">'+T('تسجيل خروج','Sign out')+'</button>'+
    '<p class="sub">'+T('رقمك ما بيبيّن لا للسائق ولا للراكب. بتشوفه الإدارة بس.','Your number is not shown to drivers or riders. Only the admin sees it.')+'</p>';
 }
@@ -771,7 +820,7 @@ function render(){
   var h=$('#hint');
   if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}else h.hidden=true;
   $('#app').classList.toggle('full',S.view!=='main');
-  var html=S.view==='account'?accountHTML():S.view==='admin'?adminHTML():roleSeg()+(S.role==='driver'?driverHTML():riderHTML());
+  var html=S.view==='account'?accountHTML():S.view==='terms'?'<h2>'+T('شروط الاستخدام','Terms of use')+'</h2>'+termsHTML():S.view==='admin'?adminHTML():roleSeg()+(S.role==='driver'?driverHTML():riderHTML());
   if(html===lastHTML)return;
   var el=document.activeElement,active=el&&el.id&&$('#sheet').contains(el)?el.id:null,pos=null;
   if(active){try{pos=el.selectionStart}catch(e){}}
@@ -804,7 +853,7 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(w){S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
   if(e.target.id==='in-time')S.time=e.target.value||'07:30';
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value);if(v>0)S.price=r2(v)}});
-document.addEventListener('change',function(e){if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-day')S.day=+e.target.value;if(e.target.id==='in-rday')S.rday=+e.target.value});
+document.addEventListener('change',function(e){if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-day')S.day=+e.target.value;if(e.target.id==='in-rday')S.rday=+e.target.value});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
   if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
@@ -813,10 +862,13 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.amode){S.af.mode=d.amode;S.af.err='';showGate();return}
   if(d.drv){S.af.drv=d.drv==='1';showGate();return}
   if(t.id==='af-show'){S.af.show=!S.af.show;showGate();return}
+  if(t.id==='seeterms'){S.termsFrom=S.gate;S.gate='terms';showGate();$('#gate').scrollTop=0;return}
+  if(t.id==='termsback'){S.gate=S.termsFrom||'auth';showGate();return}
+  if(t.id==='agree'){if(!S.user)return;agreeLocal(S.user.uid);agreeRemote(S.user.uid);S.agreed=true;if(S.cfg)ensureMap();else{S.gate='boot';showGate()}return}
   if(t.id==='g-out'||t.id==='signout'){signOut();return}
   if(S.gate||!S.me)return;
   /* shared */
-  if(t.id==='b-acct'){S.view=S.view==='main'?'account':S.view==='admin'?'account':'main';S.pick=null;paint();return}
+  if(t.id==='b-acct'){S.view=S.view==='main'?'account':S.view==='account'?'main':'account';S.pick=null;paint();return}
   if(d.sug){chooseSug(d.sug,+d.i);return}
   if(d.pick){S.pick=S.pick===d.pick?null:d.pick;S.offer=null;render();return}
   if(d.role){S.role=d.role;sset('kh-role',S.role);S.pick=null;S.pt=null;paint();return}
@@ -885,6 +937,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
       price:m.price,fee:r2(m.price*FEE),status:'pending',by:'rider',createdAt:Date.now(),updatedAt:Date.now()})
      .then(function(doc){S.rbusy=false;S.found=null;S.fresh=doc.id;openReq(doc.id,R.id)}).catch(fail(T('طلب المقعد','the seat request')));
     return;
+   case 'viewterms':S.view='terms';render();$('#sheet').scrollTop=0;return;
    case 'toadmin':S.view='admin';render();loadAdmin();return;
    case 'adrefresh':loadAdmin();return;
    case 'sharekey':f.setDoc(ref('config','app'),{mapsKey:S.key}).catch(fail(T('المفتاح','key')));return;

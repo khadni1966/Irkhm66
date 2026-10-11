@@ -91,6 +91,15 @@ service cloud.firestore {
       );
     }
 
+    // A record that the account agreed to the terms of use, and to which version.
+    match /consents/{id} {
+      allow get: if signedIn() && (id == uid() || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if signedIn() && id == uid()
+        && request.resource.data.keys().hasOnly(['v', 'at'])
+        && request.resource.data.v is number;
+    }
+
     // One small face photo per account, shown to the people you ride with and to the admin.
     match /photos/{id} {
       allow get: if signedIn();
