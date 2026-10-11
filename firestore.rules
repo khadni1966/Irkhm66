@@ -1,140 +1,84 @@
 rules_version = '2';
-// Khedni trial. Paste this in Firebase console > Firestore Database > Rules, then Publish.
-// Replace ADMIN_PHONE with the admin's number in the form 961XXXXXXXX (no plus sign, no leading zero).
+// Khedni trial. Paste in Firebase console > Firestore Database > Rules, then Publish.
+// Replace ADMIN_PHONE with the admin's number as 961XXXXXXXX. Kept short on purpose:
+// pasting more than about 5,000 characters into the console on a phone gets cut off.
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
+    function si() { return request.auth != null; }
     function uid() { return request.auth.uid; }
-    function isAdmin() { return signedIn() && request.auth.token.email in ['ADMIN_PHONE@phone.khedni.app']; }
-    function me() { return get(/databases/$(database)/documents/users/$(uid())).data; }
-    function activeDriver() { return signedIn() && me().dstatus == 'active'; }
-    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function adm() { return si() && request.auth.token.email in ['ADMIN_PHONE@phone.khedni.app']; }
+    function nd() { return request.resource.data; }
+    function od() { return resource.data; }
+    function ch() { return nd().diff(od()).affectedKeys(); }
+    function ride(r) { return get(/databases/$(database)/documents/rides/$(r)).data; }
+    function req(r) { return get(/databases/$(database)/documents/requests/$(r)).data; }
+    function drv() { return si() && get(/databases/$(database)/documents/users/$(uid())).data.dstatus == 'active'; }
+    function pay() { return nd().price is number && nd().price > 0 && nd().fee is number && nd().fee >= nd().price * 0.09; }
 
-    // The app reads this to learn whether the signed-in account is the admin.
-    match /adminping/{id} {
-      allow get: if isAdmin();
-    }
-
-    // Shared settings (the Google Maps key).
-    match /config/{id} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // One profile per account. Phone numbers are visible to the owner and the admin only.
+    match /adminping/{id} { allow get: if adm(); }
+    match /config/{id} { allow read: if si(); allow write: if adm(); }
     match /users/{id} {
-      allow get: if signedIn() && (id == uid() || isAdmin());
-      allow list: if isAdmin();
-      allow create: if signedIn() && id == uid()
-        && request.resource.data.keys().hasOnly(['name', 'phone', 'car', 'plate', 'dstatus', 'createdAt'])
-        && request.resource.data.name is string
-        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 60
-        && request.auth.token.email == request.resource.data.phone + '@phone.khedni.app'
-        && request.resource.data.dstatus in ['none', 'pending'];
-      // A user may rename themselves, or apply to drive. Only the admin approves, pauses or edits a driver.
-      allow update: if isAdmin() || (signedIn() && id == uid() && (
-        changed().hasOnly(['name'])
-        || (resource.data.dstatus in ['none', 'pending']
-            && request.resource.data.dstatus == 'pending'
-            && changed().hasOnly(['name', 'car', 'plate', 'dstatus']))
-      ));
+      allow get: if si() && (id == uid() || adm());
+      allow list: if adm();
+      allow create: if si() && id == uid()
+        && nd().keys().hasOnly(['name', 'phone', 'car', 'plate', 'dstatus', 'createdAt'])
+        && nd().name is string && nd().name.size() >= 2 && nd().name.size() <= 60
+        && request.auth.token.email == nd().phone + '@phone.khedni.app'
+        && nd().dstatus in ['none', 'pending'];
+      allow update: if adm() || (si() && id == uid() && (ch().hasOnly(['name'])
+        || (od().dstatus in ['none', 'pending'] && nd().dstatus == 'pending'
+          && ch().hasOnly(['name', 'car', 'plate', 'dstatus']))));
     }
-
-    // Rides are posted by approved drivers and can be read by any signed-in user.
     match /rides/{id} {
-      allow read: if signedIn();
-      allow create: if activeDriver()
-        && request.resource.data.driverId == uid()
-        && request.resource.data.status == 'open'
-        && request.resource.data.seats is number
-        && request.resource.data.seats >= 1 && request.resource.data.seats <= 6
-        && request.resource.data.seatsLeft == request.resource.data.seats
-        && request.resource.data.price is number && request.resource.data.price > 0;
-      allow update: if isAdmin() || (signedIn() && resource.data.driverId == uid()
-        && changed().hasOnly(['seatsLeft', 'status'])
-        && request.resource.data.seatsLeft is number
-        && request.resource.data.seatsLeft >= 0
-        && request.resource.data.seatsLeft <= resource.data.seats);
+      allow read: if si();
+      allow create: if drv() && nd().driverId == uid() && nd().status == 'open'
+        && nd().seats is number && nd().seats >= 1 && nd().seats <= 6
+        && nd().seatsLeft == nd().seats && nd().price is number && nd().price > 0;
+      allow update: if adm() || (si() && od().driverId == uid()
+        && ch().hasOnly(['seatsLeft', 'status']) && nd().seatsLeft is number
+        && nd().seatsLeft >= 0 && nd().seatsLeft <= od().seats);
     }
-
-    // A seat request is seen by its rider, its driver and the admin.
     match /requests/{id} {
-      allow read: if signedIn() && (resource.data.riderId == uid() || resource.data.driverId == uid() || isAdmin());
-      allow create: if signedIn()
-        && request.resource.data.riderId == uid()
-        && request.resource.data.driverId != uid()
-        && request.resource.data.status == 'pending'
-        && request.resource.data.price is number && request.resource.data.price > 0
-        && request.resource.data.fee is number
-        && request.resource.data.fee >= request.resource.data.price * 0.09
-        && get(/databases/$(database)/documents/rides/$(request.resource.data.rideId)).data.driverId == request.resource.data.driverId
-        && get(/databases/$(database)/documents/rides/$(request.resource.data.rideId)).data.status == 'open';
-      // The driver may answer with a different pick-up point on their route; the rider then confirms or declines it.
-      allow update: if signedIn() && (
-        (resource.data.driverId == uid() && resource.data.status == 'pending'
-          && request.resource.data.status == 'offered' && activeDriver()
-          && changed().hasOnly(['status', 'by', 'updatedAt', 'pu', 'puAt', 'puText', 'price', 'fee', 'km'])
-          && request.resource.data.price is number && request.resource.data.price > 0
-          && request.resource.data.fee is number
-          && request.resource.data.fee >= request.resource.data.price * 0.09)
-        || (changed().hasOnly(['status', 'by', 'updatedAt']) && (
-          (resource.data.driverId == uid() && (
-            (resource.data.status == 'pending' && request.resource.data.status == 'rejected')
-            || (resource.data.status == 'pending' && request.resource.data.status == 'accepted' && activeDriver())
-            || (resource.data.status in ['offered', 'accepted'] && request.resource.data.status == 'cancelled')
-          ))
-          || (resource.data.riderId == uid() && (
-            (resource.data.status in ['pending', 'offered', 'accepted'] && request.resource.data.status == 'cancelled')
-            || (resource.data.status == 'offered' && request.resource.data.status == 'accepted')
-          ))
-        ))
-      );
+      allow read: if si() && (od().riderId == uid() || od().driverId == uid() || adm());
+      allow create: if si() && nd().riderId == uid() && nd().driverId != uid()
+        && nd().status == 'pending' && pay()
+        && ride(nd().rideId).driverId == nd().driverId
+        && ride(nd().rideId).status == 'open';
+      allow update: if si() && (
+        (od().driverId == uid() && od().status == 'pending' && nd().status == 'offered' && drv() && pay()
+          && ch().hasOnly(['status', 'by', 'updatedAt', 'pu', 'puAt', 'puText', 'price', 'fee', 'km']))
+        || (ch().hasOnly(['status', 'by', 'updatedAt']) && (
+          (od().driverId == uid() && (
+            (od().status == 'pending' && nd().status == 'rejected')
+            || (od().status == 'pending' && nd().status == 'accepted' && drv())
+            || (od().status in ['offered', 'accepted'] && nd().status == 'cancelled')))
+          || (od().riderId == uid() && (
+            (od().status in ['pending', 'offered', 'accepted'] && nd().status == 'cancelled')
+            || (od().status == 'offered' && nd().status == 'accepted'))))));
     }
-
-    // A record that the account agreed to the terms of use, and to which version.
     match /consents/{id} {
-      allow get: if signedIn() && (id == uid() || isAdmin());
-      allow list: if isAdmin();
-      allow create, update: if signedIn() && id == uid()
-        && request.resource.data.keys().hasOnly(['v', 'at'])
-        && request.resource.data.v is number;
+      allow get: if si() && (id == uid() || adm());
+      allow list: if adm();
+      allow create, update: if si() && id == uid() && nd().keys().hasOnly(['v', 'at']) && nd().v is number;
     }
-
-    // One small face photo per account, shown to the people you ride with and to the admin.
     match /photos/{id} {
-      allow get: if signedIn();
-      allow create, update: if signedIn() && id == uid()
-        && request.resource.data.keys().hasOnly(['img', 'at'])
-        && request.resource.data.img is string
-        && request.resource.data.img.size() < 200000;
+      allow get: if si();
+      allow create, update: if si() && id == uid() && nd().keys().hasOnly(['img', 'at'])
+        && nd().img is string && nd().img.size() < 200000;
     }
-
-    // The driver's live position for one ride, readable by that ride's confirmed riders only.
     match /live/{id} {
-      allow get: if signedIn() && (resource == null || resource.data.driverId == uid()
-        || uid() in resource.data.riders || isAdmin());
-      allow create: if signedIn() && request.resource.data.driverId == uid()
-        && get(/databases/$(database)/documents/rides/$(id)).data.driverId == uid();
-      allow update: if signedIn() && resource.data.driverId == uid()
-        && request.resource.data.driverId == uid();
+      allow get: if si() && (resource == null || od().driverId == uid() || uid() in od().riders || adm());
+      allow create: if si() && nd().driverId == uid() && ride(id).driverId == uid();
+      allow update: if si() && od().driverId == uid() && nd().driverId == uid();
     }
-
-    // A confirmed rider's live position for one booking, readable by that booking's driver only.
     match /rlive/{id} {
-      allow get: if signedIn() && (resource == null || resource.data.riderId == uid()
-        || resource.data.driverId == uid() || isAdmin());
-      allow create: if signedIn() && request.resource.data.riderId == uid()
-        && get(/databases/$(database)/documents/requests/$(id)).data.riderId == uid()
-        && get(/databases/$(database)/documents/requests/$(id)).data.driverId == request.resource.data.driverId;
-      allow update: if signedIn() && resource.data.riderId == uid()
-        && request.resource.data.riderId == uid()
-        && request.resource.data.driverId == resource.data.driverId;
+      allow get: if si() && (resource == null || od().riderId == uid() || od().driverId == uid() || adm());
+      allow create: if si() && nd().riderId == uid() && req(id).riderId == uid() && req(id).driverId == nd().driverId;
+      allow update: if si() && od().riderId == uid() && nd().riderId == uid() && nd().driverId == od().driverId;
     }
-
-    // Cash the admin collected from a driver against the 10% fee.
     match /payments/{id} {
-      allow read: if signedIn() && (resource.data.driverId == uid() || isAdmin());
-      allow create: if isAdmin();
+      allow read: if si() && (od().driverId == uid() || adm());
+      allow create: if adm();
     }
   }
 }
