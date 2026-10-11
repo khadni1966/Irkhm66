@@ -174,7 +174,7 @@ var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   myRides:[],inReqs:[],pays:[],
   rv:'home',rfrom:blank(),rto:blank(),rday:1,rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
   sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
-  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},chatOpen:null,ph:{},phBusy:false,phErr:''};
+  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},chatOpen:null,whDraft:null,ph:{},phBusy:false,phErr:''};
 function T(ar,en){return S.lang==='en'?en:ar}
 
 /* ---------- errors shown on screen, so a screenshot is enough to debug ---------- */
@@ -684,10 +684,13 @@ function routeCard(r,i,dep,asButton){var extra=r.dur-r.stat,arr=new Date(+dep+r.
    '<span class="meta"><span>'+kmTxt(r.dist)+'</span><span>'+T('بلا عجقة ','No traffic ')+durTxt(r.stat)+'</span><span>'+T('بتوصل ','Arrive ')+hm(arr)+'</span></span>'+
    '<span class="meta">'+(asButton&&i===fastest&&S.routes.length>1?'<span class="tag fast">'+T('الأسرع','Fastest')+'</span>':'')+(extra>=120?'<span class="tag jam">'+T('عجقة +','Traffic +')+durTxt(extra)+'</span>':'')+'</span>';
   return asButton?'<button type="button" class="rcard" data-route="'+i+'" aria-pressed="'+(i===S.sel)+'">'+inner+'</button>':'<div class="rcard on">'+inner+'</div>'}
-function ledgerHTML(){var L=ledger();if(!L.fees&&!L.paid)return '';
+function whishHTML(L){var w=S.cfg&&S.cfg.whish;if(!w||(S.me.dstatus!=='active'&&!L.fees))return '';
+  return '<div class="'+(L.owed>0?'banner':'okbox')+'">'+(L.owed>0?T('حوّل $'+L.owed+' أو أكتر عبر Whish على الرقم ','Send $'+L.owed+' or more by Whish to '):T('رسم خدني بيندفع عبر Whish على الرقم ','Khedni’s fee is paid by Whish to '))+'<b dir="ltr">'+esc(w)+'</b>'+
+   T('، واكتب رقم تلفونك بالملاحظة. فيك تدفع زيادة وتضل رصيد إلك. الإدارة بتسجّلها وبتبيّن هون.','. Put your phone number in the note. You may send more and keep it as credit. The admin records it and it shows here.')+'</div>'}
+function ledgerHTML(){var L=ledger();if(!L.fees&&!L.paid)return whishHTML(L);
   return '<div class="box"><div class="kv"><span>'+T('رسم خدني (10%) لهلق','Khedni’s fee (10%) so far')+'</span>'+money(L.fees)+'</div><div class="kv"><span>'+T('دفعت للإدارة','You paid the admin')+'</span>'+money(L.paid)+'</div>'+
    '<div class="kv"><span>'+(L.owed>=0?T('عليك لخدني','You owe Khedni'):T('إلك رصيد','Your credit'))+'</span>'+money(Math.abs(L.owed))+'</div>'+
-   (L.owed>=OWE_LIMIT?'<p class="err">'+T('وصلت لحد الـ$'+OWE_LIMIT+'. ادفع للإدارة لترجع تقبل طلبات.','You reached the $'+OWE_LIMIT+' limit. Pay the admin to accept requests again.')+'</p>':'')+'</div>'}
+   (L.owed>=OWE_LIMIT?'<p class="err">'+T('وصلت لحد الـ$'+OWE_LIMIT+'. ادفع للإدارة لترجع تقبل طلبات.','You reached the $'+OWE_LIMIT+' limit. Pay the admin to accept requests again.')+'</p>':'')+'</div>'+whishHTML(L)}
 
 /* driver */
 function carBox(){return '<div class="box"><div class="kv"><span>'+T('السيارة','Car')+'</span><b>'+esc(S.me.car||'—')+'</b></div><div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(S.me.plate||'—')+'</b></div></div>'}
@@ -859,6 +862,10 @@ function adminHTML(){var A=S.ad,head=backRow(T('لوحة الإدارة','Admin 
       (u.dstatus==='blocked'?'<div class="row between">'+dTag('blocked')+'<button class="btn sm ghost" type="button" data-ust="active" data-u="'+u.id+'">'+T('رجّع فعّله','Reactivate')+'</button></div>':
        '<div class="inrow"><input type="number" id="pay-'+u.id+'" data-pay="'+u.id+'" inputmode="decimal" min="0" step="0.5" value="'+esc(S.pay[u.id]||'')+'" placeholder="$" aria-label="'+T('مبلغ الدفعة بالدولار','Payment amount in dollars')+'"><button class="btn sm pri" type="button" data-paid="'+u.id+'">'+T('سجّل دفعة','Record payment')+'</button></div>'+
        '<button class="btn sm ghost" type="button" data-ust="blocked" data-u="'+u.id+'">'+T('وقّف هالسائق','Pause this driver')+'</button>')+'</div>'}).join(''):'<p class="sub">'+T('ما في سائقين بعد.','No drivers yet.')+'</p>')+
+   '<h3>'+T('Whish لتحصيل رسم الـ10%','Whish for collecting the 10% fee')+'</h3>'+
+   '<p class="sub">'+T('السائقين بيشوفوا هالرقم ليحوّلوا عليه الرسم. الركّاب بيدفعوا كاش للسائق.','Drivers see this number to send the fee to. Riders pay the driver in cash.')+'</p>'+
+   '<div class="inrow"><input type="text" id="whish-in" class="ltr" data-wh="1" inputmode="tel" autocomplete="off" value="'+esc(S.whDraft!=null?S.whDraft:(S.cfg&&S.cfg.whish)||'')+'" placeholder="70 123 456" aria-label="'+T('رقم Whish','Whish number')+'"><button class="btn sm pri" type="button" id="savewhish">'+T('احفظ','Save')+'</button></div>'+
+   (S.cfg&&S.cfg.whish&&S.whDraft==null?'<div class="okbox">'+T('الرقم محفوظ وبيبيّن للسائقين.','The number is saved and shown to drivers.')+'</div>':'')+
    '<h3>'+T('خرائط جوجل','Google Maps')+'</h3>'+
    (shared?'<div class="okbox">'+T('مفتاح الخرائط مشترك مع كل المستخدمين.','The maps key is shared with all users.')+'</div>':
      '<div class="banner">'+T('المفتاح محفوظ على تلفونك بس. شاركه لتفتح الخريطة عند كل اللي بيسجّلوا. قبل ما تشاركه، قيّده بصفحة جوجل على عنوان هالموقع.','The key is saved on your phone only. Share it so the map opens for everyone who signs up. Before sharing, restrict it to this website in the Google console.')+'</div>'+
@@ -910,6 +917,7 @@ document.addEventListener('submit',function(e){e.preventDefault();
 document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(d.af){S.af[d.af]=e.target.value;return}
   if(d.pay){S.pay[d.pay]=e.target.value;return}
+  if(d.wh){S.whDraft=e.target.value;return}
   if(d.msg){S.draft[d.msg]=e.target.value;return}
   if(w){S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
   if(e.target.id==='in-time')S.time=e.target.value||'07:30';
@@ -1005,8 +1013,10 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
    case 'viewterms':S.view='terms';render();$('#sheet').scrollTop=0;return;
    case 'toadmin':S.view='admin';render();loadAdmin();return;
    case 'adrefresh':loadAdmin();return;
-   case 'sharekey':f.setDoc(ref('config','app'),{mapsKey:S.key}).catch(fail(T('المفتاح','key')));return;
-   case 'unsharekey':S.localKey=S.localKey||S.key;sset('kh-key',S.localKey);f.setDoc(ref('config','app'),{mapsKey:''}).catch(fail(T('المفتاح','key')));return;
+   case 'savewhish':var wn=digits(S.whDraft!=null?S.whDraft:(S.cfg&&S.cfg.whish)||'').replace(/[^\d+ ]/g,'').trim();
+    f.setDoc(ref('config','app'),{whish:wn},{merge:true}).then(function(){S.whDraft=null;render()}).catch(fail('Whish'));return;
+   case 'sharekey':f.setDoc(ref('config','app'),{mapsKey:S.key},{merge:true}).catch(fail(T('المفتاح','key')));return;
+   case 'unsharekey':S.localKey=S.localKey||S.key;sset('kh-key',S.localKey);f.setDoc(ref('config','app'),{mapsKey:''},{merge:true}).catch(fail(T('المفتاح','key')));return;
    case 'chkey':sdel('kh-key');location.reload();return;
   }
 });
