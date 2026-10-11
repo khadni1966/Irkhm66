@@ -149,7 +149,7 @@ var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
 var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
-var CURVE=[[0,0],[18,4],[24,5],[30,6],[50,8.5],[80,10]]; // kilometres -> one rider's share of the cost in dollars; short rides are charged by the kilometre and long rides cost less per km
+var RATES=[[10,.40],[20,.35],[30,.30],[1e9,.25]]; // what a private car costs to run per km (fuel, upkeep, wear): first 10 km, next 10, next 10, then the rest
 var TERMS_V=3;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
@@ -258,8 +258,9 @@ function nearestOnPath(R,p){var best={d:1e12,cum:0,pos:R.path[0]},kx=Math.cos(p.
 function at(R,c){var i=1;while(i<R.cum.length-1&&R.cum[i]<c)i++;var seg=(R.cum[i]-R.cum[i-1])||1,t=(c-R.cum[i-1])/seg,a=R.path[i-1],b=R.path[i];return {lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t}}
 function sub(R,c0,c1){var out=[at(R,c0)];for(var i=0;i<R.path.length;i++)if(R.cum[i]>c0&&R.cum[i]<c1)out.push(R.path[i]);out.push(at(R,c1));return out}
 function etaOn(R,dep,c){return new Date(+dep+c/total(R)*R.dur*1000)}
-function curve(m){var k=m/1000,c=CURVE,last=c[c.length-1],i=1;if(k>=last[0])return last[1]+(k-last[0])*.05;while(c[i][0]<k)i++;var a=c[i-1],b=c[i];return a[1]+(b[1]-a[1])*(k-a[0])/(b[0]-a[0])}
-function capPrice(m){return Math.max(.5,Math.round(curve(m)*2)/2)}
+function tripCost(m){var k=m/1000,prev=0,c=0;for(var i=0;i<RATES.length&&k>prev;i++){c+=(Math.min(k,RATES[i][0])-prev)*RATES[i][1];prev=RATES[i][0]}return c}
+// one rider and the driver split the cost of the trip, so a rider's share is at most half of it
+function capPrice(m){return Math.max(.5,Math.round(tripCost(m)/2*2)/2)}
 // a rider who joins for part of the road shares what that distance is worth, lowered by the same proportion the driver lowered the full ride
 function segPrice(R,seg){var road=R.dist||total(R),ratio=Math.min(1,R.price/capPrice(road));return Math.max(.5,Math.round(capPrice(seg/total(R)*road)*ratio*2)/2)}
 // the cost is split between everyone in the car, driver included: the stored amount is the share when one rider is aboard,
@@ -731,7 +732,7 @@ function newRideHTML(){
   return head+routeCard(r,S.sel,S.dep,false)+ptHTML()+
    '<div class="grid2"><div class="field"><span class="lbl">'+T('مقاعد فاضية','Free seats')+'</span><div class="stepper"><button type="button" data-seat="-1" aria-label="'+T('نقّص مقعد','Remove a seat')+'">−</button><b>'+S.seats+'</b><button type="button" data-seat="1" aria-label="'+T('زيد مقعد','Add a seat')+'">+</button></div></div>'+
    '<div class="field"><label for="in-price">'+T('مشاركة راكب واحد بكل الطريق ($)','One rider’s share, full route ($)')+'</label><input type="number" id="in-price" inputmode="decimal" min="0.5" max="'+capPrice(r.dist)+'" step="0.5" value="'+S.price+'"></div></div>'+
-   '<p class="sub">'+T('هيدي مشاركة بكلفة المشوار (بنزين، صيانة، واستهلاك سيارة)، مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+' لهالمسافة. الراكب بيشارك على قد المسافة اللي بيطلعها معك، الكلفة بتتقسّم على كل اللي بالسيارة: إذا طلع معك راكب واحد بيشارك بـ$'+S.price+'، راكبين كل واحد $'+share(S.price,2)+'، تلاتة كل واحد $'+share(S.price,3)+'. خدني بتاخد 10% من المشاركة.','This is a share of the trip’s cost (fuel, maintenance and wear), not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+' for this distance. A rider shares in proportion to the distance they ride with you, and The cost is split between everyone in the car: one rider shares $'+S.price+', two riders $'+share(S.price,2)+' each, three $'+share(S.price,3)+' each. Khedni takes 10% of the share.')+'</p>'+
+   '<p class="sub">'+T('كلفة هالمشوار عالسيارة حوالي $'+r2(tripCost(r.dist))+' (بنزين، صيانة، واستهلاك). الراكب بيشارك بنصها أو أقل، وهيدي مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+'. الراكب بيشارك على قد المسافة اللي بيطلعها معك، الكلفة بتتقسّم على كل اللي بالسيارة: إذا طلع معك راكب واحد بيشارك بـ$'+S.price+'، راكبين كل واحد $'+share(S.price,2)+'، تلاتة كل واحد $'+share(S.price,3)+'. خدني بتاخد 10% من المشاركة.','This trip costs the car about $'+r2(tripCost(r.dist))+' (fuel, maintenance and wear). A rider shares half of that or less; it is not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+'. A rider shares in proportion to the distance they ride with you, and The cost is split between everyone in the car: one rider shares $'+S.price+', two riders $'+share(S.price,2)+' each, three $'+share(S.price,3)+' each. Khedni takes 10% of the share.')+'</p>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
    '<button class="btn sun" type="button" id="publish"'+(S.busy?' disabled':'')+'>'+T('انشر المشوار','Publish the ride')+'</button>'+
    '<button class="btn ghost" type="button" id="unconfirm">'+T('اختار طريق تاني','Choose another route')+'</button>';
