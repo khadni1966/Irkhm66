@@ -149,7 +149,8 @@ var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
 var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
-var TERMS_V=1;    // bump when the terms text changes: everyone is then asked to agree again
+var COST_KM=0.20; // rough running cost of a car per km in dollars (fuel and wear); a rider's share may not pass half of it
+var TERMS_V=2;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
 var $=function(s){return document.querySelector(s)};
@@ -258,6 +259,7 @@ function at(R,c){var i=1;while(i<R.cum.length-1&&R.cum[i]<c)i++;var seg=(R.cum[i
 function sub(R,c0,c1){var out=[at(R,c0)];for(var i=0;i<R.path.length;i++)if(R.cum[i]>c0&&R.cum[i]<c1)out.push(R.path[i]);out.push(at(R,c1));return out}
 function etaOn(R,dep,c){return new Date(+dep+c/total(R)*R.dur*1000)}
 function suggestPrice(m){return Math.max(1,Math.round(m/1000*0.05*2)/2)}
+function capPrice(m){return Math.max(1,Math.floor(m/1000*COST_KM/2*2)/2)}
 // a ride as stored keeps its road as Google's encoded line; decode it once per ride
 var HY={};
 function hyd(r){var h=HY[r.id];if(!h||h.poly!==r.poly){var p=decode(r.poly||'');h=HY[r.id]={poly:r.poly,path:p,cum:withCum(p)}}r.path=h.path;r.cum=h.cum;return r}
@@ -554,8 +556,8 @@ var TERMS=[
   'What Khedni is','Khedni is a platform that introduces a driver already making a trip to a rider going the same way. Khedni is not a transport or taxi company: it owns no cars, employs no drivers, and sets neither the route nor the time.'],
  ['المشوار اتفاق بينكم','كل مشوار هو اتفاق مباشر بين السائق والراكب، وبيصير على مسؤوليتهم. الطرفين أحرار يقبلوا أو يرفضوا أي طلب.',
   'The ride is between you','Every ride is a direct agreement between the driver and the rider, made at their own responsibility. Either may accept or decline any request.'],
- ['تقاسم كلفة، مش أجرة','المبلغ اللي بيدفعه الراكب هو مشاركة بكلفة المشوار (بنزين واستهلاك سيارة)، مش أجرة نقل. ممنوع استعمال خدني للشغل كتاكسي أو للربح من نقل الركّاب.',
-  'Cost sharing, not a fare','What the rider pays is a share of the trip’s cost (fuel and wear), not a transport fare. Using Khedni to work as a taxi or to profit from carrying passengers is not allowed.'],
+ ['تقاسم كلفة، مش أجرة','المبلغ اللي بيدفعه الراكب هو مشاركة بكلفة المشوار (بنزين واستهلاك سيارة)، مش أجرة نقل. خدني بتحط سقف للمبلغ على قد الكلفة. ممنوع استعمال خدني للشغل كتاكسي أو للربح من نقل الركّاب.',
+  'Cost sharing, not a fare','What the rider pays is a share of the trip’s cost (fuel and wear), not a transport fare. Khedni caps the amount at the level of that cost. Using Khedni to work as a taxi or to profit from carrying passengers is not allowed.'],
  ['تعهّد السائق','السائق بيأكّد إنو معه دفتر سواقة صالح، وإنو السيارة مسجّلة وميكانيكها ماشي وعليها تأمين ساري بيغطّي الركّاب، وإنو بيلتزم بقانون السير وما بيسوق تعبان أو تحت تأثير كحول أو مخدّرات.',
   'The driver’s undertaking','The driver confirms that they hold a valid driving licence, that the car is registered, roadworthy and covered by valid insurance that includes passengers, and that they follow traffic law and never drive tired or under the influence of alcohol or drugs.'],
  ['التأمين','تأمين السيارة والركّاب على مسؤولية السائق وحده. خدني ما بتقدّم أي تأمين. الراكب بيطلع وهو عارف هالشي.',
@@ -595,7 +597,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني
   if(S.gate==='terms')return '<div class="gwrap">'+head(T('شروط الاستخدام','Terms of use'))+termsHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
   if(S.gate==='agree')return '<div class="gwrap">'+head(T('قبل ما تكمّل، اقرا الشروط ووافق عليها.','Before you continue, read the terms and agree to them.'))+termsHTML()+
     '<button class="btn sun" type="button" id="agree">'+T('قرأت ووافقت، وعمري 18 أو أكتر','I have read and agree, and I am 18 or older')+'</button>'+foot+'</div>';
-  if(S.gate==='boot')return '<div class="gwrap">'+head(T('مشوارك اليومي، مع حدا نازل عطريقك.','Your daily trip, with someone already going your way.'))+
+  if(S.gate==='boot')return '<div class="gwrap">'+head(T('شارك مشوارك وكلفته مع حدا نازل عطريقك. مش تاكسي.','Share your trip and its cost with someone going your way. Not a taxi.'))+
     '<div class="gload" role="status">'+(S.bootFail?'':'<span class="spin" aria-hidden="true"></span>')+'<span>'+esc(S.bootMsg)+'</span></div>'+(S.bootFail||S.user?foot:'')+'</div>';
   if(S.gate==='key')return '<div class="gwrap">'+head(T('الخريطة بدها مفتاح جوجل.','The map needs a Google key.'))+
     '<form id="keyform" class="col" novalidate><div class="col" style="gap:4px"><label for="key">'+T('الصق مفتاح خرائط جوجل هون','Paste the Google Maps key here')+'</label><input type="text" id="key" class="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza..."></div>'+
@@ -605,7 +607,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني
     '<form id="profform" class="col" novalidate>'+gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name')+drvPart()+chkTerms()+err+
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+T('كمّل','Continue')+'</button></form>'+foot+'</div>';
   var up=a.mode==='up';
-  return '<div class="gwrap">'+head(T('مشوارك اليومي، مع حدا نازل عطريقك.','Your daily trip, with someone already going your way.'))+
+  return '<div class="gwrap">'+head(T('شارك مشوارك وكلفته مع حدا نازل عطريقك. مش تاكسي.','Share your trip and its cost with someone going your way. Not a taxi.'))+
     '<div class="seg" role="group"><button type="button" data-amode="in" aria-pressed="'+(!up)+'">'+T('دخول','Sign in')+'</button><button type="button" data-amode="up" aria-pressed="'+up+'">'+T('حساب جديد','New account')+'</button></div>'+
     '<form id="authform" class="col" novalidate>'+
     (up?gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name'):'')+
@@ -692,7 +694,7 @@ function driverHTML(){var st=S.me.dstatus||'none';
       return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
        '<span class="meta"><span>'+dayOf(R.dep)+'</span><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+
        (pen?'<span class="tag wait">'+pen+' '+T('طلب جديد','new request'+(pen>1?'s':''))+'</span>':'')+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+(function(){var n=0;qs.forEach(function(q){n+=unread(q.id)});return n?'<span class="tag wait">💬 '+n+'</span>':''})()+'</span></button>'}).join(''):
-     '<div class="banner">'+T('ما عندك مشوار منشور. انشر مشوارك واللي عطريقك بيطلبوا مقعد.','You have no posted ride. Post one and people on your way can request a seat.')+'</div>')+
+     '<div class="banner">'+T('ما عندك مشوار منشور. انشر المشوار اللي نازل فيه أصلاً، واللي عطريقك بيشاركوك كلفته.','You have no posted ride. Post the trip you are making anyway, and people on your way share its cost with you.')+'</div>')+
     '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+ledgerHTML();
 }
 function newRideHTML(){
@@ -707,11 +709,11 @@ function newRideHTML(){
   if(!S.confirmed)return head+S.routes.map(function(r,i){return routeCard(r,i,S.dep,true)}).join('')+ptHTML()+
    '<p class="sub">'+(S.routes.length>1?T('اكبس على الطريق اللي نازل فيه، من اللايحة أو من الخريطة.','Tap the route you will take, in the list or on the map.'):T('جوجل عطت طريق واحد بس لهالمشوار.','Google returned a single route for this trip.'))+'</p>'+
    '<button class="btn sun" type="button" id="confirm">'+T('هيدا طريقي','This is my route')+'</button>';
-  var r=S.routes[S.sel];if(S.price==null)S.price=suggestPrice(r.dist);
+  var r=S.routes[S.sel];if(S.price==null)S.price=suggestPrice(r.dist);S.price=Math.min(S.price,capPrice(r.dist));
   return head+routeCard(r,S.sel,S.dep,false)+ptHTML()+
    '<div class="grid2"><div class="field"><span class="lbl">'+T('مقاعد فاضية','Free seats')+'</span><div class="stepper"><button type="button" data-seat="-1" aria-label="'+T('نقّص مقعد','Remove a seat')+'">−</button><b>'+S.seats+'</b><button type="button" data-seat="1" aria-label="'+T('زيد مقعد','Add a seat')+'">+</button></div></div>'+
-   '<div class="field"><label for="in-price">'+T('حصة المقعد لكل الطريق ($)','Seat share, full route ($)')+'</label><input type="number" id="in-price" inputmode="decimal" min="0.5" step="0.5" value="'+S.price+'"></div></div>'+
-   '<p class="sub">'+T('السعر اقتراح تجريبي، عدّله متل ما بدك. الراكب بيدفع كاش حسب المسافة اللي بيطلعها معك، وخدني بتاخد 10% من حصتك.','The price is a trial suggestion; change it as you like. A rider pays cash for the distance they ride with you, and Khedni takes 10% of your share.')+'</p>'+
+   '<div class="field"><label for="in-price">'+T('مشاركة الراكب بكلفة كل الطريق ($)','Rider’s share of the cost, full route ($)')+'</label><input type="number" id="in-price" inputmode="decimal" min="0.5" max="'+capPrice(r.dist)+'" step="0.5" value="'+S.price+'"></div></div>'+
+   '<p class="sub">'+T('هيدي مشاركة بكلفة المشوار (بنزين واستهلاك سيارة)، مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+' لهالمسافة. الراكب بيشارك على قد المسافة اللي بيطلعها معك، وخدني بتاخد 10% من مشاركته.','This is a share of the trip’s cost (fuel and wear), not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+' for this distance. A rider shares in proportion to the distance they ride with you, and Khedni takes 10% of that share.')+'</p>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
    '<button class="btn sun" type="button" id="publish"'+(S.busy?' disabled':'')+'>'+T('انشر المشوار','Publish the ride')+'</button>'+
    '<button class="btn ghost" type="button" id="unconfirm">'+T('اختار طريق تاني','Choose another route')+'</button>';
@@ -725,23 +727,23 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=L.owed>=OWE_LIMIT,
   pen.forEach(function(q){h+='<div class="box" style="border:2px solid var(--route)"><span class="lbl">'+T('طلب جديد','New request')+'</span>'+
     '<div class="row">'+face(q.riderId,44)+'<b class="grow">'+esc(q.riderName)+'</b></div><div class="kv"><span>'+T('بيطلع من','Gets in at')+'</span><b>'+esc(q.puText)+'</b></div>'+
     (q.from?'<div class="kv"><span>'+T('نقطته بعيدة عن طريقك','Their point is off your road by')+'</span><b>'+mTxt(hav(q.from,q.pu))+'</b></div>':'')+'<div class="kv"><span>'+T('بتوصل لعنده','You reach them')+'</span><b>'+hm(q.puAt)+'</b></div>'+
-    '<div class="kv"><span>'+T('بينزل بـ','Gets out at')+'</span><b>'+esc(q.drText)+'</b></div><div class="kv"><span>'+T('بيدفعلك كاش','Pays you in cash')+'</span>'+money(q.price)+'</div><div class="kv"><span>'+T('رسم خدني 10%','Khedni’s 10% fee')+'</span>'+money(q.fee)+'</div>'+
+    '<div class="kv"><span>'+T('بينزل بـ','Gets out at')+'</span><b>'+esc(q.drText)+'</b></div><div class="kv"><span>'+T('مشاركته بالكلفة (كاش)','Their share of the cost (cash)')+'</span>'+money(q.price)+'</div><div class="kv"><span>'+T('رسم خدني 10% من المشاركة','Khedni’s 10% of that share')+'</span>'+money(q.fee)+'</div>'+
     (S.offer&&S.offer.id===q.id?
-      '<div class="okbox"><b>'+T('اقتراحك: ','Your proposal: ')+'</b>'+T('بتاخده حوالي ','pick up at about ')+'<b>'+hm(S.offer.at)+'</b>'+T(' من النقطة الزرقا عالخريطة، بعيدة ',' at the blue point on the map, ')+mTxt(S.offer.far)+T(' عن نقطته. بيدفعلك ',' from their point. They pay you ')+money(S.offer.price)+'.</div>'+
+      '<div class="okbox"><b>'+T('اقتراحك: ','Your proposal: ')+'</b>'+T('بتاخده حوالي ','pick up at about ')+'<b>'+hm(S.offer.at)+'</b>'+T(' من النقطة الزرقا عالخريطة، بعيدة ',' at the blue point on the map, ')+mTxt(S.offer.far)+T(' عن نقطته. مشاركته بالكلفة ',' from their point. Their share of the cost is ')+money(S.offer.price)+'.</div>'+
       '<div class="grid2"><button class="btn ghost" type="button" id="offerx">'+T('إلغاء','Cancel')+'</button><button class="btn pri" type="button" id="offersend"'+(stop||R.seatsLeft<1?' disabled':'')+'>'+T('ابعت للراكب','Send to the rider')+'</button></div>':
       '<div class="grid2"><button class="btn ghost" type="button" data-rej="'+q.id+'">'+T('رفض','Decline')+'</button><button class="btn pri" type="button" data-acc="'+q.id+'"'+(stop||R.seatsLeft<1?' disabled':'')+'>'+T('قبول','Accept')+'</button></div>'+
       '<button class="btn ghost" type="button" data-offer="'+q.id+'"'+(stop||R.seatsLeft<1?' disabled':'')+'>'+(S.pick==='offer'&&S.offerFor===q.id?T('اكبس هلّق عالخط الأزرق…','Now tap the blue line…'):T('اقترح نقطة طلعة تانية عطريقي','Propose another pick-up point on my route'))+'</button>')+
     (S.offerErr&&S.offerFor===q.id?'<p class="err" role="alert">'+esc(S.offerErr)+'</p>':'')+chatBtn(q)+'</div>'+chatPanel(q)});
   off.forEach(function(q){h+='<div class="banner col" style="gap:8px"><div class="row">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+'</b><br>'+T('ناطرين يأكّد نقطة الطلعة اللي اقترحتها (','Waiting for them to confirm the pick-up point you proposed (')+hm(q.puAt)+').</div></div>'+
     '<div class="row" style="flex-wrap:wrap">'+chatBtn(q)+'<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('اسحب الاقتراح','Withdraw')+'</button></div></div>'+chatPanel(q)});
-  acc.forEach(function(q){h+='<div class="okbox col" style="gap:8px"><div class="row" style="align-items:flex-start">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+' · '+T('مأكّد','confirmed')+'</b><br>'+T('بتاخده حوالي ','Pick up at about ')+'<b>'+hm(q.puAt)+'</b>'+T(' من ',' at ')+esc(q.puText)+T('، وبينزل بـ','; gets out at ')+esc(q.drText)+T('. بيدفعلك كاش ','. Pays you in cash ')+money(q.price)+'.</div></div>'+
+  acc.forEach(function(q){h+='<div class="okbox col" style="gap:8px"><div class="row" style="align-items:flex-start">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+' · '+T('مأكّد','confirmed')+'</b><br>'+T('بتاخده حوالي ','Pick up at about ')+'<b>'+hm(q.puAt)+'</b>'+T(' من ',' at ')+esc(q.puText)+T('، وبينزل بـ','; gets out at ')+esc(q.drText)+T('. مشاركته بالكلفة (كاش) ','. Their share of the cost (cash) is ')+money(q.price)+'.</div></div>'+
     (function(){var ri=rlInfo(q);if(!ri)return '';var old=ri.age>90000?T(' · آخر تحديث من ',' · last update ')+Math.round(ri.age/60000)+T(' د',' min ago'):'';
       return '<div><b>🧍 '+(ri.d<80?T('الراكب واقف عند نقطة الطلعة.','The rider is at the pick-up point.'):T('الراكب بعيد ','The rider is ')+mTxt(ri.d)+T(' عن نقطة الطلعة.',' from the pick-up point.'))+'</b>'+old+'</div>'})()+
     '<div class="row" style="flex-wrap:wrap">'+chatBtn(q)+'<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('الغي هالراكب','Cancel this rider')+'</button></div></div>'+chatPanel(q)});
   if(!pen.length&&!off.length&&!acc.length)h+='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. أول ما حدا يطلب مقعد، بيبيّن هون.','Your ride is posted and has no requests yet. A seat request appears here as soon as someone sends one.')+'</div>';
   return backRow(esc(R.fromText)+ARROW()+esc(R.toText),dayOf(R.dep)+' · '+hm(R.dep),'dhome',T('رجوع','Back'))+h+
    '<div class="box"><div class="kv"><span>'+T('الطريق','Route')+'</span><b>'+(R.desc?esc(R.desc):'—')+'</b></div><div class="kv"><span>'+T('الوقت بالعجقة','Time with traffic')+'</span><b>'+durTxt(R.dur)+' · '+kmTxt(R.dist)+'</b></div>'+
-   '<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seatsLeft+' / '+R.seats+'</b></div><div class="kv"><span>'+T('حصة المقعد لكل الطريق','Seat share, full route')+'</span>'+money(R.price)+'</div></div>'+ptHTML()+
+   '<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seatsLeft+' / '+R.seats+'</b></div><div class="kv"><span>'+T('مشاركة الراكب بكلفة كل الطريق','Rider’s share of the cost, full route')+'</span>'+money(R.price)+'</div></div>'+ptHTML()+
    '<p class="sub">'+T('اكبس على أي نقطة عالخط الأزرق لتعرف أي ساعة بتمرق فيها.','Tap any point on the blue line to see when you pass it.')+'</p>'+
    '<button class="btn warn" type="button" id="cancelride">'+T('الغي هالمشوار','Cancel this ride')+'</button>';
 }
@@ -760,7 +762,7 @@ function riderHTML(){
    '<div class="field"><label for="in-rday">'+T('أي نهار','Day')+'</label>'+daySel('in-rday',S.rday)+'</div>'+
    (S.rErr?'<p class="err" role="alert">'+esc(S.rErr)+'</p>':'')+
    '<button class="btn sun" type="button" id="rgo"'+(S.rbusy?' disabled':'')+'>'+(S.rbusy?T('عم نفتّش…','Searching…'):T('مين نازل عطريقي؟','Who is going my way?'))+'</button>'+
-   '<p class="sub">'+T('بنفتّش بين السائقين اللي ناشرين مشوار بهالنهار، وبنبيّنلك اللي طريقهم بيمرق حدّك.','We look through the drivers who posted a ride that day and show the ones whose road passes near you.')+'</p>';
+   '<p class="sub">'+T('بنفتّش بين السائقين اللي نازلين أصلاً بهالنهار، وبنبيّنلك اللي طريقهم بيمرق حدّك. بتشاركهم بكلفة المشوار، مش أجرة تاكسي.','We look through the drivers already making a trip that day and show the ones whose road passes near you. You share the cost of the trip with them; it is not a taxi fare.')+'</p>';
 }
 function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(S.rto.text),dayName(S.rday),'redit',T('غيّر','Edit'));
   if(!f.ok.length)return head+'<div class="banner">'+(f.total?T('في '+f.total+' مشوار بهالنهار، بس ولا واحد بيمرق حدّ نقطتك (ضمن '+LIMIT+' متر) أو بقي فيه مقاعد.','There are '+f.total+' rides that day, but none passes within '+LIMIT+' m of your points with a free seat.'):T('ما حدا ناشر مشوار بهالنهار بعد. جرّب بعدين أو نهار تاني.','Nobody has posted a ride for that day yet. Try later or another day.'))+'</div>';
@@ -771,14 +773,14 @@ function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(
    '<div class="box" style="border:2px solid var(--brand)"><div class="row">'+face(R.driverId,52)+'<span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+esc(R.driverName)+T(' بيمرق حدّك (تقريبي)',' passes you (approximate)')+'</b><p class="sub">'+T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you')+'</p></div></div>'+
    '<div class="kv"><span>'+T('مشواره','Their ride')+'</span><b>'+esc(R.fromText)+ARROW()+esc(R.toText)+'</b></div>'+
    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(m.drAt)+'</b></div><div class="kv"><span>'+T('بتطلع معه','You ride')+'</span><b>'+kmTxt(m.m)+'</b></div>'+
-   '<div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(m.price)+'</div><div class="kv"><span>'+T('رسم عليك','Fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
+   '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش للسائق)','Your share of the cost (cash to the driver)')+'</span>'+money(m.price)+'</div><div class="kv"><span>'+T('رسم خدني عليك','Khedni’s fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
    (mine?'<div class="banner">'+T('عندك طلب على هالمشوار: ','You already have a request on this ride: ')+reqTag(mine)+'</div><button class="btn ghost" type="button" data-req="'+mine.id+'">'+T('شوف الطلب','View the request')+'</button>':
      '<button class="btn pri" type="button" id="rreq"'+(S.rbusy?' disabled':'')+'>'+T('اطلب مقعد','Request a seat')+'</button>')+'</div>';
 }
 function reqHTML(q){var body,trip='<div class="box"><div class="row">'+face(q.driverId,52)+'<div class="grow"><b>'+esc(q.driverName)+'</b><p class="sub">'+T('السائق','Driver')+' · '+esc(q.car||'—')+'</p></div></div>'+
     (q.status==='accepted'?'<div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(q.plate||'—')+'</b></div>':'')+
     '<div class="kv"><span>'+T('بتطلع من','You get in at')+'</span><b>'+esc(q.puText)+'</b></div><div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(q.drAt)+' · '+esc(q.drText)+'</b></div>'+
-    '<div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(q.price)+'</div></div>';
+    '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش للسائق)','Your share of the cost (cash to the driver)')+'</span>'+money(q.price)+'</div></div>';
   if(q.status==='pending')body='<div class="banner"><b>'+T('طلبك عند السائق.','Your request is with the driver.')+'</b> '+T('أول ما يقبل أو يرفض، بيتغيّر هون لحاله.','This updates by itself as soon as they accept or decline.')+'</div>';
   else if(q.status==='accepted'){var li=liveInfo(q),old=li&&li.age>90000?T(' · آخر تحديث من ',' · last update ')+Math.round(li.age/60000)+T(' د',' min ago'):'';
     body='<div class="okbox"><b>'+T('السائق قبل. مقعدك مأكّد.','The driver accepted. Your seat is confirmed.')+'</b></div>'+
@@ -794,7 +796,7 @@ function reqHTML(q){var body,trip='<div class="box"><div class="row">'+face(q.dr
     (S.trackErr?'<p class="err" role="alert">'+esc(S.trackErr)+'</p>':'')}
   else if(q.status==='offered')body='<div class="box" style="border:2px solid var(--sun)"><b>'+T('السائق موافق، وبيقترح ياخدك من نقطة على طريقه.','The driver agrees and proposes to pick you up at a point on their route.')+'</b>'+
     '<div class="row"><span class="big" dir="ltr">'+hm(q.puAt)+'</span><div class="grow"><b>'+T('بيمرق عالنقطة (تقريبي)','Passes the point (approximate)')+'</b><p class="sub">'+T('النقطة الصفرا الكبيرة عالخريطة','The large yellow point on the map')+(q.from?T(' · بعيدة ',' · ')+mTxt(hav(q.from,q.pu))+T(' عن النقطة اللي اخترتها',' from the point you chose'):'')+'</p></div></div>'+
-    '<div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(q.price)+'</div>'+
+    '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش للسائق)','Your share of the cost (cash to the driver)')+'</span>'+money(q.price)+'</div>'+
     '<div class="grid2"><button class="btn ghost" type="button" data-rcancel="'+q.id+'">'+T('مش مناسب','Not for me')+'</button><button class="btn pri" type="button" data-rok="'+q.id+'">'+T('موافق، أكّد','Agree and confirm')+'</button></div></div>';
   else if(q.status==='rejected')body='<div class="banner">'+T('السائق ما قبل هالطلب. فتّش على مشوار تاني.','The driver declined this request. Look for another ride.')+'</div>';
   else body='<div class="banner">'+(q.by==='driver'?T('السائق لغى هالحجز. فتّش على مشوار تاني.','The driver cancelled this booking. Look for another ride.'):T('لغيت هالطلب.','You cancelled this request.'))+'</div>';
@@ -893,9 +895,9 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(d.msg){S.draft[d.msg]=e.target.value;return}
   if(w){S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
   if(e.target.id==='in-time')S.time=e.target.value||'07:30';
-  if(e.target.id==='in-price'){var v=parseFloat(e.target.value);if(v>0)S.price=r2(v)}});
+  if(e.target.id==='in-price'){var v=parseFloat(e.target.value),rr=S.routes&&S.routes[S.sel];if(v>0)S.price=rr?Math.min(r2(v),capPrice(rr.dist)):r2(v)}});
 document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
-document.addEventListener('change',function(e){if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-day')S.day=+e.target.value;if(e.target.id==='in-rday')S.rday=+e.target.value});
+document.addEventListener('change',function(e){if(e.target.id==='in-price'){render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-day')S.day=+e.target.value;if(e.target.id==='in-rday')S.rday=+e.target.value});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
   if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
@@ -966,7 +968,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     if(S.dep<new Date()){S.formErr=T('ساعة الطلعة مرقت. اكبس "غيّر" واختار وقت جاي.','The departure time has passed. Tap "Edit" and pick a later time.');render();return}
     S.busy=true;render();
     f.addDoc(col('rides'),{driverId:S.user.uid,driverName:S.me.name,car:S.me.car||'',plate:S.me.plate||'',fromText:S.from.text,toText:S.to.text,dep:S.dep.getTime(),
-      dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc||'',poly:r.enc,seats:S.seats,seatsLeft:S.seats,price:S.price||suggestPrice(r.dist),status:'open',createdAt:Date.now()})
+      dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc||'',poly:r.enc,seats:S.seats,seatsLeft:S.seats,price:Math.min(S.price||suggestPrice(r.dist),capPrice(r.dist)),status:'open',createdAt:Date.now()})
      .then(function(doc){S.busy=false;S.dv='ride';S.rideId=doc.id;S.fresh=doc.id;resetNew();paint()}).catch(fail(T('نشر المشوار','posting the ride')));
     return;
    case 'cancelride':R=myRide(S.rideId);if(!R)return;if(S.track&&S.track.docId===R.id)stopTrack();
