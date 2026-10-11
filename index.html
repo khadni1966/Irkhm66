@@ -54,6 +54,9 @@ h3{font-family:var(--display);font-size:15px;margin-top:6px}
 .lnk{background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:600;text-decoration:underline}
 .terms{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:10px;font-size:14px;line-height:1.6}
 .terms b{display:block}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:8px 4px;text-align:start;border-bottom:1px solid rgba(128,128,128,.35)}
+.tbl th{font-weight:600}
 #gate .seg{background:rgba(255,255,255,.16)}
 #gate .seg button{color:#fff}
 #gate .seg button[aria-pressed="true"]{background:#fff;color:var(--brand-deep)}
@@ -150,7 +153,7 @@ var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an 
 var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
 var RATES=[[10,.40],[20,.35],[30,.30],[1e9,.15]]; // what a private car costs to run per km: first 10 km, next 10, next 10, then the rest (long stretches count fuel only)
-var TERMS_V=3;    // bump when the terms text changes: everyone is then asked to agree again
+var TERMS_V=4;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
 var $=function(s){return document.querySelector(s)};
@@ -572,8 +575,8 @@ var TERMS=[
   'What Khedni is','Khedni is a platform that introduces a driver already making a trip to a rider going the same way. Khedni is not a transport or taxi company: it owns no cars, employs no drivers, and sets neither the route nor the time.'],
  ['المشوار اتفاق بينكم','كل مشوار هو اتفاق مباشر بين السائق والراكب، وبيصير على مسؤوليتهم. الطرفين أحرار يقبلوا أو يرفضوا أي طلب.',
   'The ride is between you','Every ride is a direct agreement between the driver and the rider, made at their own responsibility. Either may accept or decline any request.'],
- ['تقاسم كلفة، مش أجرة','المبلغ اللي بيدفعه الراكب هو مشاركة بكلفة المشوار (بنزين، صيانة، واستهلاك سيارة)، مش أجرة نقل. الكلفة بتتقسّم على كل اللي بالسيارة، فكل ما زاد عدد الركّاب بتنقص مشاركة كل واحد. خدني بتحط سقف للمبلغ على قد الكلفة. ممنوع استعمال خدني للشغل كتاكسي أو للربح من نقل الركّاب.',
-  'Cost sharing, not a fare','What the rider pays is a share of the trip’s cost (fuel, maintenance and wear), not a transport fare. The cost is split between everyone in the car, so each share falls as more riders join. Khedni caps the amount at the level of that cost. Using Khedni to work as a taxi or to profit from carrying passengers is not allowed.'],
+ ['تقاسم كلفة، مش أجرة','المبلغ اللي بيدفعه الراكب هو مشاركة بكلفة المشوار (بنزين، صيانة، واستهلاك سيارة)، مش أجرة نقل. خدني بتحسبه سلفاً حسب المسافة وبتبيّنه للطرفين قبل المشوار، ليعرف كل واحد قدّيش بيشارك: لا أكتر ولا أقل. الكلفة بتتقسّم على كل اللي بالسيارة، فكل ما زاد عدد الركّاب بتنقص مشاركة كل واحد. السائق فيه ينقّص المبلغ وما فيه يزيده. ممنوع استعمال خدني للشغل كتاكسي أو للربح من نقل الركّاب.',
+  'Cost sharing, not a fare','What the rider pays is a share of the trip’s cost (fuel, maintenance and wear), not a transport fare. Khedni works it out in advance from the distance and shows it to both sides before the trip, so each knows what they share: no more and no less. The cost is split between everyone in the car, so each share falls as more riders join. The driver may lower the amount but not raise it. Using Khedni to work as a taxi or to profit from carrying passengers is not allowed.'],
  ['تعهّد السائق','السائق بيأكّد إنو معه دفتر سواقة صالح، وإنو السيارة مسجّلة وميكانيكها ماشي وعليها تأمين ساري بيغطّي الركّاب، وإنو بيلتزم بقانون السير وما بيسوق تعبان أو تحت تأثير كحول أو مخدّرات.',
   'The driver’s undertaking','The driver confirms that they hold a valid driving licence, that the car is registered, roadworthy and covered by valid insurance that includes passengers, and that they follow traffic law and never drive tired or under the influence of alcohol or drugs.'],
  ['التأمين','تأمين السيارة والركّاب على مسؤولية السائق وحده. خدني ما بتقدّم أي تأمين. الراكب بيطلع وهو عارف هالشي.',
@@ -594,6 +597,16 @@ var TERMS=[
   'Trial version','This is a trial version. The terms may change, and we will then ask for your agreement again. Lebanese law applies.']
 ];
 function termsHTML(){return '<ol class="terms">'+TERMS.map(function(t){return '<li><b>'+T(t[0],t[2])+'</b>'+T(t[1],t[3])+'</li>'}).join('')+'</ol><p class="sub" style="color:inherit;opacity:.8">'+T('مسودة تجريبية · النسخة ','Trial draft · version ')+TERMS_V+'</p>'}
+function shareHTML(){var d=function(n){return '<span dir="ltr">$'+n+'</span>'};
+  return '<div class="col"><p>'+T('خدني مش تاكسي. السائق نازل عطريقه أصلاً، واللي بيطلع معه بيشاركه بكلفة المشوار: بنزين، صيانة، واستهلاك سيارة.','Khedni is not a taxi. The driver is making the trip anyway, and whoever rides along shares its cost: fuel, maintenance and wear.')+'</p>'+
+   '<p><b>'+T('المبلغ هو مشاركة بس، مش أجرة.','The amount is a share only, not a fare.')+'</b> '+T('منحسبه سلفاً ومنبيّنه للسائق وللراكب قبل المشوار، ليعرف كل واحد قدّيش بيشارك: لا أكتر ولا أقل. هيك ما في إحراج ولا مفاصلة بالسيارة.','We work it out in advance and show it to the driver and the rider before the trip, so each knows what they share: no more and no less. That way there is no awkwardness or bargaining in the car.')+'</p>'+
+   '<ol class="terms"><li><b>'+T('كلفة السيارة','What the car costs')+'</b>'+T('أول 10 كم: ','First 10 km: ')+d(RATES[0][1].toFixed(2))+T(' للكيلومتر. الـ10 اللي بعدهم: ',' per km. The next 10: ')+d(RATES[1][1].toFixed(2))+T('. الـ10 اللي بعدهم: ','. The next 10: ')+d(RATES[2][1].toFixed(2))+T('. وبعد الـ30 كم: ','. Beyond 30 km: ')+d(RATES[3][1].toFixed(2))+T(' (بنزين بس).',' (fuel only).')+'</li>'+
+   '<li><b>'+T('مشاركة الراكب','The rider’s share')+'</b>'+T('السائق كمان راكب بسيارته، فالراكب الواحد بيشارك بنص الكلفة. وإذا كانوا أكتر من راكب، الكلفة بتتقسّم عالكل وبتنقص مشاركة كل واحد.','The driver rides in the car too, so one rider shares half of the cost. With more riders the cost is split between everyone and each share falls.')+'</li>'+
+   '<li><b>'+T('السائق فيه ينقّص، وما فيه يزيد','The driver may lower it, never raise it')+'</b>'+T('المبلغ المحسوب هو السقف.','The amount worked out is the ceiling.')+'</li>'+
+   '<li><b>'+T('رسم خدني','Khedni’s fee')+'</b>'+T('10% من المشاركة، بيدفعها السائق. الراكب ما بيدفع لخدني شي.','10% of the share, paid by the driver. The rider pays Khedni nothing.')+'</li></ol>'+
+   '<table class="tbl"><thead><tr><th>'+T('المسافة','Distance')+'</th><th>'+T('راكب واحد','One rider')+'</th><th>'+T('راكبين','Two riders')+'</th><th>'+T('3 ركّاب','Three riders')+'</th></tr></thead><tbody>'+
+   [5,10,20,30,50,80].map(function(k){var c=capPrice(k*1000);return '<tr><td>'+k+' '+T('كم','km')+'</td><td>'+d(c)+'</td><td>'+d(share(c,2))+'</td><td>'+d(share(c,3))+'</td></tr>'}).join('')+'</tbody></table>'+
+   '<p class="sub" style="color:inherit;opacity:.8">'+T('المبالغ لكل راكب. المسافات اللي بين هالأرقام بتنحسب بنفس الطريقة.','Amounts are per rider. Distances in between are worked out the same way.')+'</p></div>'}
 var AG={};
 function agreeLocal(uid){AG[uid]=1;sset('kh-terms-'+uid,String(TERMS_V))}
 function agreeRemote(uid){F.f.setDoc(ref('consents',uid),{v:TERMS_V,at:Date.now()}).catch(function(){})}
@@ -610,6 +623,7 @@ function drvPart(){var a=S.af;
 function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني','Khedni')+'</h1><p>'+sub+'</p></div>'},
   foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
   err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
+  if(S.gate==='share')return '<div class="gwrap">'+head(T('المشاركة بالكلفة','Sharing the cost'))+shareHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
   if(S.gate==='terms')return '<div class="gwrap">'+head(T('شروط الاستخدام','Terms of use'))+termsHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
   if(S.gate==='agree')return '<div class="gwrap">'+head(T('قبل ما تكمّل، اقرا الشروط ووافق عليها.','Before you continue, read the terms and agree to them.'))+termsHTML()+
     '<button class="btn sun" type="button" id="agree">'+T('قرأت ووافقت، وعمري 18 أو أكتر','I have read and agree, and I am 18 or older')+'</button>'+foot+'</div>';
@@ -624,6 +638,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+T('كمّل','Continue')+'</button></form>'+foot+'</div>';
   var up=a.mode==='up';
   return '<div class="gwrap">'+head(T('شارك مشوارك وكلفته مع حدا نازل عطريقك. مش تاكسي.','Share your trip and its cost with someone going your way. Not a taxi.'))+
+    '<p class="note">'+T('المبلغ مشاركة بكلفة المشوار بس، محسوب سلفاً: لا أكتر ولا أقل. ','The amount is only a share of the trip’s cost, worked out in advance: no more and no less. ')+'<button type="button" class="lnk" id="seeshare">'+T('كيف منحسبها؟','How is it worked out?')+'</button></p>'+
     '<div class="seg" role="group"><button type="button" data-amode="in" aria-pressed="'+(!up)+'">'+T('دخول','Sign in')+'</button><button type="button" data-amode="up" aria-pressed="'+up+'">'+T('حساب جديد','New account')+'</button></div>'+
     '<form id="authform" class="col" novalidate>'+
     (up?gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name'):'')+
@@ -804,7 +819,7 @@ function reqHTML(q){var body,trip='<div class="box"><div class="row">'+face(q.dr
     (q.status==='accepted'?'<div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(q.plate||'—')+'</b></div>':'')+
     '<div class="kv"><span>'+T('بتطلع من','You get in at')+'</span><b>'+esc(q.puText)+'</b></div><div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(q.drAt)+' · '+esc(q.drText)+'</b></div>'+
     '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش للسائق)','Your share of the cost (cash to the driver)')+'</span>'+money(rPay(q))+'</div>'+
-    '<p class="sub">'+T('محسوبة على '+rN(q,S.reqRide)+' ركّاب بالسيارة. لحالك $','Worked out for '+rN(q,S.reqRide)+' riders in the car. Alone $')+share(q.price,1)+T('، راكبين $',', two riders $')+share(q.price,2)+T('، تلاتة $',', three $')+share(q.price,3)+T(' كل واحد. المبلغ النهائي حسب عدد الركّاب المأكّدين وقت الطلعة.',' each. The final amount follows the number of confirmed riders at departure.')+'</p></div>';
+    '<p class="sub">'+T('هيدي مشاركتك بكلفة المشوار، لا أكتر ولا أقل. محسوبة على '+rN(q,S.reqRide)+' ركّاب بالسيارة. لحالك $','This is your share of the trip’s cost, no more and no less. Worked out for '+rN(q,S.reqRide)+' riders in the car. Alone $')+share(q.price,1)+T('، راكبين $',', two riders $')+share(q.price,2)+T('، تلاتة $',', three $')+share(q.price,3)+T(' كل واحد. المبلغ النهائي حسب عدد الركّاب المأكّدين وقت الطلعة.',' each. The final amount follows the number of confirmed riders at departure.')+'</p></div>';
   if(q.status==='pending')body='<div class="banner"><b>'+T('طلبك عند السائق.','Your request is with the driver.')+'</b> '+T('أول ما يقبل أو يرفض، بيتغيّر هون لحاله.','This updates by itself as soon as they accept or decline.')+'</div>';
   else if(q.status==='accepted'){var li=liveInfo(q),old=li&&li.age>90000?T(' · آخر تحديث من ',' · last update ')+Math.round(li.age/60000)+T(' د',' min ago'):'';
     body='<div class="okbox"><b>'+T('السائق قبل. مقعدك مأكّد.','The driver accepted. Your seat is confirmed.')+'</b></div>'+
@@ -842,6 +857,7 @@ function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
    ledgerHTML()+
    (S.admin?'<button class="btn pri" type="button" id="toadmin">'+T('لوحة الإدارة','Admin panel')+'</button>':'')+
    (!shared&&S.localKey?'<button class="btn ghost" type="button" id="chkey">'+T('غيّر مفتاح الخرائط على هالتلفون','Change the maps key on this phone')+'</button>':'')+
+   '<button class="btn ghost" type="button" id="viewshare">'+T('كيف منحسب المشاركة بالكلفة','How the cost share is worked out')+'</button>'+
    '<button class="btn ghost" type="button" id="viewterms">'+T('شروط الاستخدام','Terms of use')+'</button>'+
    '<button class="btn ghost" type="button" id="signout">'+T('تسجيل خروج','Sign out')+'</button>'+
    '<p class="sub">'+T('رقمك ما بيبيّن لا للسائق ولا للراكب. بتشوفه الإدارة بس.','Your number is not shown to drivers or riders. Only the admin sees it.')+'</p>';
@@ -890,7 +906,7 @@ function render(){
   var h=$('#hint');
   if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}else h.hidden=true;
   $('#app').classList.toggle('full',S.view!=='main');
-  var html=S.view==='account'?accountHTML():S.view==='terms'?'<h2>'+T('شروط الاستخدام','Terms of use')+'</h2>'+termsHTML():S.view==='admin'?adminHTML():roleSeg()+(S.role==='driver'?driverHTML():riderHTML());
+  var html=S.view==='account'?accountHTML():S.view==='terms'?'<h2>'+T('شروط الاستخدام','Terms of use')+'</h2>'+termsHTML():S.view==='share'?'<h2>'+T('المشاركة بالكلفة','Sharing the cost')+'</h2>'+shareHTML():S.view==='admin'?adminHTML():roleSeg()+(S.role==='driver'?driverHTML():riderHTML());
   if(html===lastHTML)return;
   var el=document.activeElement,active=el&&el.id&&$('#sheet').contains(el)?el.id:null,pos=null;
   if(active){try{pos=el.selectionStart}catch(e){}}
@@ -936,6 +952,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.amode){S.af.mode=d.amode;S.af.err='';showGate();return}
   if(d.drv){S.af.drv=d.drv==='1';showGate();return}
   if(t.id==='af-show'){S.af.show=!S.af.show;showGate();return}
+  if(t.id==='seeshare'){S.termsFrom=S.gate;S.gate='share';showGate();$('#gate').scrollTop=0;return}
   if(t.id==='seeterms'){S.termsFrom=S.gate;S.gate='terms';showGate();$('#gate').scrollTop=0;return}
   if(t.id==='termsback'){S.gate=S.termsFrom||'auth';showGate();return}
   if(t.id==='agree'){if(!S.user)return;agreeLocal(S.user.uid);agreeRemote(S.user.uid);S.agreed=true;if(S.cfg)ensureMap();else{S.gate='boot';showGate()}return}
@@ -1014,6 +1031,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
       price:m.price,fee:r2(m.price*FEE),status:'pending',by:'rider',createdAt:Date.now(),updatedAt:Date.now()})
      .then(function(doc){S.rbusy=false;S.found=null;S.fresh=doc.id;openReq(doc.id,R.id)}).catch(fail(T('طلب المقعد','the seat request')));
     return;
+   case 'viewshare':S.view='share';render();$('#sheet').scrollTop=0;return;
    case 'viewterms':S.view='terms';render();$('#sheet').scrollTop=0;return;
    case 'toadmin':S.view='admin';render();loadAdmin();return;
    case 'adrefresh':loadAdmin();return;
