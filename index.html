@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>خدني · تجربة سائق وراكب</title>
+<title>خدني</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700&family=Readex+Pro:wght@400;500;600&display=swap">
 <style>
-/* Khedni trial on real Google Maps. Map on top, working sheet under it. One phone plays both driver and rider. */
+/* Khedni trial. Accounts and shared rides live in Firebase; routes and traffic come from Google Maps. */
 :root{
   --bg:#F3F5F2;--surface:#FFFFFF;--ink:#0E1F1A;--muted:#4F5F59;--line:#DCE3DF;--seg:#E7ECE8;
   --brand:#0B5D4B;--brand-ink:#FFFFFF;--brand-soft:#D9EBE5;--brand-deep:#073F33;
@@ -27,6 +27,7 @@ button{cursor:pointer}
 .btn.pri{background:var(--brand);color:var(--brand-ink)}
 .btn.sun{background:var(--sun);color:var(--sun-ink)}
 .btn.ghost{background:transparent;border:1px solid var(--line)}
+.btn.warn{background:transparent;border:1px solid var(--danger);color:var(--danger)}
 .btn.sm{min-height:44px;width:auto;font-size:14px;border-radius:12px;padding:0 14px;flex:none}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .row{display:flex;align-items:center;gap:10px}
@@ -34,15 +35,26 @@ button{cursor:pointer}
 .grow{flex:1 1 auto;min-width:0}
 .col{display:flex;flex-direction:column;gap:12px}
 h2{font-family:var(--display);font-size:18px;overflow-wrap:anywhere}
+h3{font-family:var(--display);font-size:15px;margin-top:6px}
+.ltr{direction:ltr;text-align:left}
+[dir=rtl] input.ltr{text-align:right}
 
-/* key gate */
-#gate{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:28px 22px;background:var(--brand);color:#fff;overflow-y:auto}
+/* sign-in, profile and key screens */
+#gate{flex:1 1 auto;display:flex;flex-direction:column;padding:28px 22px;background:var(--brand);color:#fff;overflow-y:auto}
+.gwrap{margin:auto 0;display:flex;flex-direction:column;gap:16px;width:100%;max-width:460px;align-self:center}
 #gate h1{font-family:var(--display);font-size:52px;line-height:1.1}
 #gate p{color:rgba(255,255,255,.9)}
-#gate label{font-size:13px}
-#gate input{width:100%;min-height:54px;padding:0 14px;border:0;border-radius:14px;background:#fff;color:var(--ink);font-size:15px;direction:ltr;text-align:left}
+#gate label,.glbl{font-size:13px}
+#gate input{width:100%;min-height:54px;padding:0 14px;border:0;border-radius:14px;background:#fff;color:var(--ink);font-size:16px}
 #gate .note{font-size:13px;color:rgba(255,255,255,.85)}
 #gate .gerr{background:#fff;color:var(--danger);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:500}
+#gate .btn.ghost{border-color:rgba(255,255,255,.5);color:#fff}
+#gate .seg{background:rgba(255,255,255,.16)}
+#gate .seg button{color:#fff}
+#gate .seg button[aria-pressed="true"]{background:#fff;color:var(--brand-deep)}
+.pwrow{display:flex;gap:8px}
+.pwrow button{flex:none;min-width:64px;min-height:54px;border:1px solid rgba(255,255,255,.5);border-radius:14px;background:transparent;color:#fff;font-size:14px}
+.gload{display:flex;align-items:center;gap:12px;font-size:16px}
 
 /* app */
 #app{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
@@ -53,13 +65,15 @@ h2{font-family:var(--display);font-size:18px;overflow-wrap:anywhere}
 #map{position:absolute;inset:0}
 .hint{position:absolute;top:10px;inset-inline:10px;padding:8px 12px;border-radius:12px;background:var(--ink);color:#fff;font-size:13px;text-align:center}
 .sheet{flex:0 1 auto;max-height:62%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);border-radius:22px 22px 0 0;margin-top:-16px;position:relative}
+#app.full .mapwrap{display:none}
+#app.full .sheet{flex:1 1 auto;max-height:none;margin-top:0;border-radius:0;border-top:0}
 .seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--seg)}
 .seg button{flex:1 1 0;min-height:44px;border:0;border-radius:999px;background:transparent;font-size:15px;font-weight:500}
 .seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);font-weight:600}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0;position:relative}
 .field label,.lbl{font-size:12px;color:var(--muted)}
 .inrow{display:flex;gap:8px}
-input[type=text],input[type=time],input[type=number],select{width:100%;min-height:52px;padding:0 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font-size:15px;font-weight:600}
+.sheet input[type=text],.sheet input[type=time],.sheet input[type=number],.sheet select{width:100%;min-height:52px;padding:0 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font-size:15px;font-weight:600}
 .pinbtn{flex:none;width:52px;height:52px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--brand)}
 .pinbtn[aria-pressed="true"]{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
 .sug{list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;flex-direction:column;gap:2px}
@@ -74,50 +88,37 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .rcard .dur{font-family:var(--display);font-size:26px;font-weight:700;color:var(--brand);flex:none;font-variant-numeric:tabular-nums}
 .rcard .meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted)}
 .tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
-.tag.fast{background:var(--brand-soft);color:var(--brand-deep)}
-.tag.jam{background:var(--sun-soft);color:var(--sun-soft-ink)}
+.tag.fast,.tag.ok{background:var(--brand-soft);color:var(--brand-deep)}
+.tag.jam,.tag.wait{background:var(--sun-soft);color:var(--sun-soft-ink)}
+.tag.no{background:var(--danger-soft);color:var(--danger)}
 .banner{padding:10px 12px;border-radius:14px;background:var(--sun-soft);color:var(--sun-soft-ink);font-size:14px}
 .okbox{padding:12px;border-radius:14px;background:var(--brand-soft);color:var(--brand-deep);font-size:14px}
 .box{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:18px}
 .kv{display:flex;justify-content:space-between;gap:12px;font-size:14px}
 .kv span:first-child{color:var(--muted)}
-.kv b{font-weight:600}
+.kv b{font-weight:600;text-align:end;overflow-wrap:anywhere;min-width:0}
 .big{font-family:var(--display);font-size:34px;font-weight:700;line-height:1;color:var(--brand);font-variant-numeric:tabular-nums}
 .stepper{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:0 4px;border:1px solid var(--line);border-radius:14px}
 .stepper button{width:44px;height:44px;border:0;border-radius:12px;background:var(--seg);font-size:20px;font-weight:600}
 .stepper b{font-family:var(--display);font-size:18px}
-.spin{width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;animation:rot 1s linear infinite}
+.spin{width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;animation:rot 1s linear infinite;flex:none}
 @keyframes rot{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
 #errbox{position:fixed;inset-inline:10px;bottom:10px;z-index:50;max-height:60%;overflow:auto;padding:14px;border-radius:16px;background:var(--danger-soft);color:var(--ink);border:2px solid var(--danger);display:flex;flex-direction:column;gap:8px}
-#errbox h3{font-size:16px;color:var(--danger)}
+#errbox h3{font-size:16px;color:var(--danger);margin:0}
 #errbox pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;direction:ltr;text-align:left;background:#fff;border-radius:10px;padding:8px}
 </style>
 </head>
 <body>
 
-<section id="gate">
-  <div>
-    <h1 id="g-title">خدني</h1>
-    <p id="g-sub"></p>
-  </div>
-  <form id="keyform" class="col" novalidate>
-    <div class="col" style="gap:4px">
-      <label for="key" id="g-label"></label>
-      <input type="text" id="key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza...">
-    </div>
-    <div class="gerr" id="g-err" role="alert" hidden></div>
-    <button class="btn sun" type="submit" id="g-go"></button>
-  </form>
-  <p class="note" id="g-note"></p>
-  <button class="btn ghost" type="button" id="g-lang" style="border-color:rgba(255,255,255,.5);color:#fff"></button>
-</section>
+<section id="gate"></section>
 
 <section id="app" hidden>
   <div class="top">
     <span class="brand" id="brand"></span>
     <div class="row" style="gap:6px">
       <button class="chipbtn" type="button" id="b-lang"></button>
-      <button class="chipbtn" type="button" id="b-key"></button>
+      <button class="chipbtn" type="button" id="b-acct"></button>
     </div>
   </div>
   <div class="mapwrap"><div id="map"></div><div class="hint" id="hint" hidden></div></div>
@@ -129,10 +130,16 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 <script>
 (function(){
 'use strict';
-var $=function(s){return document.querySelector(s)};
-var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+/* Firebase web config. It identifies the project and is not a secret: access is decided by the database rules. */
+var FB_CONFIG={apiKey:'AIzaSyDu_16hGFQWB8YO3G4u5Wtc8UIaZ_RP18U',authDomain:'khedni-df08b.firebaseapp.com',projectId:'khedni-df08b',storageBucket:'khedni-df08b.firebasestorage.app',messagingSenderId:'646263417160',appId:'1:646263417160:web:291d4f0723b5931894ab7d'};
+var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
+var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
+var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
+var FEE=0.10;     // Khedni's share, taken from the driver's part
+var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
-/* ---------- storage (may be unavailable when the file is opened locally) ---------- */
+var $=function(s){return document.querySelector(s)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
 function sget(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function sset(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function sdel(k){try{localStorage.removeItem(k)}catch(e){}}
@@ -143,13 +150,16 @@ var LOG=[];
 
 /* ---------- state ---------- */
 function blank(){return {text:'',lat:null,lng:null}}
-var S={lang:sget('kh-lang')==='en'?'en':'ar',key:sget('kh-key')||'',role:'driver',
-  from:blank(),to:blank(),rfrom:blank(),rto:blank(),sug:{from:[],to:[],rfrom:[],rto:[]},
-  day:1,time:'07:30',pick:null,busy:false,formErr:'',
-  routes:null,sel:0,dep:null,confirmed:false,pt:null,seats:3,price:null,
-  ride:null,req:null,match:null,owed:0};
-var LIMIT=800; // metres: how far a rider's point may be from the driver's road and still count as "on the way"
-var FEE=0.10;  // Khedni's share, taken from the driver's part
+var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
+  gate:'boot',bootMsg:'',bootFail:false,keyErr:'',
+  af:{mode:'in',name:'',phone:'',pw:'',drv:false,car:'',plate:'',show:false,err:'',busy:false},
+  user:null,me:null,admin:false,cfg:null,
+  role:sget('kh-role')||'',view:'main',
+  dv:'home',rideId:null,from:blank(),to:blank(),day:1,time:'07:30',busy:false,formErr:'',routes:null,sel:0,dep:null,confirmed:false,pt:null,seats:3,price:null,
+  myRides:[],inReqs:[],pays:[],
+  rv:'home',rfrom:blank(),rto:blank(),rday:1,rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
+  sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
+  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null};
 function T(ar,en){return S.lang==='en'?en:ar}
 
 /* ---------- errors shown on screen, so a screenshot is enough to debug ---------- */
@@ -157,7 +167,7 @@ function showErr(title,detail,hint){
   var b=$('#errbox');
   b.innerHTML='<h3>'+esc(title)+'</h3>'+(hint?'<p>'+esc(hint)+'</p>':'')+(detail?'<pre>'+esc(detail)+'</pre>':'')+
     '<button class="btn sm ghost" type="button" id="errclose">'+T('سكّر','Close')+'</button>';
-  b.hidden=false;$('#errclose').onclick=function(){b.hidden=true};
+  b.hidden=false;
 }
 function explain(msg){
   msg=String(msg||'');
@@ -173,24 +183,50 @@ window.addEventListener('error',function(e){showErr(T('صار خطأ بالصف�
 window.addEventListener('unhandledrejection',function(e){var m=(e.reason&&(e.reason.message||e.reason))||'';showErr(T('صار خطأ','Something went wrong'),String(m),explain(m))});
 function mapErrHint(m){
   if(m==='ApiNotActivatedMapError')return T('خدمة Maps JavaScript API مش مفعّلة بالمشروع. فعّلها، نطور دقيقتين، وافتح الصفحة من جديد.','The Maps JavaScript API is not enabled on the project. Enable it, wait two minutes, and reopen this page.');
-  if(m==='InvalidKeyMapError')return T('المفتاح مش صحيح أو مش كامل. انسخه من جديد واكبس "المفتاح" فوق.','The key is wrong or incomplete. Copy it again and tap "Key" above.');
+  if(m==='InvalidKeyMapError')return T('مفتاح الخرائط مش صحيح أو مش كامل. غيّره من "حسابي".','The maps key is wrong or incomplete. Change it under "Account".');
   if(m==='BillingNotEnabledMapError')return T('الفوترة مش مربوطة بهالمشروع.','Billing is not linked to this project.');
-  if(m==='RefererNotAllowedMapError')return T('المفتاح مقيّد على مواقع محدّدة وهالصفحة مش منها. حط Application restrictions على None مؤقتاً.','The key is restricted to specific websites and this page is not one of them. Set Application restrictions to None for now.');
+  if(m==='RefererNotAllowedMapError')return T('مفتاح الخرائط مقيّد على مواقع محدّدة وهالصفحة مش منها. ضيف عنوان هالصفحة بقيود المفتاح.','The maps key is restricted to specific websites and this page is not one of them. Add this page’s address to the key restrictions.');
   if(m==='ApiTargetBlockedMapError')return T('المفتاح مقيّد وما بيسمح بـMaps JavaScript API. ضيفها بـAPI restrictions.','The key is restricted and does not allow the Maps JavaScript API. Add it under API restrictions.');
   if(m==='ExpiredKeyMapError')return T('المفتاح منتهي أو لسا جديد. نطور 5 دقايق وجرّب.','The key has expired or is too new. Wait 5 minutes and try again.');
   return T('المفتاح غلط، أو الفوترة مش مفعّلة، أو خدمة Maps JavaScript API مش مفعّلة. السبب بالضبط مكتوب تحت إذا جوجل عطته.','The key is wrong, billing is off, or the Maps JavaScript API is not enabled. The exact reason is below if Google gave one.')}
-window.gm_authFailure=function(){setTimeout(function(){var log=LOG.join('\n'),m=(log.match(/(\w+MapError)/)||[])[1]||'';showErr(T('جوجل رفضت المفتاح','Google rejected the key')+(m?' · '+m:''),log||'gm_authFailure',mapErrHint(m))},500)};
+window.gm_authFailure=function(){setTimeout(function(){var log=LOG.join('\n'),m=(log.match(/(\w+MapError)/)||[])[1]||'';showErr(T('جوجل رفضت مفتاح الخرائط','Google rejected the maps key')+(m?' · '+m:''),log||'gm_authFailure',mapErrHint(m))},500)};
+function authErr(e){var c=String(e&&e.code||''),m=String(e&&e.message||e);
+  if(/email-already-in-use/.test(c))return T('هالرقم عنده حساب من قبل. اكبس "دخول" وحط كلمة السر.','This number already has an account. Tap "Sign in" and enter the password.');
+  if(/invalid-credential|wrong-password|user-not-found|invalid-login/.test(c))return T('الرقم أو كلمة السر غلط. إذا ما عندك حساب، اكبس "حساب جديد".','Wrong number or password. If you have no account, tap "New account".');
+  if(/weak-password/.test(c))return T('كلمة السر لازم تكون 6 أحرف أو أكتر.','The password must be 6 characters or more.');
+  if(/too-many-requests/.test(c))return T('محاولات كتير ورا بعض. نطور شوي وجرّب.','Too many attempts. Wait a little and try again.');
+  if(/network-request-failed/.test(c))return T('ما في اتصال بالإنترنت. جرّب مرة تانية.','No internet connection. Try again.');
+  if(/operation-not-allowed/.test(c))return T('الدخول بكلمة سر مش مفعّل بـFirebase (Authentication ← Email/Password).','Password sign-in is not enabled in Firebase (Authentication → Email/Password).');
+  if(/unauthorized-domain/.test(c))return T('عنوان هالصفحة مش مسموح بـFirebase. ضيفه بـAuthentication ← Settings ← Authorized domains.','This page’s address is not allowed in Firebase. Add it under Authentication → Settings → Authorized domains.');
+  if(/api-key/.test(c))return T('كود الربط بـFirebase مش صحيح.','The Firebase config is not valid.');
+  if(/permission-denied/.test(c+m))return T('قاعدة البيانات رفضت تحفظ الحساب. قواعد الحماية (Rules) بعد ما انحطّت بـFirebase.','The database refused to save the account. The security rules are not set in Firebase yet.');
+  return T('ما مشي الحال: ','That did not work: ')+(c||m)}
+function dbErr(what,e){var c=String(e&&e.code||''),m=String(e&&e.message||e),h='';
+  if(/permission-denied|insufficient permissions/i.test(c+m))h=T('قاعدة البيانات رفضت. يا قواعد الحماية (Rules) بعد ما انحطّت بـFirebase، يا حسابك ما بيسمحله بهالشي.','The database refused. Either the security rules are not set in Firebase yet, or your account is not allowed to do this.');
+  else if(/unavailable|offline|network/i.test(c+m))h=T('ما في اتصال بالإنترنت. جرّب مرة تانية.','No internet connection. Try again.');
+  showErr(T('ما مشي الحال','That did not work')+' · '+what,c+'\n'+m,h)}
 
 /* ---------- helpers ---------- */
 function pad(n){return ('0'+n).slice(-2)}
-function hm(d){return d.getHours()+':'+pad(d.getMinutes())}
+function hm(d){d=d instanceof Date?d:new Date(d);return d.getHours()+':'+pad(d.getMinutes())}
+function r2(n){return Math.round(n*100)/100}
 function durTxt(sec){var m=Math.max(1,Math.round(sec/60));if(m<60)return m+' '+T('د','min');var h=Math.floor(m/60),r=m%60;return h+' '+T('س','h')+(r?' '+pad(r)+' '+T('د','min'):'')}
 function kmTxt(m){return (m>=10000?Math.round(m/1000):Math.round(m/100)/10)+' '+T('كم','km')}
 function mTxt(m){return m<950?Math.round(m/10)*10+' '+T('م','m'):kmTxt(m)}
-function money(n){return '<b dir="ltr">$'+String(Math.round(n*100)/100)+'</b>'}
+function money(n){return '<b dir="ltr">$'+String(r2(n))+'</b>'}
 function secs(s){return parseInt(String(s||'0').replace('s',''),10)||0}
 function dayName(n){return n===0?T('اليوم','Today'):n===1?T('بكرا','Tomorrow'):T('بعد بكرا','In 2 days')}
+function dayStart(n){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d.getTime()}
+function dayOf(ms){var d=new Date(ms);d.setHours(0,0,0,0);var n=Math.round((d.getTime()-dayStart(0))/86400000);
+  return n>=0&&n<=2?dayName(n):n===-1?T('مبارح','Yesterday'):new Date(ms).getDate()+'/'+(new Date(ms).getMonth()+1)}
 function depDate(){var p=S.time.split(':'),d=new Date();d.setDate(d.getDate()+S.day);d.setHours(+p[0]||0,+p[1]||0,0,0);return d}
+function digits(s){return String(s||'').replace(/[٠-٩]/g,function(c){return String(c.charCodeAt(0)-0x660)}).replace(/[۰-۹]/g,function(c){return String(c.charCodeAt(0)-0x6F0)})}
+// Lebanese numbers in any spelling (03 123 456, +961 70 123 456, 0096170123456) become 961XXXXXXXX
+function normPhone(s){var d=digits(s).replace(/\D/g,'');
+  if(d.indexOf('00961')===0)d=d.slice(5);else if(d.indexOf('961')===0&&d.length>8)d=d.slice(3);
+  if(d.charAt(0)==='0')d=d.slice(1);
+  return /^\d{7,8}$/.test(d)?'961'+d:null}
+function showPhone(p){p=String(p||'');return p.indexOf('961')===0?'+961 '+p.slice(3):p}
 function decode(str){var i=0,lat=0,lng=0,out=[],b,shift,res;
   while(i<str.length){shift=0;res=0;do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);lat+=(res&1)?~(res>>1):(res>>1);
     shift=0;res=0;do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);lng+=(res&1)?~(res>>1):(res>>1);
@@ -206,17 +242,82 @@ function nearestOnPath(R,p){var best={d:1e12,cum:0,pos:R.path[0]},kx=Math.cos(p.
   return best}
 function at(R,c){var i=1;while(i<R.cum.length-1&&R.cum[i]<c)i++;var seg=(R.cum[i]-R.cum[i-1])||1,t=(c-R.cum[i-1])/seg,a=R.path[i-1],b=R.path[i];return {lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t}}
 function sub(R,c0,c1){var out=[at(R,c0)];for(var i=0;i<R.path.length;i++)if(R.cum[i]>c0&&R.cum[i]<c1)out.push(R.path[i]);out.push(at(R,c1));return out}
-function etaOn(R,dep,c){return new Date(dep.getTime()+c/total(R)*R.dur*1000)}
+function etaOn(R,dep,c){return new Date(+dep+c/total(R)*R.dur*1000)}
 function suggestPrice(m){return Math.max(1,Math.round(m/1000*0.05*2)/2)}
+// a ride as stored keeps its road as Google's encoded line; decode it once per ride
+var HY={};
+function hyd(r){var h=HY[r.id];if(!h||h.poly!==r.poly){var p=decode(r.poly||'');h=HY[r.id]={poly:r.poly,path:p,cum:withCum(p)}}r.path=h.path;r.cum=h.cum;return r}
+
+/* ---------- Firebase: accounts and shared data ---------- */
+var F=null,auth=null,db=null,unsubs=[],got={rides:false,reqs:false},creating=false,tidied={};
+function col(n){return F.f.collection(db,n)}
+function ref(n,id){return F.f.doc(db,n,id)}
+function rows(s){return s.docs.map(function(d){var o=d.data();o.id=d.id;return o})}
+function listen(q,cb,name){unsubs.push(F.f.onSnapshot(q,cb,function(e){dbErr(name,e)}))}
+function boot(){
+  S.gate='boot';S.bootMsg=T('عم نفتح خدني…','Opening Khedni…');showGate();
+  if(!FB_CONFIG){S.bootFail=true;S.bootMsg=T('التطبيق بعد ما انربط بقاعدة البيانات.','The app is not connected to its database yet.');showGate();return}
+  Promise.all([import(FB_BASE+'firebase-app.js'),import(FB_BASE+'firebase-auth.js'),import(FB_BASE+'firebase-firestore.js')]).then(function(m){
+    var app=m[0].initializeApp(FB_CONFIG);F={a:m[1],f:m[2]};auth=m[1].getAuth(app);db=m[2].getFirestore(app);
+    m[1].onAuthStateChanged(auth,onAuth);
+  }).catch(function(e){S.bootFail=true;S.bootMsg=T('ما قدرنا نحمّل التطبيق. تأكد من الإنترنت وافتح الصفحة من جديد.','Could not load the app. Check your connection and reopen the page.');showGate();showErr(T('ما قدرنا نحمّل التطبيق','Could not load the app'),String(e&&e.message||e),'')});
+}
+function onAuth(u){
+  unsubs.forEach(function(fn){try{fn()}catch(e){}});unsubs=[];got={rides:false,reqs:false};
+  S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.ad=null;
+  S.view='main';S.dv='home';S.rv='home';S.routes=null;S.confirmed=false;S.found=null;S.pick=null;S.pt=null;
+  if(!u){S.gate='auth';showGate();return}
+  S.gate='boot';S.bootMsg=T('عم نفتح حسابك…','Opening your account…');showGate();
+  listen(ref('users',u.uid),function(snap){
+    if(!snap.exists()){if(creating)return;S.me=null;S.gate='profile';showGate();return}
+    var first=!S.me;S.me=snap.data();
+    if(first)enter();else paint();
+  },T('الحساب','account'));
+}
+function enter(){
+  var uid=S.user.uid,f=F.f;
+  if(S.role!=='driver'&&S.role!=='rider')S.role=S.me.dstatus&&S.me.dstatus!=='none'?'driver':'rider';
+  f.getDoc(ref('adminping','x')).then(function(){S.admin=true;paint()}).catch(function(){S.admin=false});
+  listen(f.query(col('rides'),f.where('driverId','==',uid)),function(s){S.myRides=rows(s).map(hyd);got.rides=true;upkeep();paint()},T('المشاوير','rides'));
+  listen(f.query(col('requests'),f.where('driverId','==',uid)),function(s){S.inReqs=rows(s);got.reqs=true;upkeep();paint()},T('الطلبات','requests'));
+  listen(f.query(col('requests'),f.where('riderId','==',uid)),function(s){S.myReqs=rows(s);paint()},T('حجوزاتي','bookings'));
+  listen(f.query(col('payments'),f.where('driverId','==',uid)),function(s){S.pays=rows(s);paint()},T('الدفعات','payments'));
+  listen(ref('config','app'),function(s){S.cfg=s.exists()?s.data():{};ensureMap();paint()},T('الإعدادات','settings'));
+}
+// the driver's own phone keeps each ride tidy: free seats match the accepted riders, and finished rides are closed
+var upTimer=0;
+function upkeep(){clearTimeout(upTimer);upTimer=setTimeout(function(){
+  if(!got.rides||!got.reqs||!S.user)return;var now=Date.now();
+  S.myRides.forEach(function(R){
+    if(R.status!=='open'||tidied[R.id])return;
+    var acc=S.inReqs.filter(function(q){return q.rideId===R.id&&q.status==='accepted'}).length,want=Math.max(0,R.seats-acc),
+      fix=R.dep+R.dur*1000<now-2*3600000?{status:'done'}:R.seatsLeft!==want?{seatsLeft:want}:null;
+    if(!fix)return;
+    tidied[R.id]=1;F.f.updateDoc(ref('rides',R.id),fix).catch(function(){}).then(function(){delete tidied[R.id]});
+  })},900)}
+function myRide(id){for(var i=0;i<S.myRides.length;i++)if(S.myRides[i].id===id)return S.myRides[i];return null}
+function myReq(id){for(var i=0;i<S.myReqs.length;i++)if(S.myReqs[i].id===id)return S.myReqs[i];return null}
+function reqsFor(id){return S.inReqs.filter(function(q){return q.rideId===id}).sort(function(a,b){return a.puAt-b.puAt})}
+function ledger(){var fees=0,paid=0;S.inReqs.forEach(function(q){if(q.status==='accepted')fees+=q.fee||0});S.pays.forEach(function(p){paid+=p.amount||0});return {fees:r2(fees),paid:r2(paid),owed:r2(fees-paid)}}
 
 /* ---------- Google: load, map, places, routes ---------- */
-var map=null,ov=[],places=null,token=null;
+var map=null,ov=[],places=null,token=null,mapState='none';
+function ensureMap(){
+  if(mapState==='ready'){if(S.gate){hideGate();initMap();paint()}return}
+  if(mapState==='loading')return;
+  var key=(S.cfg&&S.cfg.mapsKey)||S.localKey;
+  if(!key){S.gate='key';showGate();return}
+  mapState='loading';S.key=key;S.gate='boot';S.bootMsg=T('عم نحمّل الخريطة…','Loading the map…');showGate();
+  loadMaps(key).then(function(){mapState='ready';if(!S.user||!S.me)return;hideGate();initMap();paint()})
+   .catch(function(){mapState='none';S.keyErr=T('ما قدرنا نحمّل خرائط جوجل. تأكد من الإنترنت وجرّب مرة تانية.','Could not load Google Maps. Check your connection and try again.');S.gate='key';showGate()});
+}
 function loadMaps(key){return new Promise(function(res,rej){
   window.__khReady=function(){res()};
   var s=document.createElement('script');
   s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&v=weekly&loading=async&libraries=places&language='+S.lang+'&region=LB&callback=__khReady';
   s.async=true;s.onerror=function(){rej(new Error('Failed to fetch Google Maps script'))};document.head.appendChild(s)})}
 function initMap(){
+  if(map)return;
   map=new google.maps.Map($('#map'),{center:{lat:33.86,lng:35.56},zoom:11,disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',clickableIcons:false});
   map.addListener('click',tapEvt);
   google.maps.importLibrary('places').then(function(lib){places=lib;try{token=new lib.AutocompleteSessionToken()}catch(e){}}).catch(function(){places=null});
@@ -226,23 +327,29 @@ function add(o){ov.push(o);return o}
 function line(path,color,w,op,z,onClick){var l=add(new google.maps.Polyline({path:path,map:map,strokeColor:color,strokeWeight:w,strokeOpacity:op,zIndex:z}));l.addListener('click',onClick||tapEvt);return l}
 function pin(pos,label){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}))}
 function dot(pos,fill){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:20,icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:fill,fillOpacity:1,strokeColor:'#0E1F1A',strokeWeight:3}}))}
+function ends(R){if(R.path.length){pin(R.path[0],'A');pin(R.path[R.path.length-1],'B')}}
 function redraw(){
   if(!map)return;ov.forEach(function(o){o.setMap(null)});ov=[];
-  if(S.role==='driver'&&!S.ride&&S.routes){
-    S.routes.forEach(function(r,i){var on=i===S.sel;if(S.confirmed&&!on)return;
-      line(r.path,on?'#1A6FE0':'#6F7D78',on?7:5,on?1:.7,on?10:1,function(e){if(i!==S.sel&&!S.confirmed){S.sel=i;S.pt=null;redraw();render()}else tapEvt(e)})});
-    var r=S.routes[S.sel];pin(r.path[0],'A');pin(r.path[r.path.length-1],'B');
-    if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');
+  if(S.view!=='main'||!S.me)return;
+  if(S.role==='driver'){
+    if(S.me.dstatus!=='active')return;
+    if(S.dv==='new'&&S.routes){
+      S.routes.forEach(function(r,i){var on=i===S.sel;if(S.confirmed&&!on)return;
+        line(r.path,on?'#1A6FE0':'#6F7D78',on?7:5,on?1:.7,on?10:1,function(e){if(i!==S.sel&&!S.confirmed){S.sel=i;S.pt=null;paint()}else tapEvt(e)})});
+      ends(S.routes[S.sel]);if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');return}
+    if(S.dv==='ride'){var R=myRide(S.rideId);if(!R)return;
+      line(R.path,'#1A6FE0',7,1,10);ends(R);if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');
+      reqsFor(R.id).forEach(function(q){if(q.status==='pending'||q.status==='accepted'){dot(q.pu,'#F5B921');dot(q.dr,'#FFFFFF')}})}
     return}
-  if(S.ride){var R=S.ride;line(R.path,'#1A6FE0',7,1,10);pin(R.path[0],'A');pin(R.path[R.path.length-1],'B');
-    if(S.role==='driver'){if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');if(S.req&&S.req.status!=='rejected'){dot(S.req.puPos,'#F5B921');dot(S.req.drPos,'#FFFFFF')}}}
-  if(S.role==='rider'){
-    if(S.ride&&S.match&&S.match.ok)line(sub(S.ride,S.match.pu.cum,S.match.dr.cum),'#0B5D4B',9,1,15);
-    if(S.rfrom.lat!=null)dot(S.rfrom,'#F5B921');
-    if(S.rto.lat!=null)dot(S.rto,'#FFFFFF');
-  }
+  if(S.rv==='results'&&S.found&&S.found.ok.length){var x=S.found.ok[S.fsel]||S.found.ok[0];
+    line(x.R.path,'#1A6FE0',6,.75,10);line(sub(x.R,x.m.pu.cum,x.m.dr.cum),'#0B5D4B',9,1,15)}
+  if(S.rv==='req'){var q=myReq(S.reqId);if(q){
+    if(S.reqRide&&S.reqRide.id===q.rideId){var RR=S.reqRide,a=nearestOnPath(RR,q.pu),b=nearestOnPath(RR,q.dr);line(RR.path,'#1A6FE0',6,.75,10);if(b.cum>a.cum)line(sub(RR,a.cum,b.cum),'#0B5D4B',9,1,15)}
+    dot(q.pu,'#F5B921');dot(q.dr,'#FFFFFF');return}}
+  if(S.rfrom.lat!=null)dot(S.rfrom,'#F5B921');
+  if(S.rto.lat!=null)dot(S.rto,'#FFFFFF');
 }
-function fit(paths){var b=new google.maps.LatLngBounds();paths.forEach(function(p){for(var i=0;i<p.length;i+=Math.max(1,Math.floor(p.length/60)))b.extend(p[i]);b.extend(p[p.length-1])});map.fitBounds(b,40)}
+function fit(paths){if(!map)return;var b=new google.maps.LatLngBounds(),n=0;paths.forEach(function(p){if(!p||!p.length)return;for(var i=0;i<p.length;i+=Math.max(1,Math.floor(p.length/60))){b.extend(p[i]);n++}b.extend(p[p.length-1])});if(n)map.fitBounds(b,40)}
 function waypoint(p){return p.lat!=null?{location:{latLng:{latitude:p.lat,longitude:p.lng}}}:{address:p.text+(/lebanon|لبنان/i.test(p.text)?'':', Lebanon')}}
 function computeRoutes(){
   var dep=depDate(),min=new Date(Date.now()+2*60000);
@@ -256,7 +363,7 @@ function computeRoutes(){
      if(!x.ok||x.j.error)throw new Error((x.j.error&&(x.j.error.status+': '+x.j.error.message))||'Routes API error');
      var rs=(x.j.routes||[]).filter(function(r){return r.polyline&&r.polyline.encodedPolyline});
      if(!rs.length)throw new Error('NO_ROUTE');
-     return {dep:dep,routes:rs.map(function(r){var path=decode(r.polyline.encodedPolyline);return {path:path,cum:withCum(path),dur:secs(r.duration),stat:secs(r.staticDuration),dist:r.distanceMeters||0,desc:r.description||''}})}});
+     return {dep:dep,routes:rs.map(function(r){var path=decode(r.polyline.encodedPolyline);return {enc:r.polyline.encodedPolyline,path:path,cum:withCum(path),dur:secs(r.duration),stat:secs(r.staticDuration),dist:r.distanceMeters||0,desc:r.description||''}})}});
 }
 var sugTimer=0,sugSeq=0;
 function suggest(which,text){
@@ -279,54 +386,153 @@ function chooseSug(which,i){var s=S.sug[which][i];if(!s)return;var txt=s.placePr
 
 /* ---------- map taps: set a point, or ask when the driver passes a point ---------- */
 function onMapTap(p){
-  if(S.pick){var w=S.pick;S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};S.pick=null;if(w.charAt(0)==='r')S.match=null;redraw();render();return}
-  if(S.role!=='driver')return;
-  var R=S.ride||(S.routes&&S.routes[S.sel]);if(!R)return;
+  if(S.pick){var w=S.pick;S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};S.pick=null;paint();return}
+  if(S.view!=='main'||S.role!=='driver')return;
+  var R=S.dv==='ride'?myRide(S.rideId):(S.dv==='new'&&S.routes?S.routes[S.sel]:null);if(!R)return;
   var n=nearestOnPath(R,p);
-  S.pt=n.d>700?{far:true}:{at:etaOn(R,S.ride?S.ride.dep:S.dep,n.cum),km:n.cum,pos:n.pos};
-  redraw();render();
+  S.pt=n.d>700?{far:true}:{at:etaOn(R,S.dv==='ride'?R.dep:S.dep,n.cum),km:n.cum,pos:n.pos};
+  paint();
 }
-/* ---------- rider: is my trip on the driver's road? ---------- */
-function findMatch(){var R=S.ride;
-  if(S.rfrom.lat==null||S.rto.lat==null)return {ok:false,why:'points'};
-  if(R.seats<1)return {ok:false,why:'full'};
+/* ---------- rider: is my trip on this driver's road? ---------- */
+function matchRide(R){
+  if(R.seatsLeft<1)return {ok:false,why:'full'};
   var a=nearestOnPath(R,S.rfrom),b=nearestOnPath(R,S.rto);
   if(a.d>LIMIT)return {ok:false,why:'farpu',d:a.d};
   if(b.d>LIMIT)return {ok:false,why:'fardr',d:b.d};
   if(b.cum-a.cum<300)return {ok:false,why:'order'};
   return {ok:true,pu:a,dr:b,puAt:etaOn(R,R.dep,a.cum),drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:Math.max(.5,Math.round(R.price*(b.cum-a.cum)/total(R)*2)/2)}}
-var WHY={points:['اختار النقطتين من الاقتراحات، أو حطّهم عالخريطة بكبسة الدبّوس.','Pick both points from the suggestions, or set them on the map with the pin button.'],
- full:['ما بقي مقاعد بهالمشوار.','No seats left on this ride.'],
- order:['نقطة النزول لازم تكون بعد نقطة الطلعة بنفس اتجاه السائق.','Your drop-off must come after your pick-up, in the driver’s direction.']};
+function search(){
+  if(S.rfrom.lat==null||S.rto.lat==null){S.rErr=T('اختار النقطتين من الاقتراحات، أو حطّهم عالخريطة بكبسة الدبّوس.','Pick both points from the suggestions, or set them on the map with the pin button.');render();return}
+  S.rErr='';S.rbusy=true;S.pick=null;render();
+  var f=F.f,uid=S.user.uid,now=Date.now(),d0=dayStart(S.rday),d1=dayStart(S.rday+1);
+  f.getDocs(f.query(col('rides'),f.where('status','==','open'))).then(function(s){
+    var all=rows(s).filter(function(r){return r.dep>now&&r.dep>=d0&&r.dep<d1&&r.driverId!==uid}).map(hyd).filter(function(r){return r.path.length>1});
+    var res=all.map(function(R){return {R:R,m:matchRide(R)}});
+    S.found={total:all.length,ok:res.filter(function(x){return x.m.ok}).sort(function(a,b){return a.m.puAt-b.m.puAt})};
+    S.fsel=0;S.rv='results';S.rbusy=false;paint();
+    if(S.found.ok.length)fit([S.found.ok[0].R.path]);
+  }).catch(function(e){S.rbusy=false;render();dbErr(T('البحث','search'),e)});
+}
+function openReq(id,rideId){S.rv='req';S.reqId=id;S.reqRide=null;paint();var q=myReq(id);if(q)fit([[q.pu,q.dr]]);rideId=rideId||(q&&q.rideId);if(!rideId)return;
+  F.f.getDoc(ref('rides',rideId)).then(function(s){if(!s.exists()||S.reqId!==id)return;var R=s.data();R.id=s.id;S.reqRide=hyd(R);paint();if(S.rv==='req')fit([S.reqRide.path])}).catch(function(){});
+}
+
+/* ---------- screens before the app: sign in, profile, maps key ---------- */
+function gin(k,label,type,val,ph,ac,ltr){return '<div class="col" style="gap:4px"><label for="af-'+k+'">'+label+'</label><input id="af-'+k+'" data-af="'+k+'" type="'+type+'" value="'+esc(val)+'" placeholder="'+esc(ph)+'" autocomplete="'+ac+'"'+(ltr?' class="ltr"':'')+(type==='tel'?' inputmode="tel"':'')+'></div>'}
+function drvPart(){var a=S.af;
+  return '<div class="col" style="gap:4px"><span class="glbl">'+T('كيف بدّك تستعمل خدني؟','How will you use Khedni?')+'</span><div class="seg" role="group"><button type="button" data-drv="0" aria-pressed="'+(!a.drv)+'">'+T('أنا راكب','I’m a rider')+'</button><button type="button" data-drv="1" aria-pressed="'+a.drv+'">'+T('أنا سائق','I’m a driver')+'</button></div></div>'+
+  (a.drv?gin('car',T('نوع السيارة ولونها','Car model and colour'),'text',a.car,T('مثلاً: كيا ريو فضّية','e.g. silver Kia Rio'),'off')+gin('plate',T('رقم اللوحة','Plate number'),'text',a.plate,'B 123456','off',true)+
+    '<p class="note">'+T('حساب السائق بيتفعّل بعد ما الإدارة توافق عليه. لبين ما توافق، فيك تطلع كراكب.','A driver account starts working once the admin approves it. Until then you can still ride as a passenger.')+'</p>':'')}
+function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني','Khedni')+'</h1><p>'+sub+'</p></div>'},
+  foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
+  err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
+  if(S.gate==='boot')return '<div class="gwrap">'+head(T('مشوارك اليومي، مع حدا نازل عطريقك.','Your daily trip, with someone already going your way.'))+
+    '<div class="gload" role="status">'+(S.bootFail?'':'<span class="spin" aria-hidden="true"></span>')+'<span>'+esc(S.bootMsg)+'</span></div>'+(S.bootFail||S.user?foot:'')+'</div>';
+  if(S.gate==='key')return '<div class="gwrap">'+head(T('الخريطة بدها مفتاح جوجل.','The map needs a Google key.'))+
+    '<form id="keyform" class="col" novalidate><div class="col" style="gap:4px"><label for="key">'+T('الصق مفتاح خرائط جوجل هون','Paste the Google Maps key here')+'</label><input type="text" id="key" class="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza..."></div>'+
+    (S.keyErr?'<div class="gerr" role="alert">'+esc(S.keyErr)+'</div>':'')+'<button class="btn sun" type="submit">'+T('افتح الخريطة','Open the map')+'</button></form>'+
+    '<p class="note">'+T('إذا إنت مش صاحب التطبيق: الإدارة بعد ما فعّلت الخريطة. جرّب بعد شوي.','If you are not the app owner: the admin has not switched the map on yet. Try again later.')+'</p>'+foot+'</div>';
+  if(S.gate==='profile')return '<div class="gwrap">'+head(T('بقي خطوة: كمّل حسابك.','One step left: finish your account.'))+
+    '<form id="profform" class="col" novalidate>'+gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name')+drvPart()+err+
+    '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+T('كمّل','Continue')+'</button></form>'+foot+'</div>';
+  var up=a.mode==='up';
+  return '<div class="gwrap">'+head(T('مشوارك اليومي، مع حدا نازل عطريقك.','Your daily trip, with someone already going your way.'))+
+    '<div class="seg" role="group"><button type="button" data-amode="in" aria-pressed="'+(!up)+'">'+T('دخول','Sign in')+'</button><button type="button" data-amode="up" aria-pressed="'+up+'">'+T('حساب جديد','New account')+'</button></div>'+
+    '<form id="authform" class="col" novalidate>'+
+    (up?gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name'):'')+
+    gin('phone',T('رقم التلفون','Phone number'),'tel',a.phone,'70 123 456','tel',true)+
+    '<div class="col" style="gap:4px"><label for="af-pw">'+(up?T('كلمة سر (6 أحرف أو أكتر)','Password (6 characters or more)'):T('كلمة السر','Password'))+'</label><div class="pwrow"><input id="af-pw" data-af="pw" class="ltr" type="'+(a.show?'text':'password')+'" value="'+esc(a.pw)+'" autocomplete="'+(up?'new-password':'current-password')+'"><button type="button" id="af-show" aria-pressed="'+a.show+'">'+(a.show?T('خبّي','Hide'):T('بيّن','Show'))+'</button></div></div>'+
+    (up?drvPart():'')+err+
+    '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+(a.busy?T('لحظة…','One moment…'):up?T('اعمل الحساب','Create the account'):T('ادخل','Sign in'))+'</button></form>'+
+    '<p class="note">'+(up?T('رقمك ما بيبيّن لا للسائق ولا للراكب. بتشوفه الإدارة بس.','Your number is not shown to drivers or riders. Only the admin sees it.'):T('نسيت كلمة السر؟ احكي مع الإدارة.','Forgot your password? Contact the admin.'))+'</p>'+foot+'</div>';
+}
+function showGate(){
+  document.documentElement.lang=S.lang;document.documentElement.dir=T('rtl','ltr');
+  var act=document.activeElement&&document.activeElement.id,g=$('#gate');
+  $('#app').hidden=true;g.hidden=false;g.innerHTML=gateHTML();
+  if(act&&/^af-/.test(act)){var el=document.getElementById(act);if(el&&el.tagName==='INPUT'){el.focus();try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){}}}
+}
+function hideGate(){S.gate=null;var g=$('#gate');g.hidden=true;g.innerHTML='';$('#app').hidden=false}
+function profileData(ph){var a=S.af;return {name:a.name.trim(),phone:ph,car:a.drv?a.car.trim():'',plate:a.drv?a.plate.trim():'',dstatus:a.drv?'pending':'none',createdAt:Date.now()}}
+function checkProfile(){var a=S.af;
+  if(a.name.trim().length<2)return T('اكتب اسمك.','Enter your name.');
+  if(a.drv&&a.car.trim().length<2)return T('اكتب نوع السيارة.','Enter the car model.');
+  if(a.drv&&a.plate.trim().length<2)return T('اكتب رقم اللوحة.','Enter the plate number.');
+  return ''}
+function doAuth(){var a=S.af,up=a.mode==='up',ph=normPhone(a.phone);
+  a.err=!ph?T('رقم التلفون مش مظبوط. اكتبه متل: 70 123 456 أو 03 123 456.','That phone number does not look right. Write it like 70 123 456 or 03 123 456.'):a.pw.length<6?T('كلمة السر لازم تكون 6 أحرف أو أكتر.','The password must be 6 characters or more.'):up?checkProfile():'';
+  if(a.err){showGate();return}
+  a.busy=true;showGate();
+  var p;
+  if(up){creating=true;if(a.drv)S.role='driver';
+    p=F.a.createUserWithEmailAndPassword(auth,ph+MAIL,a.pw).then(function(c){return F.f.setDoc(ref('users',c.user.uid),profileData(ph))}).then(function(){creating=false})}
+  else p=F.a.signInWithEmailAndPassword(auth,ph+MAIL,a.pw);
+  p.then(function(){a.busy=false;a.pw='';a.err=''})
+   .catch(function(e){var was=creating;creating=false;a.busy=false;a.err=authErr(e);
+     if(was&&auth.currentUser){S.gate='profile'} // the sign-in exists but its profile was not saved: let them finish it
+     if(S.gate)showGate()});
+}
+function doProfile(){var a=S.af;a.err=checkProfile();if(a.err){showGate();return}
+  var ph=String(S.user.email||'').split('@')[0];a.busy=true;showGate();if(a.drv)S.role='driver';
+  F.f.setDoc(ref('users',S.user.uid),profileData(ph)).then(function(){a.busy=false;a.err=''})
+   .catch(function(e){a.busy=false;a.err=authErr(e);if(S.gate)showGate()});
+}
+function signOut(){S.af.pw='';S.af.err='';S.af.mode='in';F.a.signOut(auth).catch(function(e){dbErr(T('الخروج','sign out'),e)})}
 
 /* ---------- views ---------- */
 var PIN='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg>';
-function roleSeg(){return '<div class="seg" role="group" aria-label="'+T('الدور','Role')+'"><button type="button" data-role="driver" aria-pressed="'+(S.role==='driver')+'">'+T('أنا سائق','I’m driving')+'</button><button type="button" data-role="rider" aria-pressed="'+(S.role==='rider')+'">'+T('أنا راكب','I need a ride')+'</button></div>'}
+var ARROW=function(){return T(' ← ',' → ')};
+function roleSeg(){return '<div class="seg" role="group" aria-label="'+T('الدور','Role')+'"><button type="button" data-role="rider" aria-pressed="'+(S.role==='rider')+'">'+T('أنا راكب','I need a ride')+'</button><button type="button" data-role="driver" aria-pressed="'+(S.role==='driver')+'">'+T('أنا سائق','I’m driving')+'</button></div>'}
 function fieldHTML(which,label){var p=S[which];
   return '<div class="field"><label for="in-'+which+'">'+label+'</label><div class="inrow"><input type="text" id="in-'+which+'" data-in="'+which+'" autocomplete="off" value="'+esc(p.text)+'" placeholder="'+T('اكتب اسم المنطقة','Type a place name')+'">'+
    '<button type="button" class="pinbtn" data-pick="'+which+'" aria-pressed="'+(S.pick===which)+'" aria-label="'+T('اختار النقطة من الخريطة','Pick the point on the map')+'">'+PIN+'</button></div>'+
    '<ul class="sug" id="sug-'+which+'" hidden></ul></div>'}
+function daySel(id,val){return '<select id="'+id+'">'+[0,1,2].map(function(n){return '<option value="'+n+'"'+(n===val?' selected':'')+'>'+dayName(n)+'</option>'}).join('')+'</select>'}
+function backRow(title,sub,id,btn){return '<div class="row between"><div class="grow"><h2>'+title+'</h2>'+(sub?'<p class="sub">'+sub+'</p>':'')+'</div><button class="btn sm ghost" type="button" id="'+id+'">'+btn+'</button></div>'}
 function ptHTML(){
   if(S.pt&&S.pt.far)return '<div class="banner">'+T('هالنقطة بعيدة عن طريقك. اكبس على الخط الأزرق نفسه.','That point is far from your route. Tap on the blue line itself.')+'</div>';
   if(S.pt)return '<div class="okbox">'+T('بتمرق بهالنقطة حوالي ','You pass this point at about ')+'<b>'+hm(S.pt.at)+'</b>'+T(' (تقريبي)، بعد ',' (approximate), after ')+kmTxt(S.pt.km)+'.</div>';
   return ''}
-function routeCard(r,i,dep,asButton){var extra=r.dur-r.stat,arr=new Date(dep.getTime()+r.dur*1000),fastest=0;
+function routeCard(r,i,dep,asButton){var extra=r.dur-r.stat,arr=new Date(+dep+r.dur*1000),fastest=0;
   if(S.routes)S.routes.forEach(function(x,k){if(x.dur<S.routes[fastest].dur)fastest=k});
   var inner='<span class="t"><span class="name">'+(r.desc?T('عن طريق ','Via ')+esc(r.desc):T('طريق ','Route ')+(i+1))+'</span><span class="dur">'+durTxt(r.dur)+'</span></span>'+
    '<span class="meta"><span>'+kmTxt(r.dist)+'</span><span>'+T('بلا عجقة ','No traffic ')+durTxt(r.stat)+'</span><span>'+T('بتوصل ','Arrive ')+hm(arr)+'</span></span>'+
    '<span class="meta">'+(asButton&&i===fastest&&S.routes.length>1?'<span class="tag fast">'+T('الأسرع','Fastest')+'</span>':'')+(extra>=120?'<span class="tag jam">'+T('عجقة +','Traffic +')+durTxt(extra)+'</span>':'')+'</span>';
   return asButton?'<button type="button" class="rcard" data-route="'+i+'" aria-pressed="'+(i===S.sel)+'">'+inner+'</button>':'<div class="rcard on">'+inner+'</div>'}
+function ledgerHTML(){var L=ledger();if(!L.fees&&!L.paid)return '';
+  return '<div class="box"><div class="kv"><span>'+T('رسم خدني (10%) لهلق','Khedni’s fee (10%) so far')+'</span>'+money(L.fees)+'</div><div class="kv"><span>'+T('دفعت للإدارة','You paid the admin')+'</span>'+money(L.paid)+'</div>'+
+   '<div class="kv"><span>'+(L.owed>=0?T('عليك لخدني','You owe Khedni'):T('إلك رصيد','Your credit'))+'</span>'+money(Math.abs(L.owed))+'</div>'+
+   (L.owed>=OWE_LIMIT?'<p class="err">'+T('وصلت لحد الـ$'+OWE_LIMIT+'. ادفع للإدارة لترجع تقبل طلبات.','You reached the $'+OWE_LIMIT+' limit. Pay the admin to accept requests again.')+'</p>':'')+'</div>'}
 
-function driverHTML(){
-  if(S.ride)return rideHTML();
-  if(!S.routes)return '<h2>'+T('وين نازل؟','Where are you driving?')+'</h2>'+
+/* driver */
+function carBox(){return '<div class="box"><div class="kv"><span>'+T('السيارة','Car')+'</span><b>'+esc(S.me.car||'—')+'</b></div><div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(S.me.plate||'—')+'</b></div></div>'}
+function driverHTML(){var st=S.me.dstatus||'none';
+  if(st==='none')return '<h2>'+T('بدّك تسوق وتاخد ركّاب؟','Want to drive and take riders?')+'</h2><p class="sub">'+T('سجّل سيارتك. الإدارة بتراجع الطلب وبتفعّل حسابك كسائق.','Register your car. The admin reviews it and switches on your driver account.')+'</p>'+
+    '<div class="field"><label for="ap-car">'+T('نوع السيارة ولونها','Car model and colour')+'</label><input type="text" id="ap-car" data-af="car" value="'+esc(S.af.car)+'" placeholder="'+T('مثلاً: كيا ريو فضّية','e.g. silver Kia Rio')+'"></div>'+
+    '<div class="field"><label for="ap-plate">'+T('رقم اللوحة','Plate number')+'</label><input type="text" id="ap-plate" class="ltr" data-af="plate" value="'+esc(S.af.plate)+'" placeholder="B 123456"></div>'+
+    (S.applyErr?'<p class="err" role="alert">'+esc(S.applyErr)+'</p>':'')+'<button class="btn sun" type="button" id="apply">'+T('ابعت الطلب','Send the request')+'</button>';
+  if(st==='pending')return '<h2>'+T('طلبك عند الإدارة','Your request is with the admin')+'</h2><div class="banner">'+T('بس توافق الإدارة على حسابك، بتصير تقدر تنشر مشاوير. لبين هيك فيك تطلع كراكب.','Once the admin approves your account you can post rides. Until then you can still ride as a passenger.')+'</div>'+carBox();
+  if(st==='blocked')return '<h2>'+T('حساب السائق موقوف','Driver account paused')+'</h2><div class="banner">'+T('الإدارة وقّفت حسابك كسائق. احكي معها لتعرف السبب.','The admin paused your driver account. Contact them to find out why.')+'</div>';
+  if(S.dv==='new')return newRideHTML();
+  if(S.dv==='ride'){var R=myRide(S.rideId);if(R){S.fresh=null;return rideHTML(R)}if(S.fresh===S.rideId)return '<p class="sub" role="status">'+T('عم ننشر المشوار…','Posting the ride…')+'</p>';S.dv='home'}
+  var list=S.myRides.filter(function(r){return r.status==='open'}).sort(function(a,b){return a.dep-b.dep});
+  return '<h2>'+T('مشاويري','My rides')+'</h2>'+
+    (list.length?list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
+      return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
+       '<span class="meta"><span>'+dayOf(R.dep)+'</span><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+
+       (pen?'<span class="tag wait">'+pen+' '+T('طلب جديد','new request'+(pen>1?'s':''))+'</span>':'')+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+'</span></button>'}).join(''):
+     '<div class="banner">'+T('ما عندك مشوار منشور. انشر مشوارك واللي عطريقك بيطلبوا مقعد.','You have no posted ride. Post one and people on your way can request a seat.')+'</div>')+
+    '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+ledgerHTML();
+}
+function newRideHTML(){
+  if(!S.routes)return backRow(T('وين نازل؟','Where are you driving?'),'','dhome',T('رجوع','Back'))+
    fieldHTML('from',T('من وين','From'))+fieldHTML('to',T('لوين','To'))+
-   '<div class="grid2"><div class="field"><label for="in-day">'+T('أي نهار','Day')+'</label><select id="in-day">'+[0,1,2].map(function(n){return '<option value="'+n+'"'+(n===S.day?' selected':'')+'>'+dayName(n)+'</option>'}).join('')+'</select></div>'+
+   '<div class="grid2"><div class="field"><label for="in-day">'+T('أي نهار','Day')+'</label>'+daySel('in-day',S.day)+'</div>'+
    '<div class="field"><label for="in-time">'+T('ساعة الطلعة','Departure time')+'</label><input type="time" id="in-time" value="'+esc(S.time)+'"></div></div>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
    '<button class="btn pri" type="button" id="go"'+(S.busy?' disabled':'')+'>'+(S.busy?'<span class="spin" aria-hidden="true"></span>'+T('عم نسأل جوجل…','Asking Google…'):T('شوف الطرقات والعجقة','Show routes and traffic'))+'</button>'+
    '<p class="sub">'+T('الوقت محسوب على العجقة المتوقعة بهالنهار وهالساعة، مش عجقة هلق.','Times use the traffic expected on that day and hour, not the traffic right now.')+'</p>';
-  var head='<div class="row between"><div class="grow"><h2>'+esc(S.from.text)+T(' ← ',' → ')+esc(S.to.text)+'</h2><p class="sub">'+dayName(S.day)+' · '+hm(S.dep)+'</p></div><button class="btn sm ghost" type="button" id="edit">'+T('غيّر','Edit')+'</button></div>';
+  var head=backRow(esc(S.from.text)+ARROW()+esc(S.to.text),dayName(S.day)+' · '+hm(S.dep),'edit',T('غيّر','Edit'));
   if(!S.confirmed)return head+S.routes.map(function(r,i){return routeCard(r,i,S.dep,true)}).join('')+ptHTML()+
    '<p class="sub">'+(S.routes.length>1?T('اكبس على الطريق اللي نازل فيه، من اللايحة أو من الخريطة.','Tap the route you will take, in the list or on the map.'):T('جوجل عطت طريق واحد بس لهالمشوار.','Google returned a single route for this trip.'))+'</p>'+
    '<button class="btn sun" type="button" id="confirm">'+T('هيدا طريقي','This is my route')+'</button>';
@@ -334,117 +540,234 @@ function driverHTML(){
   return head+routeCard(r,S.sel,S.dep,false)+ptHTML()+
    '<div class="grid2"><div class="field"><span class="lbl">'+T('مقاعد فاضية','Free seats')+'</span><div class="stepper"><button type="button" data-seat="-1" aria-label="'+T('نقّص مقعد','Remove a seat')+'">−</button><b>'+S.seats+'</b><button type="button" data-seat="1" aria-label="'+T('زيد مقعد','Add a seat')+'">+</button></div></div>'+
    '<div class="field"><label for="in-price">'+T('حصة المقعد لكل الطريق ($)','Seat share, full route ($)')+'</label><input type="number" id="in-price" inputmode="decimal" min="0.5" step="0.5" value="'+S.price+'"></div></div>'+
-   '<p class="sub">'+T('السعر اقتراح تجريبي، عدّله متل ما بدك. الراكب بيدفع حسب المسافة اللي بيطلعها معك.','The price is a trial suggestion; change it as you like. A rider pays for the distance they ride with you.')+'</p>'+
-   '<button class="btn sun" type="button" id="publish">'+T('انشر المشوار','Publish the ride')+'</button>'+
+   '<p class="sub">'+T('السعر اقتراح تجريبي، عدّله متل ما بدك. الراكب بيدفع كاش حسب المسافة اللي بيطلعها معك، وخدني بتاخد 10% من حصتك.','The price is a trial suggestion; change it as you like. A rider pays cash for the distance they ride with you, and Khedni takes 10% of your share.')+'</p>'+
+   (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
+   '<button class="btn sun" type="button" id="publish"'+(S.busy?' disabled':'')+'>'+T('انشر المشوار','Publish the ride')+'</button>'+
    '<button class="btn ghost" type="button" id="unconfirm">'+T('اختار طريق تاني','Choose another route')+'</button>';
 }
-function rideHTML(){var R=S.ride,q=S.req,box;
-  if(!q)box='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. لتجرّب كراكب على نفس التلفون، اكبس "أنا راكب" فوق.','Your ride is published and has no requests yet. To try it as a rider on this phone, tap "I need a ride" above.')+'</div>';
-  else if(q.status==='pending')box='<div class="box" style="border:2px solid var(--route)"><span class="lbl">'+T('طلب جديد','New request')+'</span>'+
-    '<div class="kv"><span>'+T('بيطلع من','Gets in at')+'</span><b>'+esc(q.puText)+'</b></div><div class="kv"><span>'+T('بتوصل لعنده','You reach them')+'</span><b>'+hm(q.puAt)+'</b></div>'+
-    '<div class="kv"><span>'+T('بينزل بـ','Gets out at')+'</span><b>'+esc(q.drText)+'</b></div><div class="kv"><span>'+T('بيدفعلك كاش','Pays you in cash')+'</span>'+money(q.price)+'</div>'+
-    '<div class="grid2"><button class="btn ghost" type="button" id="reject">'+T('رفض','Decline')+'</button><button class="btn pri" type="button" id="accept">'+T('قبول','Accept')+'</button></div></div>';
-  else if(q.status==='accepted')box='<div class="okbox"><b>'+T('الراكب مأكّد.','Rider confirmed.')+'</b> '+T('بتاخده من '+esc(q.puText)+' حوالي '+hm(q.puAt)+'، وبينزل بـ'+esc(q.drText)+'. بيدفعلك كاش ','Pick them up at '+esc(q.puText)+' at about '+hm(q.puAt)+'; they get out at '+esc(q.drText)+'. They pay you in cash ')+money(q.price)+T('، ورسم خدني 10% ',', and Khedni’s 10% fee is ')+money(q.fee)+'.</div>';
-  else box='<div class="banner">'+T('رفضت الطلب. المقاعد بعدها فاضية.','You declined the request. Your seats are still free.')+'</div>';
-  return '<div class="row between"><div class="grow"><h2>'+esc(R.fromText)+T(' ← ',' → ')+esc(R.toText)+'</h2><p class="sub">'+dayName(R.day)+' · '+hm(R.dep)+' · '+T('منشور','published')+'</p></div></div>'+
+function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=L.owed>=OWE_LIMIT,
+  pen=qs.filter(function(q){return q.status==='pending'}),acc=qs.filter(function(q){return q.status==='accepted'}),h='';
+  if(stop&&pen.length)h+='<div class="banner">'+T('عليك $'+L.owed+' لخدني. ادفع للإدارة لتقدر تقبل طلبات جديدة.','You owe Khedni $'+L.owed+'. Pay the admin to accept new requests.')+'</div>';
+  pen.forEach(function(q){h+='<div class="box" style="border:2px solid var(--route)"><span class="lbl">'+T('طلب جديد','New request')+'</span>'+
+    '<div class="kv"><span>'+T('الراكب','Rider')+'</span><b>'+esc(q.riderName)+'</b></div><div class="kv"><span>'+T('بيطلع من','Gets in at')+'</span><b>'+esc(q.puText)+'</b></div><div class="kv"><span>'+T('بتوصل لعنده','You reach them')+'</span><b>'+hm(q.puAt)+'</b></div>'+
+    '<div class="kv"><span>'+T('بينزل بـ','Gets out at')+'</span><b>'+esc(q.drText)+'</b></div><div class="kv"><span>'+T('بيدفعلك كاش','Pays you in cash')+'</span>'+money(q.price)+'</div><div class="kv"><span>'+T('رسم خدني 10%','Khedni’s 10% fee')+'</span>'+money(q.fee)+'</div>'+
+    '<div class="grid2"><button class="btn ghost" type="button" data-rej="'+q.id+'">'+T('رفض','Decline')+'</button><button class="btn pri" type="button" data-acc="'+q.id+'"'+(stop||R.seatsLeft<1?' disabled':'')+'>'+T('قبول','Accept')+'</button></div></div>'});
+  acc.forEach(function(q){h+='<div class="okbox col" style="gap:8px"><div><b>'+esc(q.riderName)+' · '+T('مأكّد','confirmed')+'</b><br>'+T('بتاخده حوالي ','Pick up at about ')+'<b>'+hm(q.puAt)+'</b>'+T(' من ',' at ')+esc(q.puText)+T('، وبينزل بـ','; gets out at ')+esc(q.drText)+T('. بيدفعلك كاش ','. Pays you in cash ')+money(q.price)+'.</div>'+
+    '<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('الغي هالراكب','Cancel this rider')+'</button></div>'});
+  if(!pen.length&&!acc.length)h+='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. أول ما حدا يطلب مقعد، بيبيّن هون.','Your ride is posted and has no requests yet. A seat request appears here as soon as someone sends one.')+'</div>';
+  return backRow(esc(R.fromText)+ARROW()+esc(R.toText),dayOf(R.dep)+' · '+hm(R.dep),'dhome',T('رجوع','Back'))+h+
    '<div class="box"><div class="kv"><span>'+T('الطريق','Route')+'</span><b>'+(R.desc?esc(R.desc):'—')+'</b></div><div class="kv"><span>'+T('الوقت بالعجقة','Time with traffic')+'</span><b>'+durTxt(R.dur)+' · '+kmTxt(R.dist)+'</b></div>'+
-   '<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seats+'</b></div><div class="kv"><span>'+T('حصة المقعد لكل الطريق','Seat share, full route')+'</span>'+money(R.price)+'</div>'+
-   '<div class="kv"><span>'+T('عليك لخدني (10%)','You owe Khedni (10%)')+'</span>'+money(S.owed)+'</div></div>'+box+ptHTML()+
-   '<button class="btn ghost" type="button" id="cancelride">'+T('الغي المشوار وحط واحد جديد','Cancel this ride and post a new one')+'</button>';
-}
-function riderHTML(){var R=S.ride,q=S.req;
-  if(!R)return '<h2>'+T('ما في مشوار منشور بعد','No ride published yet')+'</h2><div class="banner">'+T('هالتجربة على تلفون واحد: اكبس "أنا سائق"، اختار طريقك، واكبس "انشر المشوار". بعدها ارجع لهون كراكب.','This trial runs on one phone: tap "I’m driving", choose your route and tap "Publish the ride". Then come back here as a rider.')+'</div>';
-  var head='<div class="box"><span class="lbl">'+T('مشوار منشور','Published ride')+'</span><div class="kv"><span>'+esc(R.fromText)+T(' ← ',' → ')+esc(R.toText)+'</span><b>'+dayName(R.day)+' '+hm(R.dep)+'</b></div><div class="kv"><span>'+(R.desc?T('عن طريق ','Via ')+esc(R.desc):'')+'</span><b>'+R.seats+' '+T('مقاعد','seats')+'</b></div></div>';
-  if(q&&q.status==='pending')return head+'<div class="banner"><b>'+T('طلبك عند السائق.','Your request is with the driver.')+'</b> '+T('لأنه عم نجرّب على تلفون واحد، اكبس "أنا سائق" فوق لتقبله أو ترفضه.','Because this trial runs on one phone, tap "I’m driving" above to accept or decline it.')+'</div>'+
-    '<div class="kv"><span>'+T('بتطلع حوالي','You get in at about')+'</span><b>'+hm(q.puAt)+'</b></div><div class="kv"><span>'+T('كاش للسائق','Cash to the driver')+'</span>'+money(q.price)+'</div>'+
-    '<button class="btn ghost" type="button" id="rcancel">'+T('إلغاء الطلب','Cancel request')+'</button>';
-  if(q&&q.status==='accepted')return head+'<div class="okbox"><b>'+T('السائق قبل. مقعدك مأكّد.','The driver accepted. Your seat is confirmed.')+'</b></div>'+
-    '<div class="row"><span class="big" dir="ltr">'+hm(q.puAt)+'</span><div class="grow"><b>'+T('السائق بيوصل لعندك (تقريبي)','The driver reaches you (approximate)')+'</b><p class="sub">'+esc(q.puText)+'</p></div></div>'+
-    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(q.drAt)+' · '+esc(q.drText)+'</b></div><div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(q.price)+'</div>'+
-    '<button class="btn ghost" type="button" id="rcancel">'+T('إلغاء الحجز','Cancel booking')+'</button>';
-  var m=S.match,res='';
-  if(q&&q.status==='rejected'&&!m)res='<div class="banner">'+T('السائق رفض طلبك. فيك تجرّب نقطة تانية.','The driver declined your request. You can try another point.')+'</div>';
-  if(m&&!m.ok)res='<p class="err" role="alert">'+(m.why==='farpu'?T('نقطة الطلعة بعيدة '+mTxt(m.d)+' عن طريق السائق. هالمشوار ما بيمرق حدّك.','Your pick-up is '+mTxt(m.d)+' from the driver’s road. This ride does not pass near you.'):m.why==='fardr'?T('نقطة النزول بعيدة '+mTxt(m.d)+' عن طريق السائق.','Your drop-off is '+mTxt(m.d)+' from the driver’s road.'):T(WHY[m.why][0],WHY[m.why][1]))+'</p>';
-  if(m&&m.ok)res='<div class="box" style="border:2px solid var(--brand)"><div class="row"><span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+T('السائق بيمرق حدّك (تقريبي)','The driver passes you (approximate)')+'</b><p class="sub">'+T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you')+'</p></div></div>'+
-    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(m.drAt)+'</b></div><div class="kv"><span>'+T('بتطلع معه','You ride')+'</span><b>'+kmTxt(m.m)+'</b></div>'+
-    '<div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(m.price)+'</div><div class="kv"><span>'+T('رسم عليك','Fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
-    '<button class="btn pri" type="button" id="rreq">'+T('اطلب مقعد','Request a seat')+'</button></div>';
-  return head+fieldHTML('rfrom',T('من وين بتطلع','Where you get in'))+fieldHTML('rto',T('لوين نازل','Where you get out'))+
-   '<button class="btn sun" type="button" id="rgo">'+T('بيمرق حدّي؟','Does it pass near me?')+'</button>'+res;
-}
-var PICKTXT={from:['نقطة الانطلاق','start point'],to:['نقطة الوصول','destination'],rfrom:['وين بتطلع','where you get in'],rto:['وين بتنزل','where you get out']};
-function render(){
-  $('#brand').textContent=T('خدني','Khedni');$('#b-lang').textContent=T('English','عربي');$('#b-key').textContent=T('المفتاح','Key');
-  var h=$('#hint');
-  if(S.pick){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}else h.hidden=true;
-  var active=document.activeElement&&document.activeElement.id,pos=null;
-  if(active&&/^in-(r?from|r?to)$/.test(active)){try{pos=document.activeElement.selectionStart}catch(e){}}else active=null;
-  $('#sheet').innerHTML=roleSeg()+(S.role==='driver'?driverHTML():riderHTML());
-  ['from','to','rfrom','rto'].forEach(paintSug);
-  if(active){var el=document.getElementById(active);if(el){el.focus();if(pos!=null){try{el.setSelectionRange(pos,pos)}catch(e){}}}}
-}
-function gateText(){
-  document.documentElement.lang=S.lang;document.documentElement.dir=T('rtl','ltr');
-  $('#g-title').textContent=T('خدني','Khedni');
-  $('#g-sub').textContent=T('تجربة السائق والراكب على خرائط جوجل الحقيقية.','Driver and rider trial on real Google Maps.');
-  $('#g-label').textContent=T('الصق مفتاح جوجل هون','Paste your Google key here');
-  $('#g-go').textContent=T('افتح الخريطة','Open the map');
-  $('#g-note').textContent=T('المفتاح بيضل على تلفونك بس. ما بينبعت لحدا غير جوجل.','The key stays on your phone only. It is sent to nobody but Google.');
-  $('#g-lang').textContent=T('English','عربي');
+   '<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seatsLeft+' / '+R.seats+'</b></div><div class="kv"><span>'+T('حصة المقعد لكل الطريق','Seat share, full route')+'</span>'+money(R.price)+'</div></div>'+ptHTML()+
+   '<p class="sub">'+T('اكبس على أي نقطة عالخط الأزرق لتعرف أي ساعة بتمرق فيها.','Tap any point on the blue line to see when you pass it.')+'</p>'+
+   '<button class="btn warn" type="button" id="cancelride">'+T('الغي هالمشوار','Cancel this ride')+'</button>';
 }
 
-/* ---------- events ---------- */
-function start(key){
-  S.key=key;$('#g-go').disabled=true;$('#g-go').textContent=T('عم نحمّل الخريطة…','Loading the map…');
-  loadMaps(key).then(function(){sset('kh-key',key);$('#gate').hidden=true;$('#app').hidden=false;initMap();render()})
-   .catch(function(){$('#g-go').disabled=false;gateText();var g=$('#g-err');g.hidden=false;g.textContent=T('ما قدرنا نحمّل خرائط جوجل. إذا الملف مفتوح من جوّا تطبيق Claude، نزّله وافتحه بـChrome.','Could not load Google Maps. If this file is open inside the Claude app, download it and open it in Chrome.')});
+/* rider */
+function reqTag(q){return q.status==='pending'?'<span class="tag wait">'+T('ناطر السائق','Waiting for the driver')+'</span>':q.status==='accepted'?'<span class="tag ok">'+T('مأكّد','Confirmed')+'</span>':q.status==='rejected'?'<span class="tag no">'+T('السائق ما قبل','Declined')+'</span>':'<span class="tag no">'+(q.by==='driver'?T('السائق لغى','Cancelled by the driver'):T('ملغى','Cancelled'))+'</span>'}
+function liveReqs(){var now=Date.now();return S.myReqs.filter(function(q){return q.drAt>now-3*3600000&&(q.status==='pending'||q.status==='accepted'||(q.updatedAt||0)>now-12*3600000)}).sort(function(a,b){return a.puAt-b.puAt})}
+function riderHTML(){
+  if(S.rv==='req'){var q=myReq(S.reqId);if(q){S.fresh=null;return reqHTML(q)}if(S.fresh===S.reqId)return '<p class="sub" role="status">'+T('عم نبعت الطلب…','Sending the request…')+'</p>';S.rv='home'}
+  if(S.rv==='results'&&S.found)return resultsHTML();
+  var mine=liveReqs();
+  return (mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
+     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+'</span></button>'}).join(''):'')+
+   '<h2>'+T('لوين رايح؟','Where are you going?')+'</h2>'+
+   fieldHTML('rfrom',T('من وين بتطلع','Where you get in'))+fieldHTML('rto',T('لوين نازل','Where you get out'))+
+   '<div class="field"><label for="in-rday">'+T('أي نهار','Day')+'</label>'+daySel('in-rday',S.rday)+'</div>'+
+   (S.rErr?'<p class="err" role="alert">'+esc(S.rErr)+'</p>':'')+
+   '<button class="btn sun" type="button" id="rgo"'+(S.rbusy?' disabled':'')+'>'+(S.rbusy?T('عم نفتّش…','Searching…'):T('مين نازل عطريقي؟','Who is going my way?'))+'</button>'+
+   '<p class="sub">'+T('بنفتّش بين السائقين اللي ناشرين مشوار بهالنهار، وبنبيّنلك اللي طريقهم بيمرق حدّك.','We look through the drivers who posted a ride that day and show the ones whose road passes near you.')+'</p>';
 }
-$('#keyform').addEventListener('submit',function(e){e.preventDefault();var k=$('#key').value.trim(),g=$('#g-err');
-  if(!/^AIza[\w-]{30,}$/.test(k)){g.hidden=false;g.textContent=T('المفتاح لازم يبلّش بـAIza ويكون حوالي 39 حرف. انسخه كامل من كبسة النسخ.','The key must start with AIza and be about 39 characters. Copy all of it with the copy button.');return}
-  g.hidden=true;start(k)});
-function switchLang(){S.lang=S.lang==='en'?'ar':'en';sset('kh-lang',S.lang);if(window.google&&google.maps){location.reload()}else gateText()}
-$('#g-lang').addEventListener('click',switchLang);
-$('#b-lang').addEventListener('click',switchLang);
-$('#b-key').addEventListener('click',function(){sdel('kh-key');location.reload()});
-document.addEventListener('input',function(e){var w=e.target.dataset&&e.target.dataset.in;
-  if(w){S[w]={text:e.target.value,lat:null,lng:null};if(w.charAt(0)==='r')S.match=null;suggest(w,e.target.value)}
+function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(S.rto.text),dayName(S.rday),'redit',T('غيّر','Edit'));
+  if(!f.ok.length)return head+'<div class="banner">'+(f.total?T('في '+f.total+' مشوار بهالنهار، بس ولا واحد بيمرق حدّ نقطتك (ضمن '+LIMIT+' متر) أو بقي فيه مقاعد.','There are '+f.total+' rides that day, but none passes within '+LIMIT+' m of your points with a free seat.'):T('ما حدا ناشر مشوار بهالنهار بعد. جرّب بعدين أو نهار تاني.','Nobody has posted a ride for that day yet. Try later or another day.'))+'</div>';
+  var x=f.ok[S.fsel]||f.ok[0],m=x.m,R=x.R,mine=null;
+  S.myReqs.forEach(function(q){if(q.rideId===R.id&&(q.status==='pending'||q.status==='accepted'))mine=q});
+  return head+f.ok.map(function(y,i){return '<button type="button" class="rcard" data-found="'+i+'" aria-pressed="'+(i===S.fsel)+'"><span class="t"><span class="name">'+esc(y.R.driverName)+' · '+esc(y.R.car)+'</span><span class="dur" dir="ltr">'+hm(y.m.puAt)+'</span></span>'+
+     '<span class="meta"><span>'+T('بيمرق حدّك','passes you')+'</span><span>'+T('بتنزل ','out at ')+hm(y.m.drAt)+'</span><span>'+y.R.seatsLeft+' '+T('مقاعد','seats')+'</span><span dir="ltr">$'+r2(y.m.price)+'</span></span></button>'}).join('')+
+   '<div class="box" style="border:2px solid var(--brand)"><div class="row"><span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+esc(R.driverName)+T(' بيمرق حدّك (تقريبي)',' passes you (approximate)')+'</b><p class="sub">'+T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you')+'</p></div></div>'+
+   '<div class="kv"><span>'+T('مشواره','Their ride')+'</span><b>'+esc(R.fromText)+ARROW()+esc(R.toText)+'</b></div>'+
+   '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(m.drAt)+'</b></div><div class="kv"><span>'+T('بتطلع معه','You ride')+'</span><b>'+kmTxt(m.m)+'</b></div>'+
+   '<div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(m.price)+'</div><div class="kv"><span>'+T('رسم عليك','Fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
+   (mine?'<div class="banner">'+T('عندك طلب على هالمشوار: ','You already have a request on this ride: ')+reqTag(mine)+'</div><button class="btn ghost" type="button" data-req="'+mine.id+'">'+T('شوف الطلب','View the request')+'</button>':
+     '<button class="btn pri" type="button" id="rreq"'+(S.rbusy?' disabled':'')+'>'+T('اطلب مقعد','Request a seat')+'</button>')+'</div>';
+}
+function reqHTML(q){var body,trip='<div class="box"><div class="kv"><span>'+T('السائق','Driver')+'</span><b>'+esc(q.driverName)+'</b></div><div class="kv"><span>'+T('السيارة','Car')+'</span><b>'+esc(q.car||'—')+'</b></div>'+
+    (q.status==='accepted'?'<div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(q.plate||'—')+'</b></div>':'')+
+    '<div class="kv"><span>'+T('بتطلع من','You get in at')+'</span><b>'+esc(q.puText)+'</b></div><div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(q.drAt)+' · '+esc(q.drText)+'</b></div>'+
+    '<div class="kv"><span>'+T('بتدفع كاش للسائق','You pay the driver in cash')+'</span>'+money(q.price)+'</div></div>';
+  if(q.status==='pending')body='<div class="banner"><b>'+T('طلبك عند السائق.','Your request is with the driver.')+'</b> '+T('أول ما يقبل أو يرفض، بيتغيّر هون لحاله.','This updates by itself as soon as they accept or decline.')+'</div>';
+  else if(q.status==='accepted')body='<div class="okbox"><b>'+T('السائق قبل. مقعدك مأكّد.','The driver accepted. Your seat is confirmed.')+'</b></div>'+
+    '<div class="row"><span class="big" dir="ltr">'+hm(q.puAt)+'</span><div class="grow"><b>'+T('السائق بيوصل لعندك (تقريبي)','The driver reaches you (approximate)')+'</b><p class="sub">'+dayOf(q.puAt)+' · '+esc(q.puText)+'</p></div></div>';
+  else if(q.status==='rejected')body='<div class="banner">'+T('السائق ما قبل هالطلب. فتّش على مشوار تاني.','The driver declined this request. Look for another ride.')+'</div>';
+  else body='<div class="banner">'+(q.by==='driver'?T('السائق لغى هالحجز. فتّش على مشوار تاني.','The driver cancelled this booking. Look for another ride.'):T('لغيت هالطلب.','You cancelled this request.'))+'</div>';
+  return backRow(esc(q.rideFrom)+ARROW()+esc(q.rideTo),dayOf(q.dep)+' · '+T('الطلعة ','departs ')+hm(q.dep),'rhome',T('رجوع','Back'))+body+trip+
+   (q.status==='pending'||q.status==='accepted'?'<button class="btn warn" type="button" data-rcancel="'+q.id+'">'+(q.status==='accepted'?T('الغي الحجز','Cancel the booking'):T('الغي الطلب','Cancel the request'))+'</button>':'');
+}
+
+/* account and admin */
+function dTag(st){return st==='active'?'<span class="tag ok">'+T('سائق مفعّل','Active driver')+'</span>':st==='pending'?'<span class="tag wait">'+T('ناطر الموافقة','Awaiting approval')+'</span>':st==='blocked'?'<span class="tag no">'+T('موقوف','Paused')+'</span>':'<span class="tag ok">'+T('راكب','Rider')+'</span>'}
+function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
+  return '<h2>'+T('حسابي','My account')+'</h2>'+
+   '<div class="box"><div class="kv"><span>'+T('الاسم','Name')+'</span><b>'+esc(m.name)+'</b></div><div class="kv"><span>'+T('التلفون','Phone')+'</span><b dir="ltr">'+esc(showPhone(m.phone))+'</b></div>'+
+   '<div class="kv"><span>'+T('نوع الحساب','Account type')+'</span>'+dTag(m.dstatus||'none')+'</div>'+
+   (m.car?'<div class="kv"><span>'+T('السيارة','Car')+'</span><b>'+esc(m.car)+'</b></div><div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(m.plate)+'</b></div>':'')+'</div>'+
+   ledgerHTML()+
+   (S.admin?'<button class="btn pri" type="button" id="toadmin">'+T('لوحة الإدارة','Admin panel')+'</button>':'')+
+   (!shared&&S.localKey?'<button class="btn ghost" type="button" id="chkey">'+T('غيّر مفتاح الخرائط على هالتلفون','Change the maps key on this phone')+'</button>':'')+
+   '<button class="btn ghost" type="button" id="signout">'+T('تسجيل خروج','Sign out')+'</button>'+
+   '<p class="sub">'+T('رقمك ما بيبيّن لا للسائق ولا للراكب. بتشوفه الإدارة بس.','Your number is not shown to drivers or riders. Only the admin sees it.')+'</p>';
+}
+function adminHTML(){var A=S.ad,head=backRow(T('لوحة الإدارة','Admin panel'),'','adrefresh',S.adBusy?T('لحظة…','Loading…'):T('حدّث','Refresh'));
+  if(!A)return head+'<p class="sub">'+T('عم نجيب المعلومات…','Loading…')+'</p>';
+  var fee={},paid={},tf=0,tp=0;
+  A.reqs.forEach(function(q){fee[q.driverId]=(fee[q.driverId]||0)+(q.fee||0);tf+=q.fee||0});
+  A.pays.forEach(function(p){paid[p.driverId]=(paid[p.driverId]||0)+(p.amount||0);tp+=p.amount||0});
+  var pend=A.users.filter(function(u){return u.dstatus==='pending'}),drv=A.users.filter(function(u){return u.dstatus==='active'||u.dstatus==='blocked'}),shared=S.cfg&&S.cfg.mapsKey;
+  var who=function(u){return '<div class="kv"><span>'+esc(u.name)+'</span><b dir="ltr">'+esc(showPhone(u.phone))+'</b></div><div class="kv"><span>'+esc(u.car||'—')+'</span><b dir="ltr">'+esc(u.plate||'—')+'</b></div>'};
+  return head+
+   '<div class="box"><div class="kv"><span>'+T('كل الحسابات','All accounts')+'</span><b>'+A.users.length+'</b></div><div class="kv"><span>'+T('سائقين مفعّلين','Active drivers')+'</span><b>'+A.users.filter(function(u){return u.dstatus==='active'}).length+'</b></div>'+
+   '<div class="kv"><span>'+T('حجوزات مأكّدة','Confirmed bookings')+'</span><b>'+A.reqs.length+'</b></div><div class="kv"><span>'+T('رسوم خدني (10%)','Khedni fees (10%)')+'</span>'+money(tf)+'</div>'+
+   '<div class="kv"><span>'+T('قبضت منهم','Collected')+'</span>'+money(tp)+'</div><div class="kv"><span>'+T('بعد إلك','Still owed to you')+'</span>'+money(tf-tp)+'</div></div>'+
+   '<h3>'+T('سائقين ناطرين الموافقة','Drivers awaiting approval')+' ('+pend.length+')</h3>'+
+   (pend.length?pend.map(function(u){return '<div class="box">'+who(u)+'<div class="grid2"><button class="btn ghost" type="button" data-ust="blocked" data-u="'+u.id+'">'+T('ارفض','Reject')+'</button><button class="btn pri" type="button" data-ust="active" data-u="'+u.id+'">'+T('وافق','Approve')+'</button></div></div>'}).join(''):'<p class="sub">'+T('ما في طلبات جديدة.','No new requests.')+'</p>')+
+   '<h3>'+T('السائقين','Drivers')+' ('+drv.length+')</h3>'+
+   (drv.length?drv.map(function(u){var owed=r2((fee[u.id]||0)-(paid[u.id]||0));
+     return '<div class="box">'+who(u)+'<div class="kv"><span>'+(owed>=0?T('عليه لخدني','Owes Khedni'):T('إله رصيد','Has credit'))+'</span>'+money(Math.abs(owed))+'</div>'+
+      (u.dstatus==='blocked'?'<div class="row between">'+dTag('blocked')+'<button class="btn sm ghost" type="button" data-ust="active" data-u="'+u.id+'">'+T('رجّع فعّله','Reactivate')+'</button></div>':
+       '<div class="inrow"><input type="number" id="pay-'+u.id+'" data-pay="'+u.id+'" inputmode="decimal" min="0" step="0.5" value="'+esc(S.pay[u.id]||'')+'" placeholder="$" aria-label="'+T('مبلغ الدفعة بالدولار','Payment amount in dollars')+'"><button class="btn sm pri" type="button" data-paid="'+u.id+'">'+T('سجّل دفعة','Record payment')+'</button></div>'+
+       '<button class="btn sm ghost" type="button" data-ust="blocked" data-u="'+u.id+'">'+T('وقّف هالسائق','Pause this driver')+'</button>')+'</div>'}).join(''):'<p class="sub">'+T('ما في سائقين بعد.','No drivers yet.')+'</p>')+
+   '<h3>'+T('خرائط جوجل','Google Maps')+'</h3>'+
+   (shared?'<div class="okbox">'+T('مفتاح الخرائط مشترك مع كل المستخدمين.','The maps key is shared with all users.')+'</div>':
+     '<div class="banner">'+T('المفتاح محفوظ على تلفونك بس. شاركه لتفتح الخريطة عند كل اللي بيسجّلوا. قبل ما تشاركه، قيّده بصفحة جوجل على عنوان هالموقع.','The key is saved on your phone only. Share it so the map opens for everyone who signs up. Before sharing, restrict it to this website in the Google console.')+'</div>'+
+     '<button class="btn sun" type="button" id="sharekey"'+(S.key?'':' disabled')+'>'+T('شارك المفتاح مع كل المستخدمين','Share the key with all users')+'</button>')+
+   (shared?'<button class="btn ghost" type="button" id="unsharekey">'+T('وقّف مشاركة المفتاح','Stop sharing the key')+'</button>':'');
+}
+function loadAdmin(){var f=F.f;S.adBusy=true;render();
+  Promise.all([f.getDocs(col('users')),f.getDocs(f.query(col('requests'),f.where('status','==','accepted'))),f.getDocs(col('payments'))])
+   .then(function(r){S.ad={users:rows(r[0]).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)}),reqs:rows(r[1]),pays:rows(r[2])};S.adBusy=false;render()})
+   .catch(function(e){S.adBusy=false;render();dbErr(T('الإدارة','admin'),e)});
+}
+
+var PICKTXT={from:['نقطة الانطلاق','start point'],to:['نقطة الوصول','destination'],rfrom:['وين بتطلع','where you get in'],rto:['وين بتنزل','where you get out']};
+var lastHTML=null;
+function render(){
+  if(S.gate||!S.me)return;
+  $('#brand').textContent=T('خدني','Khedni');$('#b-lang').textContent=T('English','عربي');$('#b-acct').textContent=S.view==='main'?T('حسابي','Account'):T('رجوع','Back');
+  var h=$('#hint');
+  if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}else h.hidden=true;
+  $('#app').classList.toggle('full',S.view!=='main');
+  var html=S.view==='account'?accountHTML():S.view==='admin'?adminHTML():roleSeg()+(S.role==='driver'?driverHTML():riderHTML());
+  if(html===lastHTML)return;
+  var el=document.activeElement,active=el&&el.id&&$('#sheet').contains(el)?el.id:null,pos=null;
+  if(active){try{pos=el.selectionStart}catch(e){}}
+  $('#sheet').innerHTML=html;lastHTML=html;
+  ['from','to','rfrom','rto'].forEach(paintSug);
+  if(active){el=document.getElementById(active);if(el){el.focus();if(pos!=null){try{el.setSelectionRange(pos,pos)}catch(e){}}}}
+}
+function paint(){if(S.gate)return;redraw();render()}
+
+/* ---------- actions ---------- */
+function fail(what){return function(e){S.busy=false;S.rbusy=false;render();dbErr(what,e)}}
+function setReq(q,status,by){var f=F.f,b=f.writeBatch(db),R=myRide(q.rideId);
+  b.update(ref('requests',q.id),{status:status,by:by,updatedAt:Date.now()});
+  if(by==='driver'&&R){if(status==='accepted')b.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});else if(q.status==='accepted')b.update(ref('rides',R.id),{seatsLeft:Math.min(R.seats,R.seatsLeft+1)})}
+  return b.commit().catch(fail(T('الطلب','request')))}
+function inReq(id){for(var i=0;i<S.inReqs.length;i++)if(S.inReqs[i].id===id)return S.inReqs[i];return null}
+function switchLang(){S.lang=S.lang==='en'?'ar':'en';sset('kh-lang',S.lang);if(window.google&&google.maps){location.reload()}else if(S.gate)showGate()}
+function resetNew(){S.routes=null;S.confirmed=false;S.pt=null;S.price=null;S.formErr='';S.from=blank();S.to=blank()}
+
+document.addEventListener('submit',function(e){e.preventDefault();
+  if(e.target.id==='authform')doAuth();
+  else if(e.target.id==='profform')doProfile();
+  else if(e.target.id==='keyform'){var k=$('#key').value.trim();
+    if(!/^AIza[\w-]{30,}$/.test(k)){S.keyErr=T('المفتاح لازم يبلّش بـAIza ويكون حوالي 39 حرف. انسخه كامل من كبسة النسخ.','The key must start with AIza and be about 39 characters. Copy all of it with the copy button.');showGate();return}
+    S.keyErr='';S.localKey=k;sset('kh-key',k);ensureMap()}
+});
+document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
+  if(d.af){S.af[d.af]=e.target.value;return}
+  if(d.pay){S.pay[d.pay]=e.target.value;return}
+  if(w){S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
   if(e.target.id==='in-time')S.time=e.target.value||'07:30';
-  if(e.target.id==='in-price'){var v=parseFloat(e.target.value);if(v>0)S.price=Math.round(v*100)/100}});
-document.addEventListener('change',function(e){if(e.target.id==='in-day')S.day=+e.target.value});
-document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;
-  if(t.dataset.sug){chooseSug(t.dataset.sug,+t.dataset.i);return}
-  if(t.dataset.pick){S.pick=S.pick===t.dataset.pick?null:t.dataset.pick;render();return}
-  if(t.dataset.role){S.role=t.dataset.role;S.pick=null;S.pt=null;redraw();render();if(S.ride)fit([S.ride.path]);return}
-  if(t.dataset.seat){S.seats=Math.max(1,Math.min(6,S.seats+(+t.dataset.seat)));render();return}
-  if(t.dataset.route&&!S.confirmed){S.sel=+t.dataset.route;S.pt=null;redraw();render();return}
+  if(e.target.id==='in-price'){var v=parseFloat(e.target.value);if(v>0)S.price=r2(v)}});
+document.addEventListener('change',function(e){if(e.target.id==='in-day')S.day=+e.target.value;if(e.target.id==='in-rday')S.rday=+e.target.value});
+document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
+  if(t.id==='errclose'){$('#errbox').hidden=true;return}
+  if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
+  if(!F)return;
+  /* before the app */
+  if(d.amode){S.af.mode=d.amode;S.af.err='';showGate();return}
+  if(d.drv){S.af.drv=d.drv==='1';showGate();return}
+  if(t.id==='af-show'){S.af.show=!S.af.show;showGate();return}
+  if(t.id==='g-out'||t.id==='signout'){signOut();return}
+  if(S.gate||!S.me)return;
+  /* shared */
+  if(t.id==='b-acct'){S.view=S.view==='main'?'account':S.view==='admin'?'account':'main';S.pick=null;paint();return}
+  if(d.sug){chooseSug(d.sug,+d.i);return}
+  if(d.pick){S.pick=S.pick===d.pick?null:d.pick;render();return}
+  if(d.role){S.role=d.role;sset('kh-role',S.role);S.pick=null;S.pt=null;paint();return}
+  /* driver */
+  if(d.seat){S.seats=Math.max(1,Math.min(6,S.seats+(+d.seat)));render();return}
+  if(d.route&&!S.confirmed){S.sel=+d.route;S.pt=null;paint();return}
+  if(d.ride){S.dv='ride';S.rideId=d.ride;S.pt=null;paint();R=myRide(d.ride);if(R)fit([R.path]);return}
+  if(d.acc){q=inReq(d.acc);if(q)setReq(q,'accepted','driver');return}
+  if(d.rej){q=inReq(d.rej);if(q)setReq(q,'rejected','driver');return}
+  if(d.drop){q=inReq(d.drop);if(q)setReq(q,'cancelled','driver');return}
+  /* rider */
+  if(d.found){S.fsel=+d.found;paint();fit([S.found.ok[S.fsel].R.path]);return}
+  if(d.req){openReq(d.req);return}
+  if(d.rcancel){q=myReq(d.rcancel);if(q)setReq(q,'cancelled','rider');return}
+  /* admin */
+  if(d.ust){f.updateDoc(ref('users',d.u),{dstatus:d.ust}).then(loadAdmin).catch(fail(T('الحساب','account')));return}
+  if(d.paid){var amt=r2(parseFloat(digits(S.pay[d.paid])));if(!(amt>0))return;
+    f.addDoc(col('payments'),{driverId:d.paid,amount:amt,at:Date.now(),by:S.user.uid}).then(function(){S.pay[d.paid]='';loadAdmin()}).catch(fail(T('الدفعة','payment')));return}
   switch(t.id){
+   case 'apply':
+    if(S.af.car.trim().length<2||S.af.plate.trim().length<2){S.applyErr=T('اكتب نوع السيارة ورقم اللوحة.','Enter the car model and the plate number.');render();return}
+    S.applyErr='';f.updateDoc(ref('users',S.user.uid),{car:S.af.car.trim(),plate:S.af.plate.trim(),dstatus:'pending'}).catch(fail(T('الطلب','request')));return;
+   case 'newride':S.dv='new';resetNew();paint();return;
+   case 'dhome':S.dv='home';S.pt=null;S.pick=null;paint();return;
    case 'go':
     if(!S.from.text.trim()||!S.to.text.trim()){S.formErr=T('حط من وين ولوين.','Enter both places.');render();return}
     if(depDate()<new Date()){S.formErr=T('هالساعة مرقت. اختار وقت جاي.','That time has passed. Pick a later time.');render();return}
     S.formErr='';S.busy=true;S.pick=null;render();
-    computeRoutes().then(function(res){S.busy=false;S.routes=res.routes;S.dep=res.dep;S.sel=0;S.confirmed=false;S.pt=null;S.price=null;redraw();fit(S.routes.map(function(r){return r.path}));render()})
+    computeRoutes().then(function(res){S.busy=false;S.routes=res.routes;S.dep=res.dep;S.sel=0;S.confirmed=false;S.pt=null;S.price=null;paint();fit(S.routes.map(function(r){return r.path}))})
      .catch(function(err){S.busy=false;var m=String(err&&err.message||err);
        if(m==='NO_ROUTE'||/NOT_FOUND|ZERO_RESULTS|geocod/i.test(m)){S.formErr=T('جوجل ما لقت طريق أو ما عرفت وحدة من المنطقتين. اختار من الاقتراحات أو حط النقطة عالخريطة.','Google found no route or did not recognise one of the places. Pick from the suggestions or set the point on the map.')}
        else showErr(T('ما قدرنا نجيب الطرقات','Could not get the routes'),m,explain(m));
        render()});
     return;
-   case 'edit':S.routes=null;S.confirmed=false;S.pt=null;redraw();render();return;
-   case 'confirm':S.confirmed=true;redraw();render();return;
-   case 'unconfirm':S.confirmed=false;S.pt=null;redraw();render();return;
+   case 'edit':S.routes=null;S.confirmed=false;S.pt=null;paint();return;
+   case 'confirm':S.confirmed=true;paint();return;
+   case 'unconfirm':S.confirmed=false;S.pt=null;paint();return;
    case 'publish':var r=S.routes[S.sel];
-    S.ride={fromText:S.from.text,toText:S.to.text,day:S.day,dep:S.dep,path:r.path,cum:r.cum,dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc,seats:S.seats,price:S.price||suggestPrice(r.dist)};
-    S.req=null;S.match=null;S.pt=null;redraw();render();return;
-   case 'cancelride':S.ride=null;S.req=null;S.match=null;S.routes=null;S.confirmed=false;S.pt=null;redraw();render();return;
-   case 'accept':S.req.status='accepted';S.req.fee=Math.round(S.req.price*FEE*100)/100;S.owed=Math.round((S.owed+S.req.fee)*100)/100;S.ride.seats=Math.max(0,S.ride.seats-1);redraw();render();return;
-   case 'reject':S.req.status='rejected';redraw();render();return;
-   case 'rgo':S.match=findMatch();if(S.req&&S.req.status==='rejected')S.req=null;redraw();render();if(S.match.ok)fit([sub(S.ride,S.match.pu.cum,S.match.dr.cum)]);return;
-   case 'rreq':var m=S.match;S.req={status:'pending',puText:S.rfrom.text,drText:S.rto.text,puAt:m.puAt,drAt:m.drAt,price:m.price,fee:0,puPos:m.pu.pos,drPos:m.dr.pos};render();return;
-   case 'rcancel':if(S.req&&S.req.status==='accepted'){S.owed=Math.max(0,Math.round((S.owed-S.req.fee)*100)/100);S.ride.seats+=1}S.req=null;redraw();render();return;
+    if(S.dep<new Date()){S.formErr=T('ساعة الطلعة مرقت. اكبس "غيّر" واختار وقت جاي.','The departure time has passed. Tap "Edit" and pick a later time.');render();return}
+    S.busy=true;render();
+    f.addDoc(col('rides'),{driverId:S.user.uid,driverName:S.me.name,car:S.me.car||'',plate:S.me.plate||'',fromText:S.from.text,toText:S.to.text,dep:S.dep.getTime(),
+      dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc||'',poly:r.enc,seats:S.seats,seatsLeft:S.seats,price:S.price||suggestPrice(r.dist),status:'open',createdAt:Date.now()})
+     .then(function(doc){S.busy=false;S.dv='ride';S.rideId=doc.id;S.fresh=doc.id;resetNew();paint()}).catch(fail(T('نشر المشوار','posting the ride')));
+    return;
+   case 'cancelride':R=myRide(S.rideId);if(!R)return;
+    var b=f.writeBatch(db);b.update(ref('rides',R.id),{status:'cancelled'});
+    reqsFor(R.id).forEach(function(x){if(x.status==='pending')b.update(ref('requests',x.id),{status:'rejected',by:'driver',updatedAt:Date.now()});else if(x.status==='accepted')b.update(ref('requests',x.id),{status:'cancelled',by:'driver',updatedAt:Date.now()})});
+    b.commit().then(function(){S.dv='home';S.pt=null;paint()}).catch(fail(T('إلغاء المشوار','cancelling the ride')));return;
+   case 'rgo':search();return;
+   case 'redit':S.rv='home';S.found=null;paint();return;
+   case 'rhome':S.rv=S.found?'results':'home';S.reqId=null;S.reqRide=null;paint();return;
+   case 'rreq':var x=S.found.ok[S.fsel],m=x.m;R=x.R;S.rbusy=true;render();
+    f.addDoc(col('requests'),{rideId:R.id,driverId:R.driverId,riderId:S.user.uid,riderName:S.me.name,driverName:R.driverName,car:R.car||'',plate:R.plate||'',
+      rideFrom:R.fromText,rideTo:R.toText,dep:R.dep,puText:S.rfrom.text,drText:S.rto.text,pu:m.pu.pos,dr:m.dr.pos,puAt:m.puAt.getTime(),drAt:m.drAt.getTime(),km:Math.round(m.m),
+      price:m.price,fee:r2(m.price*FEE),status:'pending',by:'rider',createdAt:Date.now(),updatedAt:Date.now()})
+     .then(function(doc){S.rbusy=false;S.found=null;S.fresh=doc.id;openReq(doc.id,R.id)}).catch(fail(T('طلب المقعد','the seat request')));
+    return;
+   case 'toadmin':S.view='admin';render();loadAdmin();return;
+   case 'adrefresh':loadAdmin();return;
+   case 'sharekey':f.setDoc(ref('config','app'),{mapsKey:S.key}).catch(fail(T('المفتاح','key')));return;
+   case 'unsharekey':S.localKey=S.localKey||S.key;sset('kh-key',S.localKey);f.setDoc(ref('config','app'),{mapsKey:''}).catch(fail(T('المفتاح','key')));return;
+   case 'chkey':sdel('kh-key');location.reload();return;
   }
 });
 
-gateText();
-if(S.key){$('#key').value=S.key;start(S.key)}
+boot();
 })();
 </script>
 </body>

@@ -1,0 +1,90 @@
+rules_version = '2';
+// Khedni trial. Paste this in Firebase console > Firestore Database > Rules, then Publish.
+// Replace ADMIN_PHONE with the admin's number in the form 961XXXXXXXX (no plus sign, no leading zero).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function isAdmin() { return signedIn() && request.auth.token.email in ['ADMIN_PHONE@phone.khedni.app']; }
+    function me() { return get(/databases/$(database)/documents/users/$(uid())).data; }
+    function activeDriver() { return signedIn() && me().dstatus == 'active'; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // The app reads this to learn whether the signed-in account is the admin.
+    match /adminping/{id} {
+      allow get: if isAdmin();
+    }
+
+    // Shared settings (the Google Maps key).
+    match /config/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // One profile per account. Phone numbers are visible to the owner and the admin only.
+    match /users/{id} {
+      allow get: if signedIn() && (id == uid() || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn() && id == uid()
+        && request.resource.data.keys().hasOnly(['name', 'phone', 'car', 'plate', 'dstatus', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 60
+        && request.auth.token.email == request.resource.data.phone + '@phone.khedni.app'
+        && request.resource.data.dstatus in ['none', 'pending'];
+      // A user may rename themselves, or apply to drive. Only the admin approves, pauses or edits a driver.
+      allow update: if isAdmin() || (signedIn() && id == uid() && (
+        changed().hasOnly(['name'])
+        || (resource.data.dstatus in ['none', 'pending']
+            && request.resource.data.dstatus == 'pending'
+            && changed().hasOnly(['name', 'car', 'plate', 'dstatus']))
+      ));
+    }
+
+    // Rides are posted by approved drivers and can be read by any signed-in user.
+    match /rides/{id} {
+      allow read: if signedIn();
+      allow create: if activeDriver()
+        && request.resource.data.driverId == uid()
+        && request.resource.data.status == 'open'
+        && request.resource.data.seats is number
+        && request.resource.data.seats >= 1 && request.resource.data.seats <= 6
+        && request.resource.data.seatsLeft == request.resource.data.seats
+        && request.resource.data.price is number && request.resource.data.price > 0;
+      allow update: if isAdmin() || (signedIn() && resource.data.driverId == uid()
+        && changed().hasOnly(['seatsLeft', 'status'])
+        && request.resource.data.seatsLeft is number
+        && request.resource.data.seatsLeft >= 0
+        && request.resource.data.seatsLeft <= resource.data.seats);
+    }
+
+    // A seat request is seen by its rider, its driver and the admin.
+    match /requests/{id} {
+      allow read: if signedIn() && (resource.data.riderId == uid() || resource.data.driverId == uid() || isAdmin());
+      allow create: if signedIn()
+        && request.resource.data.riderId == uid()
+        && request.resource.data.driverId != uid()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.price is number && request.resource.data.price > 0
+        && request.resource.data.fee is number
+        && request.resource.data.fee >= request.resource.data.price * 0.09
+        && get(/databases/$(database)/documents/rides/$(request.resource.data.rideId)).data.driverId == request.resource.data.driverId
+        && get(/databases/$(database)/documents/rides/$(request.resource.data.rideId)).data.status == 'open';
+      allow update: if signedIn() && changed().hasOnly(['status', 'by', 'updatedAt']) && (
+        (resource.data.driverId == uid() && (
+          (resource.data.status == 'pending' && request.resource.data.status == 'rejected')
+          || (resource.data.status == 'pending' && request.resource.data.status == 'accepted' && activeDriver())
+          || (resource.data.status == 'accepted' && request.resource.data.status == 'cancelled')
+        ))
+        || (resource.data.riderId == uid()
+            && resource.data.status in ['pending', 'accepted']
+            && request.resource.data.status == 'cancelled')
+      );
+    }
+
+    // Cash the admin collected from a driver against the 10% fee.
+    match /payments/{id} {
+      allow read: if signedIn() && (resource.data.driverId == uid() || isAdmin());
+      allow create: if isAdmin();
+    }
+  }
+}
