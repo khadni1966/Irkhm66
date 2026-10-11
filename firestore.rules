@@ -13,6 +13,7 @@ service cloud.firestore {
     function ride(r) { return get(/databases/$(database)/documents/rides/$(r)).data; }
     function req(r) { return get(/databases/$(database)/documents/requests/$(r)).data; }
     function drv() { return si() && get(/databases/$(database)/documents/users/$(uid())).data.dstatus == 'active'; }
+    function mine() { return od().riderId == uid() || od().driverId == uid(); }
     function pay() { return nd().price is number && nd().price > 0 && nd().fee is number && nd().fee >= nd().price * 0.09; }
 
     match /adminping/{id} { allow get: if adm(); }
@@ -39,7 +40,7 @@ service cloud.firestore {
         && nd().seatsLeft >= 0 && nd().seatsLeft <= od().seats);
     }
     match /requests/{id} {
-      allow read: if si() && (od().riderId == uid() || od().driverId == uid() || adm());
+      allow read: if si() && (mine() || adm());
       allow create: if si() && nd().riderId == uid() && nd().driverId != uid()
         && nd().status == 'pending' && pay()
         && ride(nd().rideId).driverId == nd().driverId
@@ -72,9 +73,16 @@ service cloud.firestore {
       allow update: if si() && od().driverId == uid() && nd().driverId == uid();
     }
     match /rlive/{id} {
-      allow get: if si() && (resource == null || od().riderId == uid() || od().driverId == uid() || adm());
+      allow get: if si() && (resource == null || mine() || adm());
       allow create: if si() && nd().riderId == uid() && req(id).riderId == uid() && req(id).driverId == nd().driverId;
       allow update: if si() && od().riderId == uid() && nd().riderId == uid() && nd().driverId == od().driverId;
+    }
+    match /chats/{id} {
+      allow get: if si() && (resource == null || mine() || adm());
+      allow create: if si() && (nd().riderId == uid() || nd().driverId == uid()) && nd().m.size() == 1
+        && req(id).riderId == nd().riderId && req(id).driverId == nd().driverId;
+      allow update: if si() && mine() && ch().hasOnly(['m'])
+        && nd().m.size() == od().m.size() + 1 && nd().m.size() <= 300;
     }
     match /payments/{id} {
       allow read: if si() && (od().driverId == uid() || adm());

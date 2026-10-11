@@ -109,6 +109,12 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .spin{width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;animation:rot 1s linear infinite;flex:none}
 @keyframes rot{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+.msgs{display:flex;flex-direction:column;gap:6px;max-height:210px;overflow-y:auto}
+.msg{align-self:flex-start;max-width:85%;padding:6px 10px;border-radius:12px;background:var(--seg);font-size:14px;display:flex;flex-direction:column;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:var(--brand-soft);color:var(--brand-deep)}
+.msg small{font-size:11px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px;font-weight:500}
 .face{border-radius:50%;object-fit:cover;flex:none;background:var(--seg);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;overflow:hidden}
 #errbox{position:fixed;inset-inline:10px;bottom:10px;z-index:50;max-height:60%;overflow:auto;padding:14px;border-radius:16px;background:var(--danger-soft);color:var(--ink);border:2px solid var(--danger);display:flex;flex-direction:column;gap:8px}
 #errbox h3{font-size:16px;color:var(--danger);margin:0}
@@ -167,7 +173,7 @@ var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   myRides:[],inReqs:[],pays:[],
   rv:'home',rfrom:blank(),rto:blank(),rday:1,rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
   sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
-  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',ph:{},phBusy:false,phErr:''};
+  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},chatOpen:null,ph:{},phBusy:false,phErr:''};
 function T(ar,en){return S.lang==='en'?en:ar}
 
 /* ---------- errors shown on screen, so a screenshot is enough to debug ---------- */
@@ -272,7 +278,7 @@ function boot(){
 }
 function onAuth(u){
   unsubs.forEach(function(fn){try{fn()}catch(e){}});unsubs=[];got={rides:false,reqs:false};
-  unwatchLive();unwatchRL();S.agreed=null;S.offer=null;S.ph={};PHW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.ad=null;
+  unwatchLive();unwatchRL();unwatchChat();S.chatOpen=null;S.draft={};S.agreed=null;S.offer=null;S.ph={};PHW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.ad=null;
   S.view='main';S.dv='home';S.rv='home';S.routes=null;S.confirmed=false;S.found=null;S.pick=null;S.pt=null;
   if(!u){S.gate='auth';showGate();return}
   S.gate='boot';S.bootMsg=T('عم نفتح حسابك…','Opening your account…');showGate();
@@ -436,6 +442,39 @@ function search(){
 function openReq(id,rideId){S.rv='req';S.reqId=id;S.reqRide=null;paint();var q=myReq(id);if(q)fit([q.status==='offered'&&q.from?[q.from,q.pu]:[q.pu,q.dr]]);rideId=rideId||(q&&q.rideId);if(!rideId)return;
   F.f.getDoc(ref('rides',rideId)).then(function(s){if(!s.exists()||S.reqId!==id)return;var R=s.data();R.id=s.id;S.reqRide=hyd(R);paint();var q2=myReq(id);if(S.rv==='req'&&!(q2&&q2.status==='offered'))fit([S.reqRide.path])}).catch(function(){});
 }
+
+/* ---------- messages between the driver and the rider of one booking ---------- */
+// One document per booking, messages appended to it. Phone numbers stay hidden, so long digit runs are masked.
+var CH={},SEEN={};
+var QUICK={driver:[['متأخّر 5 دقايق','Running 5 minutes late'],['متأخّر 10 دقايق','Running 10 minutes late'],['أنا عالطريق','I’m on my way'],['وصلت عالنقطة','I’m at the point']],
+  rider:[['أنا عالنقطة','I’m at the point'],['متأخّر 5 دقايق','Running 5 minutes late'],['نازل هلّق','Coming down now'],['وينك؟','Where are you?']]};
+function mask(t){return String(t).replace(/(?:[\d٠-٩][\s\-.]?){6,}/g,'••• ')}
+function anyReq(id){return inReq(id)||myReq(id)}
+function unwatchChat(){Object.keys(CH).forEach(function(id){try{CH[id]()}catch(e){}});CH={};S.chat={}}
+function syncChat(){if(!S.me||!S.user)return;var want={},now=Date.now();
+  S.inReqs.concat(S.myReqs).forEach(function(q){if((q.status==='pending'||q.status==='offered'||q.status==='accepted')&&q.drAt>now-3*3600000)want[q.id]=1});
+  Object.keys(CH).forEach(function(id){if(!want[id]){try{CH[id]()}catch(e){}delete CH[id];delete S.chat[id]}});
+  Object.keys(want).forEach(function(id){if(CH[id])return;
+    var un=CH[id]=F.f.onSnapshot(ref('chats',id),function(x){if(CH[id]!==un)return;var m=x.exists()?(x.data().m||[]):[],had=S.chat[id];S.chat[id]=m;
+        if(had&&m.length>had.length&&m[m.length-1].f!==S.user.uid){try{if(navigator.vibrate)navigator.vibrate(200)}catch(e){}}
+        paint()},
+      function(){if(CH[id]!==un)return;var hold=CH[id]=function(){};setTimeout(function(){if(CH[id]===hold){delete CH[id];paint()}},15000)})})}
+function seenCount(id){return id in SEEN?SEEN[id]:(+sget('kh-seen-'+id)||0)}
+function unread(id){var m=S.chat[id]||[],me=S.user.uid;return m.slice(seenCount(id)).filter(function(x){return x.f!==me}).length}
+function markSeen(id){var n=(S.chat[id]||[]).length;if(seenCount(id)!==n){SEEN[id]=n;sset('kh-seen-'+id,String(n))}}
+function chatHTML(q,role){var m=S.chat[q.id]||[],me=S.user.uid;markSeen(q.id);
+  return '<div class="box"><span class="lbl">'+T('رسائل مع ','Messages with ')+esc(role==='driver'?q.riderName:q.driverName)+'</span>'+
+   (m.length?'<div class="msgs">'+m.slice(-40).map(function(x){return '<div class="msg'+(x.f===me?' me':'')+'"><span>'+esc(mask(x.t))+'</span><small dir="ltr">'+hm(x.a)+'</small></div>'}).join('')+'</div>':'<p class="sub">'+T('ما في رسائل بعد. اكبس على جملة جاهزة أو اكتب.','No messages yet. Tap a ready phrase or type one.')+'</p>')+
+   '<div class="chips">'+QUICK[role].map(function(t,i){return '<button type="button" class="chip" data-quick="'+q.id+'" data-role2="'+role+'" data-i="'+i+'">'+T(t[0],t[1])+'</button>'}).join('')+'</div>'+
+   '<div class="inrow"><input type="text" id="msg-'+q.id+'" data-msg="'+q.id+'" maxlength="200" autocomplete="off" value="'+esc(S.draft[q.id]||'')+'" placeholder="'+T('اكتب رسالة','Write a message')+'"><button type="button" class="btn sm pri" data-send="'+q.id+'">'+T('ابعت','Send')+'</button></div>'+
+   '<p class="sub">'+T('أرقام التلفونات ما بتنبعت بالرسائل.','Phone numbers are not sent in messages.')+'</p></div>'}
+function chatBtn(q){if(S.chatOpen===q.id)markSeen(q.id);var n=unread(q.id),c=(S.chat[q.id]||[]).length;
+  return '<button class="btn sm '+(n?'sun':'ghost')+'" type="button" data-chat="'+q.id+'" aria-expanded="'+(S.chatOpen===q.id)+'">💬 '+T('رسائل','Messages')+(n?' · '+n+' '+T('جديدة','new'):c?' ('+c+')':'')+'</button>'}
+function chatPanel(q){return S.chatOpen===q.id?chatHTML(q,'driver'):''}
+function sendMsg(id,text){var q=anyReq(id);text=mask(String(text||'').trim()).trim().slice(0,200);if(!q||!text)return;
+  S.draft[id]='';
+  F.f.setDoc(ref('chats',id),{driverId:q.driverId,riderId:q.riderId,m:F.f.arrayUnion({f:S.user.uid,t:text,a:Date.now()})},{merge:true}).catch(fail(T('الرسالة','message')));
+  render()}
 
 /* ---------- face photos: one small selfie per account, shown to the person you ride with and to the admin ---------- */
 var PHW={},FACE='<svg width="60%" height="60%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1-4 4.5-6 8-6s7 2 8 6"></path></svg>';
@@ -652,7 +691,7 @@ function driverHTML(){var st=S.me.dstatus||'none';
     (list.length?list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
       return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
        '<span class="meta"><span>'+dayOf(R.dep)+'</span><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+
-       (pen?'<span class="tag wait">'+pen+' '+T('طلب جديد','new request'+(pen>1?'s':''))+'</span>':'')+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+'</span></button>'}).join(''):
+       (pen?'<span class="tag wait">'+pen+' '+T('طلب جديد','new request'+(pen>1?'s':''))+'</span>':'')+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+(function(){var n=0;qs.forEach(function(q){n+=unread(q.id)});return n?'<span class="tag wait">💬 '+n+'</span>':''})()+'</span></button>'}).join(''):
      '<div class="banner">'+T('ما عندك مشوار منشور. انشر مشوارك واللي عطريقك بيطلبوا مقعد.','You have no posted ride. Post one and people on your way can request a seat.')+'</div>')+
     '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+ledgerHTML();
 }
@@ -692,13 +731,13 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=L.owed>=OWE_LIMIT,
       '<div class="grid2"><button class="btn ghost" type="button" id="offerx">'+T('إلغاء','Cancel')+'</button><button class="btn pri" type="button" id="offersend"'+(stop||R.seatsLeft<1?' disabled':'')+'>'+T('ابعت للراكب','Send to the rider')+'</button></div>':
       '<div class="grid2"><button class="btn ghost" type="button" data-rej="'+q.id+'">'+T('رفض','Decline')+'</button><button class="btn pri" type="button" data-acc="'+q.id+'"'+(stop||R.seatsLeft<1?' disabled':'')+'>'+T('قبول','Accept')+'</button></div>'+
       '<button class="btn ghost" type="button" data-offer="'+q.id+'"'+(stop||R.seatsLeft<1?' disabled':'')+'>'+(S.pick==='offer'&&S.offerFor===q.id?T('اكبس هلّق عالخط الأزرق…','Now tap the blue line…'):T('اقترح نقطة طلعة تانية عطريقي','Propose another pick-up point on my route'))+'</button>')+
-    (S.offerErr&&S.offerFor===q.id?'<p class="err" role="alert">'+esc(S.offerErr)+'</p>':'')+'</div>'});
+    (S.offerErr&&S.offerFor===q.id?'<p class="err" role="alert">'+esc(S.offerErr)+'</p>':'')+chatBtn(q)+'</div>'+chatPanel(q)});
   off.forEach(function(q){h+='<div class="banner col" style="gap:8px"><div class="row">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+'</b><br>'+T('ناطرين يأكّد نقطة الطلعة اللي اقترحتها (','Waiting for them to confirm the pick-up point you proposed (')+hm(q.puAt)+').</div></div>'+
-    '<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('اسحب الاقتراح','Withdraw')+'</button></div>'});
+    '<div class="row" style="flex-wrap:wrap">'+chatBtn(q)+'<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('اسحب الاقتراح','Withdraw')+'</button></div></div>'+chatPanel(q)});
   acc.forEach(function(q){h+='<div class="okbox col" style="gap:8px"><div class="row" style="align-items:flex-start">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+' · '+T('مأكّد','confirmed')+'</b><br>'+T('بتاخده حوالي ','Pick up at about ')+'<b>'+hm(q.puAt)+'</b>'+T(' من ',' at ')+esc(q.puText)+T('، وبينزل بـ','; gets out at ')+esc(q.drText)+T('. بيدفعلك كاش ','. Pays you in cash ')+money(q.price)+'.</div></div>'+
     (function(){var ri=rlInfo(q);if(!ri)return '';var old=ri.age>90000?T(' · آخر تحديث من ',' · last update ')+Math.round(ri.age/60000)+T(' د',' min ago'):'';
       return '<div><b>🧍 '+(ri.d<80?T('الراكب واقف عند نقطة الطلعة.','The rider is at the pick-up point.'):T('الراكب بعيد ','The rider is ')+mTxt(ri.d)+T(' عن نقطة الطلعة.',' from the pick-up point.'))+'</b>'+old+'</div>'})()+
-    '<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('الغي هالراكب','Cancel this rider')+'</button></div>'});
+    '<div class="row" style="flex-wrap:wrap">'+chatBtn(q)+'<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('الغي هالراكب','Cancel this rider')+'</button></div></div>'+chatPanel(q)});
   if(!pen.length&&!off.length&&!acc.length)h+='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. أول ما حدا يطلب مقعد، بيبيّن هون.','Your ride is posted and has no requests yet. A seat request appears here as soon as someone sends one.')+'</div>';
   return backRow(esc(R.fromText)+ARROW()+esc(R.toText),dayOf(R.dep)+' · '+hm(R.dep),'dhome',T('رجوع','Back'))+h+
    '<div class="box"><div class="kv"><span>'+T('الطريق','Route')+'</span><b>'+(R.desc?esc(R.desc):'—')+'</b></div><div class="kv"><span>'+T('الوقت بالعجقة','Time with traffic')+'</span><b>'+durTxt(R.dur)+' · '+kmTxt(R.dist)+'</b></div>'+
@@ -715,7 +754,7 @@ function riderHTML(){
   if(S.rv==='results'&&S.found)return resultsHTML();
   var mine=liveReqs();
   return photoNudge()+(mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
-     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+'</span></button>'}).join(''):'')+
+     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+(unread(q.id)?'<span class="tag wait">💬 '+unread(q.id)+'</span>':'')+'</span></button>'}).join(''):'')+
    '<h2>'+T('لوين رايح؟','Where are you going?')+'</h2>'+
    fieldHTML('rfrom',T('من وين بتطلع','Where you get in'))+fieldHTML('rto',T('لوين نازل','Where you get out'))+
    '<div class="field"><label for="in-rday">'+T('أي نهار','Day')+'</label>'+daySel('in-rday',S.rday)+'</div>'+
@@ -759,7 +798,7 @@ function reqHTML(q){var body,trip='<div class="box"><div class="row">'+face(q.dr
     '<div class="grid2"><button class="btn ghost" type="button" data-rcancel="'+q.id+'">'+T('مش مناسب','Not for me')+'</button><button class="btn pri" type="button" data-rok="'+q.id+'">'+T('موافق، أكّد','Agree and confirm')+'</button></div></div>';
   else if(q.status==='rejected')body='<div class="banner">'+T('السائق ما قبل هالطلب. فتّش على مشوار تاني.','The driver declined this request. Look for another ride.')+'</div>';
   else body='<div class="banner">'+(q.by==='driver'?T('السائق لغى هالحجز. فتّش على مشوار تاني.','The driver cancelled this booking. Look for another ride.'):T('لغيت هالطلب.','You cancelled this request.'))+'</div>';
-  return backRow(esc(q.rideFrom)+ARROW()+esc(q.rideTo),dayOf(q.dep)+' · '+T('الطلعة ','departs ')+hm(q.dep),'rhome',T('رجوع','Back'))+body+trip+
+  return backRow(esc(q.rideFrom)+ARROW()+esc(q.rideTo),dayOf(q.dep)+' · '+T('الطلعة ','departs ')+hm(q.dep),'rhome',T('رجوع','Back'))+body+(q.status==='pending'||q.status==='offered'||q.status==='accepted'?chatHTML(q,'rider'):'')+trip+
    (q.status==='pending'||q.status==='accepted'?'<button class="btn warn" type="button" data-rcancel="'+q.id+'">'+(q.status==='accepted'?T('الغي الحجز','Cancel the booking'):T('الغي الطلب','Cancel the request'))+'</button>':'');
 }
 
@@ -826,9 +865,10 @@ function render(){
   if(active){try{pos=el.selectionStart}catch(e){}}
   $('#sheet').innerHTML=html;lastHTML=html;
   ['from','to','rfrom','rto'].forEach(paintSug);
+  Array.prototype.forEach.call(document.querySelectorAll('.msgs'),function(b){b.scrollTop=b.scrollHeight});
   if(active){el=document.getElementById(active);if(el){el.focus();if(pos!=null){try{el.setSelectionRange(pos,pos)}catch(e){}}}}
 }
-function paint(){if(S.gate)return;syncLive();syncRL();redraw();render()}
+function paint(){if(S.gate)return;syncLive();syncRL();syncChat();redraw();render()}
 
 /* ---------- actions ---------- */
 function fail(what){return function(e){S.busy=false;S.rbusy=false;render();dbErr(what,e)}}
@@ -850,9 +890,11 @@ document.addEventListener('submit',function(e){e.preventDefault();
 document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(d.af){S.af[d.af]=e.target.value;return}
   if(d.pay){S.pay[d.pay]=e.target.value;return}
+  if(d.msg){S.draft[d.msg]=e.target.value;return}
   if(w){S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
   if(e.target.id==='in-time')S.time=e.target.value||'07:30';
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value);if(v>0)S.price=r2(v)}});
+document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
 document.addEventListener('change',function(e){if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-day')S.day=+e.target.value;if(e.target.id==='in-rday')S.rday=+e.target.value});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
@@ -886,6 +928,9 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.rok){q=myReq(d.rok);if(q)f.updateDoc(ref('requests',q.id),{status:'accepted',by:'rider',updatedAt:Date.now()}).catch(fail(T('التأكيد','confirmation')));return}
   if(t.id==='addphoto'){var inp=$('#selfie');inp.value='';inp.click();return}
   if(d.rej){q=inReq(d.rej);if(q)setReq(q,'rejected','driver');return}
+  if(d.chat){S.chatOpen=S.chatOpen===d.chat?null:d.chat;render();return}
+  if(d.quick){var qk=QUICK[d.role2][+d.i];if(qk)sendMsg(d.quick,T(qk[0],qk[1]));return}
+  if(d.send){sendMsg(d.send,S.draft[d.send]);return}
   if(d.track){startTrack('live',d.track);return}
   if(d.rtrack){q=myReq(d.rtrack);if(q)startTrack('rlive',q.id,q.driverId);return}
   if(t.id==='untrack'){stopTrack();return}
