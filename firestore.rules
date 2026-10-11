@@ -69,16 +69,35 @@ service cloud.firestore {
         && request.resource.data.fee >= request.resource.data.price * 0.09
         && get(/databases/$(database)/documents/rides/$(request.resource.data.rideId)).data.driverId == request.resource.data.driverId
         && get(/databases/$(database)/documents/rides/$(request.resource.data.rideId)).data.status == 'open';
-      allow update: if signedIn() && changed().hasOnly(['status', 'by', 'updatedAt']) && (
-        (resource.data.driverId == uid() && (
-          (resource.data.status == 'pending' && request.resource.data.status == 'rejected')
-          || (resource.data.status == 'pending' && request.resource.data.status == 'accepted' && activeDriver())
-          || (resource.data.status == 'accepted' && request.resource.data.status == 'cancelled')
+      // The driver may answer with a different pick-up point on their route; the rider then confirms or declines it.
+      allow update: if signedIn() && (
+        (resource.data.driverId == uid() && resource.data.status == 'pending'
+          && request.resource.data.status == 'offered' && activeDriver()
+          && changed().hasOnly(['status', 'by', 'updatedAt', 'pu', 'puAt', 'puText', 'price', 'fee', 'km'])
+          && request.resource.data.price is number && request.resource.data.price > 0
+          && request.resource.data.fee is number
+          && request.resource.data.fee >= request.resource.data.price * 0.09)
+        || (changed().hasOnly(['status', 'by', 'updatedAt']) && (
+          (resource.data.driverId == uid() && (
+            (resource.data.status == 'pending' && request.resource.data.status == 'rejected')
+            || (resource.data.status == 'pending' && request.resource.data.status == 'accepted' && activeDriver())
+            || (resource.data.status in ['offered', 'accepted'] && request.resource.data.status == 'cancelled')
+          ))
+          || (resource.data.riderId == uid() && (
+            (resource.data.status in ['pending', 'offered', 'accepted'] && request.resource.data.status == 'cancelled')
+            || (resource.data.status == 'offered' && request.resource.data.status == 'accepted')
+          ))
         ))
-        || (resource.data.riderId == uid()
-            && resource.data.status in ['pending', 'accepted']
-            && request.resource.data.status == 'cancelled')
       );
+    }
+
+    // One small face photo per account, shown to the people you ride with and to the admin.
+    match /photos/{id} {
+      allow get: if signedIn();
+      allow create, update: if signedIn() && id == uid()
+        && request.resource.data.keys().hasOnly(['img', 'at'])
+        && request.resource.data.img is string
+        && request.resource.data.img.size() < 200000;
     }
 
     // The driver's live position for one ride, readable by that ride's confirmed riders only.
