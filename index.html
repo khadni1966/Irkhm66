@@ -149,7 +149,7 @@ var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
 var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
-var COST_KM=0.50; // full cost of running a private car per km in dollars (fuel, maintenance, tyres, insurance, wear); a rider's share may not pass half of it
+var CURVE=[[0,2.5],[18,4],[24,5],[30,6],[50,8.5],[80,10]]; // kilometres -> one rider's share of the cost in dollars; the shortest ride is $2.50 and long rides cost less per km
 var TERMS_V=3;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
@@ -258,11 +258,14 @@ function nearestOnPath(R,p){var best={d:1e12,cum:0,pos:R.path[0]},kx=Math.cos(p.
 function at(R,c){var i=1;while(i<R.cum.length-1&&R.cum[i]<c)i++;var seg=(R.cum[i]-R.cum[i-1])||1,t=(c-R.cum[i-1])/seg,a=R.path[i-1],b=R.path[i];return {lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t}}
 function sub(R,c0,c1){var out=[at(R,c0)];for(var i=0;i<R.path.length;i++)if(R.cum[i]>c0&&R.cum[i]<c1)out.push(R.path[i]);out.push(at(R,c1));return out}
 function etaOn(R,dep,c){return new Date(+dep+c/total(R)*R.dur*1000)}
-function capPrice(m){return Math.max(1,Math.floor(m/1000*COST_KM/2*2)/2)}
+function curve(m){var k=m/1000,c=CURVE,last=c[c.length-1],i=1;if(k>=last[0])return last[1]+(k-last[0])*.05;while(c[i][0]<k)i++;var a=c[i-1],b=c[i];return a[1]+(b[1]-a[1])*(k-a[0])/(b[0]-a[0])}
+function capPrice(m){return Math.round(curve(m)*2)/2}
+// a rider who joins for part of the road shares what that distance is worth, lowered by the same proportion the driver lowered the full ride
+function segPrice(R,seg){var road=R.dist||total(R),ratio=Math.min(1,R.price/capPrice(road));return Math.max(.5,Math.round(capPrice(seg/total(R)*road)*ratio*2)/2)}
 // the cost is split between everyone in the car, driver included: the stored amount is the share when one rider is aboard,
 // and it shrinks as more riders are confirmed (1 rider: all of it, 2: two thirds each, 3: half each)
 function share(base,n){n=Math.max(1,n||1);return Math.max(.5,Math.round(base*2/(n+1)*2)/2)}
-function suggestPrice(m){return Math.max(1,Math.round(capPrice(m)*.85*2)/2)}
+function suggestPrice(m){return capPrice(m)}
 // a ride as stored keeps its road as Google's encoded line; decode it once per ride
 var HY={};
 function hyd(r){var h=HY[r.id];if(!h||h.poly!==r.poly){var p=decode(r.poly||'');h=HY[r.id]={poly:r.poly,path:p,cum:withCum(p)}}r.path=h.path;r.cum=h.cum;return r}
@@ -420,7 +423,7 @@ function onMapTap(p){
     var n0=nearestOnPath(R0,p),d0=nearestOnPath(R0,q0.dr),seg=d0.cum-n0.cum;
     if(n0.d>300){S.offerErr=T('اكبس على الخط الأزرق نفسه، محل ما بدّك تاخد الراكب.','Tap on the blue line itself, where you want to pick the rider up.');render();return}
     if(seg<300){S.offerErr=T('نقطة الطلعة لازم تكون قبل نقطة نزوله.','The pick-up point must come before their drop-off.');render();return}
-    S.offer={id:q0.id,pos:n0.pos,at:etaOn(R0,R0.dep,n0.cum).getTime(),km:Math.round(seg),price:Math.max(.5,Math.round(R0.price*seg/total(R0)*2)/2),far:hav(q0.from||q0.pu,n0.pos)};
+    S.offer={id:q0.id,pos:n0.pos,at:etaOn(R0,R0.dep,n0.cum).getTime(),km:Math.round(seg),price:segPrice(R0,seg),far:hav(q0.from||q0.pu,n0.pos)};
     S.offerErr='';S.pick=null;paint();return}
   if(S.pick){var w=S.pick;S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};S.pick=null;paint();return}
   if(S.view!=='main'||S.role!=='driver')return;
@@ -436,7 +439,7 @@ function matchRide(R){
   if(a.d>LIMIT)return {ok:false,why:'farpu',d:a.d};
   if(b.d>LIMIT)return {ok:false,why:'fardr',d:b.d};
   if(b.cum-a.cum<300)return {ok:false,why:'order'};
-  return {ok:true,pu:a,dr:b,puAt:etaOn(R,R.dep,a.cum),drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:Math.max(.5,Math.round(R.price*(b.cum-a.cum)/total(R)*2)/2)}}
+  return {ok:true,pu:a,dr:b,puAt:etaOn(R,R.dep,a.cum),drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:segPrice(R,b.cum-a.cum)}}
 function search(){
   if(S.rfrom.lat==null||S.rto.lat==null){S.rErr=T('اختار النقطتين من الاقتراحات، أو حطّهم عالخريطة بكبسة الدبّوس.','Pick both points from the suggestions, or set them on the map with the pin button.');render();return}
   S.rErr='';S.rbusy=true;S.pick=null;render();
@@ -923,7 +926,7 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(e.target.id==='in-time')S.time=e.target.value||'07:30';
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value),rr=S.routes&&S.routes[S.sel];if(v>0)S.price=rr?Math.min(r2(v),capPrice(rr.dist)):r2(v)}});
 document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
-document.addEventListener('change',function(e){if(e.target.id==='in-price'){render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-day')S.day=+e.target.value;if(e.target.id==='in-rday')S.rday=+e.target.value});
+document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-day')S.day=+e.target.value;if(e.target.id==='in-rday')S.rday=+e.target.value});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
   if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
