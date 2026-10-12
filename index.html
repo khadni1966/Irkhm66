@@ -358,7 +358,7 @@ function ensureMap(){
   var key=(S.cfg&&S.cfg.mapsKey)||S.localKey;
   if(!key){S.gate='key';showGate();return}
   mapState='loading';S.key=key;S.gate='boot';S.bootMsg=T('عم نحمّل الخريطة…','Loading the map…');showGate();
-  loadMaps(key).then(function(){mapState='ready';if(!S.user||!S.me)return;hideGate();initMap();paint()})
+  loadMaps(key).then(function(){mapState='ready';if(!S.user||!S.me)return;hideGate();initMap();paint();if(S.role==='rider'&&S.rfrom.lat==null&&!hereAsked.rfrom)useHere('rfrom',true)})
    .catch(function(){mapState='none';S.keyErr=T('ما قدرنا نحمّل خرائط جوجل. تأكد من الإنترنت وجرّب مرة تانية.','Could not load Google Maps. Check your connection and try again.');S.gate='key';showGate()});
 }
 function loadMaps(key){return new Promise(function(res,rej){
@@ -389,6 +389,7 @@ function redraw(){
     if(S.dv==='reroute'&&S.rr&&S.rr.routes){var RQ=myRide(S.rideId);
       S.rr.routes.forEach(function(r,i){var on=i===S.rr.sel;line(r.path,on?'#1A6FE0':'#6F7D78',on?7:5,on?1:.7,on?10:1,function(){S.rr.sel=i;paint()})});
       ends(S.rr.routes[S.rr.sel]);if(RQ)reqsFor(RQ.id).forEach(function(q){if(q.status==='pending'||q.status==='offered'||q.status==='accepted'){if(q.from)spot(q.from);dot(q.dr,'#FFFFFF')}});return}
+    if(S.dv==='new'&&!S.routes){if(S.from.lat!=null)dot(S.from,'#F5B921');if(S.to.lat!=null)dot(S.to,'#FFFFFF');return}
     if(S.dv==='new'&&S.routes){
       S.routes.forEach(function(r,i){var on=i===S.sel;if(S.confirmed&&!on)return;
         line(r.path,on?'#1A6FE0':'#6F7D78',on?7:5,on?1:.7,on?10:1,function(e){if(i!==S.sel&&!S.confirmed){S.sel=i;S.pt=null;paint()}else tapEvt(e)})});
@@ -711,9 +712,20 @@ function signOut(){if(S.track)stopTrack();S.af.pw='';S.af.err='';S.af.mode='in';
 var PIN='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg>';
 var ARROW=function(){return T(' ← ',' → ')};
 function roleSeg(){return '<div class="seg" role="group" aria-label="'+T('الدور','Role')+'"><button type="button" data-role="rider" aria-pressed="'+(S.role==='rider')+'">'+T('بدّي حدا يوصّلني','I need a lift')+'</button><button type="button" data-role="driver" aria-pressed="'+(S.role==='driver')+'">'+T('عندي محل بسيارتي','I have a free seat')+'</button></div>'}
-function fieldHTML(which,label){var p=S[which];
+var HERE='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path><circle cx="12" cy="12" r="8"></circle></svg>';
+// fill a start point from the phone's position, so only the destination needs typing
+var hereAsked={};
+function useHere(which,quiet){if(!navigator.geolocation){if(!quiet){S.rErr=S.formErr=T('هالمتصفح ما بيعطي الموقع. افتح الصفحة بـChrome.','This browser does not give a location. Open the page in Chrome.');render()}return}
+  hereAsked[which]=1;S.locating=which;render();
+  navigator.geolocation.getCurrentPosition(function(p){S.locating=null;if(!quiet||S[which].lat==null){S[which]={text:T('موقعي الحالي','My current location'),lat:p.coords.latitude,lng:p.coords.longitude};if(which==='rfrom')S.found=null;
+      if(map){map.panTo({lat:p.coords.latitude,lng:p.coords.longitude});if(map.setZoom)map.setZoom(13)}}paint()},
+    function(e){S.locating=null;if(!quiet){S.rErr=S.formErr=e.code===1?T('الموقع ممنوع عن هالصفحة. اكبس على القفل حد العنوان واسمح بالـLocation.','Location is blocked for this page. Tap the lock next to the address and allow Location.'):T('ما قدرنا نعرف موقعك. تأكد إنو الـGPS شغّال.','Could not find your position. Check that GPS is on.')}render()},
+    {enableHighAccuracy:true,maximumAge:60000,timeout:15000})}
+function fieldHTML(which,label){var p=S[which],here=which==='from'||which==='rfrom';
   return '<div class="field"><label for="in-'+which+'">'+label+'</label><div class="inrow"><input type="text" id="in-'+which+'" data-in="'+which+'" autocomplete="off" value="'+esc(p.text)+'" placeholder="'+T('اكتب اسم المنطقة','Type a place name')+'">'+
+   (here?'<button type="button" class="pinbtn" data-here="'+which+'" aria-label="'+T('استعمل موقعي الحالي','Use my current location')+'"'+(S.locating===which?' disabled':'')+'>'+HERE+'</button>':'')+
    '<button type="button" class="pinbtn" data-pick="'+which+'" aria-pressed="'+(S.pick===which)+'" aria-label="'+T('اختار النقطة من الخريطة','Pick the point on the map')+'">'+PIN+'</button></div>'+
+   (here&&S.locating===which?'<p class="sub" role="status">'+T('عم نحدّد موقعك…','Finding your position…')+'</p>':'')+
    '<ul class="sug" id="sug-'+which+'" hidden></ul></div>'}
 function backRow(title,sub,id,btn){return '<div class="row between"><div class="grow"><h2>'+title+'</h2>'+(sub?'<p class="sub">'+sub+'</p>':'')+'</div><button class="btn sm ghost" type="button" id="'+id+'">'+btn+'</button></div>'}
 function ptHTML(){
@@ -1007,7 +1019,8 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(t.id==='b-acct'){S.view=S.view==='main'?'account':S.view==='account'?'main':'account';S.pick=null;paint();return}
   if(d.sug){chooseSug(d.sug,+d.i);return}
   if(d.pick){S.pick=S.pick===d.pick?null:d.pick;S.offer=null;render();return}
-  if(d.role){S.role=d.role;sset('kh-role',S.role);S.pick=null;S.pt=null;paint();return}
+  if(d.here){useHere(d.here,false);return}
+  if(d.role){S.role=d.role;sset('kh-role',S.role);S.pick=null;S.pt=null;paint();if(S.role==='rider'&&S.rfrom.lat==null&&!hereAsked.rfrom)useHere('rfrom',true);return}
   /* driver */
   if(d.dday){var k=S.days.indexOf(d.dday);if(k>=0)S.days.splice(k,1);else S.days.push(d.dday);S.days.sort();render();return}
   if(d.seat){S.seats=Math.max(1,Math.min(6,S.seats+(+d.seat)));render();return}
@@ -1047,7 +1060,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
    case 'apply':
     if(S.af.car.trim().length<2||S.af.plate.trim().length<2){S.applyErr=T('اكتب نوع السيارة ورقم اللوحة.','Enter the car model and the plate number.');render();return}
     S.applyErr='';f.updateDoc(ref('users',S.user.uid),{car:S.af.car.trim(),plate:S.af.plate.trim(),dstatus:'pending'}).catch(fail(T('الطلب','request')));return;
-   case 'newride':S.dv='new';resetNew();S.days=[ymdIn(1)];paint();return;
+   case 'newride':S.dv='new';resetNew();S.days=[ymdIn(1)];paint();useHere('from',true);return;
    case 'workweek':S.days=workdays();render();return;
    case 'clrdays':S.days=[];render();return;
    case 'dhome':S.dv='home';S.pt=null;S.pick=null;S.offer=null;S.offerErr='';paint();return;
