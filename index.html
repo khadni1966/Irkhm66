@@ -663,7 +663,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1>'+T('خدني
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+T('كمّل','Continue')+'</button></form>'+foot+'</div>';
   var up=a.mode==='up';
   return '<div class="gwrap">'+head(T('شارك مشوارك وكلفته مع حدا نازل عطريقك. مش تاكسي.','Share your trip and its cost with someone going your way. Not a taxi.'))+
-    '<p class="note">'+T('المبلغ مشاركة بكلفة المشوار بس، محسوب سلفاً: لا أكتر ولا أقل. ','The amount is only a share of the trip’s cost, worked out in advance: no more and no less. ')+'<button type="button" class="lnk" id="seeshare">'+T('كيف منحسبها؟','How is it worked out?')+'</button></p>'+
+    inappHTML()+'<p class="note">'+T('المبلغ مشاركة بكلفة المشوار بس، محسوب سلفاً: لا أكتر ولا أقل. ','The amount is only a share of the trip’s cost, worked out in advance: no more and no less. ')+'<button type="button" class="lnk" id="seeshare">'+T('كيف منحسبها؟','How is it worked out?')+'</button></p>'+
     '<div class="seg" role="group"><button type="button" data-amode="in" aria-pressed="'+(!up)+'">'+T('دخول','Sign in')+'</button><button type="button" data-amode="up" aria-pressed="'+up+'">'+T('حساب جديد','New account')+'</button></div>'+
     '<form id="authform" class="col" novalidate>'+
     (up?gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name'):'')+
@@ -715,6 +715,11 @@ function roleSeg(){return '<div class="seg" role="group" aria-label="'+T('الد
 var HERE='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path><circle cx="12" cy="12" r="8"></circle></svg>';
 // fill a start point from the phone's position, so only the destination needs typing
 var hereAsked={},geoOff=false;
+// links shared on WhatsApp and similar open inside that app, where the location is usually blocked: offer Chrome
+var ANDROID=/Android/i.test(navigator.userAgent),INAPP=/; wv\)|WhatsApp|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
+function chromeLink(){return 'intent://'+location.host+location.pathname+location.search+'#Intent;scheme=https;package=com.android.chrome;end'}
+function chromeBtn(){return ANDROID?'<a class="btn sm sun" href="'+chromeLink()+'">'+T('افتح بـChrome','Open in Chrome')+'</a>':''}
+function inappHTML(){return INAPP?'<div class="banner col" style="gap:8px">'+T('إنت فاتح خدني من جوّا تطبيق تاني، وهون الموقع ممكن ما يشتغل. افتحه بـChrome أحسن.','You opened Khedni inside another app, where your location may not work. Open it in Chrome instead.')+chromeBtn()+'</div>':''}
 // put a readable street and area name on a point (needs the Geocoding API on the maps key; without it the plain label stays)
 function nameIt(which,slot){if(geoOff||!window.google||!google.maps.Geocoder)return;
   try{new google.maps.Geocoder().geocode({location:{lat:slot.lat,lng:slot.lng},language:S.lang,region:'LB'},function(res,st){
@@ -741,7 +746,7 @@ function fieldHTML(which,label){var p=S[which],here=which==='from'||which==='rfr
    (here?'<button type="button" class="pinbtn" data-here="'+which+'" aria-label="'+T('استعمل موقعي الحالي','Use my current location')+'"'+(S.locating===which?' disabled':'')+'>'+HERE+'</button>':'')+
    '<button type="button" class="pinbtn" data-pick="'+which+'" aria-pressed="'+(S.pick===which)+'" aria-label="'+T('اختار النقطة من الخريطة','Pick the point on the map')+'">'+PIN+'</button></div>'+
    (here&&S.locating===which?'<p class="sub" role="status">'+T('عم نحدّد موقعك…','Finding your position…')+'</p>':'')+
-   (here&&S.hereMsg&&S.hereMsg.which===which?'<p class="'+(S.hereMsg.ok?'sub':'err')+'" role="status">'+esc(S.hereMsg.text)+'</p>':'')+
+   (here&&S.hereMsg&&S.hereMsg.which===which?'<p class="'+(S.hereMsg.ok?'sub':'err')+'" role="status">'+esc(S.hereMsg.text)+'</p>'+(S.hereMsg.ok?'':chromeBtn()):'')+
    '<ul class="sug" id="sug-'+which+'" hidden></ul></div>'}
 function backRow(title,sub,id,btn){return '<div class="row between"><div class="grow"><h2>'+title+'</h2>'+(sub?'<p class="sub">'+sub+'</p>':'')+'</div><button class="btn sm ghost" type="button" id="'+id+'">'+btn+'</button></div>'}
 function ptHTML(){
@@ -979,7 +984,7 @@ function render(){
   var h=$('#hint');
   if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}else h.hidden=true;
   $('#app').classList.toggle('full',S.view!=='main');
-  var html=S.view==='account'?accountHTML():S.view==='terms'?'<h2>'+T('شروط الاستخدام','Terms of use')+'</h2>'+termsHTML():S.view==='share'?'<h2>'+T('المشاركة بالكلفة','Sharing the cost')+'</h2>'+shareHTML():S.view==='admin'?adminHTML():roleSeg()+(S.role==='driver'?driverHTML():riderHTML());
+  var html=(S.view==='main'?inappHTML():'')+(S.view==='account'?accountHTML():S.view==='terms'?'<h2>'+T('شروط الاستخدام','Terms of use')+'</h2>'+termsHTML():S.view==='share'?'<h2>'+T('المشاركة بالكلفة','Sharing the cost')+'</h2>'+shareHTML():S.view==='admin'?adminHTML():roleSeg()+(S.role==='driver'?driverHTML():riderHTML()));
   if(html===lastHTML)return;
   var el=document.activeElement,active=el&&el.id&&$('#sheet').contains(el)?el.id:null,pos=null;
   if(active){try{pos=el.selectionStart}catch(e){}}
