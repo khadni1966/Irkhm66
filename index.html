@@ -182,7 +182,7 @@ var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   myRides:[],inReqs:[],pays:[],
   rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
   sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
-  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},chatOpen:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
+  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},chatOpen:null,hereMsg:null,locating:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
 function T(ar,en){return S.lang==='en'?en:ar}
 
 /* ---------- errors shown on screen, so a screenshot is enough to debug ---------- */
@@ -715,17 +715,25 @@ function roleSeg(){return '<div class="seg" role="group" aria-label="'+T('الد
 var HERE='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path><circle cx="12" cy="12" r="8"></circle></svg>';
 // fill a start point from the phone's position, so only the destination needs typing
 var hereAsked={};
-function useHere(which,quiet){if(!navigator.geolocation){if(!quiet){S.rErr=S.formErr=T('هالمتصفح ما بيعطي الموقع. افتح الصفحة بـChrome.','This browser does not give a location. Open the page in Chrome.');render()}return}
-  hereAsked[which]=1;S.locating=which;render();
-  navigator.geolocation.getCurrentPosition(function(p){S.locating=null;if(!quiet||S[which].lat==null){S[which]={text:T('موقعي الحالي','My current location'),lat:p.coords.latitude,lng:p.coords.longitude};if(which==='rfrom')S.found=null;
-      if(map){map.panTo({lat:p.coords.latitude,lng:p.coords.longitude});if(map.setZoom)map.setZoom(13)}}paint()},
-    function(e){S.locating=null;if(!quiet){S.rErr=S.formErr=e.code===1?T('الموقع ممنوع عن هالصفحة. اكبس على القفل حد العنوان واسمح بالـLocation.','Location is blocked for this page. Tap the lock next to the address and allow Location.'):T('ما قدرنا نعرف موقعك. تأكد إنو الـGPS شغّال.','Could not find your position. Check that GPS is on.')}render()},
-    {enableHighAccuracy:true,maximumAge:60000,timeout:15000})}
+function useHere(which,quiet){
+  var say=function(ok,text){S.hereMsg={which:which,ok:ok,text:text};paint()};
+  if(!navigator.geolocation){if(!quiet)say(false,T('هالمتصفح ما بيعطي الموقع. افتح الصفحة بـChrome.','This browser does not give a location. Open the page in Chrome.'));return}
+  hereAsked[which]=1;S.locating=which;S.hereMsg=null;render();
+  navigator.geolocation.getCurrentPosition(function(p){S.locating=null;var c=p.coords;
+      if(!quiet||S[which].lat==null){S[which]={text:T('موقعي الحالي','My current location'),lat:c.latitude,lng:c.longitude};if(which==='rfrom')S.found=null;
+        if(map){map.panTo({lat:c.latitude,lng:c.longitude});if(map.setZoom)map.setZoom(15)}}
+      if(quiet)paint();else say(true,T('✓ حدّدنا موقعك عالخريطة (النقطة الصفرا)، دقّة حوالي ','✓ Your position is on the map (the yellow point), accurate to about ')+mTxt(c.accuracy||0)+'.')},
+    function(e){S.locating=null;if(quiet){render();return}
+      say(false,e.code===1?T('الموقع ممنوع عن هالصفحة. اكبس على القفل 🔒 حد عنوان الموقع ← Permissions ← Location ← Allow. وإذا الصفحة مفتوحة من جوّا تطبيق Claude، افتحها بـChrome.','Location is blocked for this page. Tap the lock next to the address → Permissions → Location → Allow. If the page is open inside the Claude app, open it in Chrome.'):
+        e.code===2?T('التلفون ما عم يعطي موقع. شغّل الـLocation (GPS) من فوق بالتلفون وجرّب مرة تانية.','The phone is not giving a position. Turn on Location (GPS) from the phone’s quick settings and try again.'):
+        T('أخد وقت كتير وما لقينا موقعك. قرّب عالشبّاك أو جرّب برّا، وكبّس مرة تانية.','It took too long to find your position. Move near a window or outside and try again.'))},
+    {enableHighAccuracy:true,maximumAge:30000,timeout:20000})}
 function fieldHTML(which,label){var p=S[which],here=which==='from'||which==='rfrom';
   return '<div class="field"><label for="in-'+which+'">'+label+'</label><div class="inrow"><input type="text" id="in-'+which+'" data-in="'+which+'" autocomplete="off" value="'+esc(p.text)+'" placeholder="'+T('اكتب اسم المنطقة','Type a place name')+'">'+
    (here?'<button type="button" class="pinbtn" data-here="'+which+'" aria-label="'+T('استعمل موقعي الحالي','Use my current location')+'"'+(S.locating===which?' disabled':'')+'>'+HERE+'</button>':'')+
    '<button type="button" class="pinbtn" data-pick="'+which+'" aria-pressed="'+(S.pick===which)+'" aria-label="'+T('اختار النقطة من الخريطة','Pick the point on the map')+'">'+PIN+'</button></div>'+
    (here&&S.locating===which?'<p class="sub" role="status">'+T('عم نحدّد موقعك…','Finding your position…')+'</p>':'')+
+   (here&&S.hereMsg&&S.hereMsg.which===which?'<p class="'+(S.hereMsg.ok?'sub':'err')+'" role="status">'+esc(S.hereMsg.text)+'</p>':'')+
    '<ul class="sug" id="sug-'+which+'" hidden></ul></div>'}
 function backRow(title,sub,id,btn){return '<div class="row between"><div class="grow"><h2>'+title+'</h2>'+(sub?'<p class="sub">'+sub+'</p>':'')+'</div><button class="btn sm ghost" type="button" id="'+id+'">'+btn+'</button></div>'}
 function ptHTML(){
@@ -996,7 +1004,7 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(d.pay){S.pay[d.pay]=e.target.value;return}
   if(d.wh){S.whDraft=e.target.value;return}
   if(d.msg){S.draft[d.msg]=e.target.value;return}
-  if(w){S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
+  if(w){if(S.hereMsg&&S.hereMsg.which===w)S.hereMsg=null;S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
   if(e.target.id==='in-time')S.time=e.target.value||'07:30';
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value),rr=S.routes&&S.routes[S.sel];if(v>0)S.price=rr?Math.min(r2(v),capPrice(rr.dist)):r2(v)}});
 document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
