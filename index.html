@@ -454,7 +454,7 @@ function onMapTap(p){
     if(seg<300){S.offerErr=T('نقطة الطلعة لازم تكون قبل نقطة نزوله.','The pick-up point must come before their drop-off.');render();return}
     S.offer={id:q0.id,pos:n0.pos,at:etaOn(R0,R0.dep,n0.cum).getTime(),km:Math.round(seg),price:segPrice(R0,seg),far:hav(q0.from||q0.pu,n0.pos)};
     S.offerErr='';S.pick=null;paint();return}
-  if(S.pick){var w=S.pick;S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};S.pick=null;paint();return}
+  if(S.pick){var w=S.pick;S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};nameIt(w,S[w]);S.pick=null;paint();return}
   if(S.view!=='main'||S.role!=='driver')return;
   var R=S.dv==='ride'?myRide(S.rideId):(S.dv==='new'&&S.routes?S.routes[S.sel]:null);if(!R)return;
   var n=nearestOnPath(R,p);
@@ -714,13 +714,21 @@ var ARROW=function(){return T(' ← ',' → ')};
 function roleSeg(){return '<div class="seg" role="group" aria-label="'+T('الدور','Role')+'"><button type="button" data-role="rider" aria-pressed="'+(S.role==='rider')+'">'+T('بدّي حدا يوصّلني','I need a lift')+'</button><button type="button" data-role="driver" aria-pressed="'+(S.role==='driver')+'">'+T('عندي محل بسيارتي','I have a free seat')+'</button></div>'}
 var HERE='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path><circle cx="12" cy="12" r="8"></circle></svg>';
 // fill a start point from the phone's position, so only the destination needs typing
-var hereAsked={};
+var hereAsked={},geoOff=false;
+// put a readable street and area name on a point (needs the Geocoding API on the maps key; without it the plain label stays)
+function nameIt(which,slot){if(geoOff||!window.google||!google.maps.Geocoder)return;
+  try{new google.maps.Geocoder().geocode({location:{lat:slot.lat,lng:slot.lng},language:S.lang,region:'LB'},function(res,st){
+    if(st!=='OK'||!res||!res.length){if(st==='REQUEST_DENIED')geoOff=true;return}
+    var pick=function(types){for(var i=0;i<res.length;i++){var cs=res[i].address_components||[];for(var j=0;j<cs.length;j++)for(var k=0;k<types.length;k++)if(cs[j].types.indexOf(types[k])>=0)return cs[j].long_name}return ''};
+    var street=pick(['route']),area=pick(['neighborhood','sublocality_level_1','sublocality','locality','administrative_area_level_3','administrative_area_level_2']);
+    var name=[street,area].filter(function(x,i,a){return x&&a.indexOf(x)===i&&!/^unnamed|^Unnamed|بدون اسم/.test(x)}).join('، ')||String(res[0].formatted_address||'').replace(/,?\s*(Lebanon|لبنان)\s*$/,'');
+    if(name&&S[which]===slot){slot.text=name;slot.named=true;render()}})}catch(e){}}
 function useHere(which,quiet){
   var say=function(ok,text){S.hereMsg={which:which,ok:ok,text:text};paint()};
   if(!navigator.geolocation){if(!quiet)say(false,T('هالمتصفح ما بيعطي الموقع. افتح الصفحة بـChrome.','This browser does not give a location. Open the page in Chrome.'));return}
   hereAsked[which]=1;S.locating=which;S.hereMsg=null;render();
   navigator.geolocation.getCurrentPosition(function(p){S.locating=null;var c=p.coords;
-      if(!quiet||S[which].lat==null){S[which]={text:T('موقعي الحالي','My current location'),lat:c.latitude,lng:c.longitude};if(which==='rfrom')S.found=null;
+      if(!quiet||S[which].lat==null){S[which]={text:T('موقعي الحالي','My current location'),lat:c.latitude,lng:c.longitude};nameIt(which,S[which]);if(which==='rfrom')S.found=null;
         if(map){map.panTo({lat:c.latitude,lng:c.longitude});if(map.setZoom)map.setZoom(15)}}
       if(quiet)paint();else say(true,T('✓ حدّدنا موقعك عالخريطة (النقطة الصفرا)، دقّة حوالي ','✓ Your position is on the map (the yellow point), accurate to about ')+mTxt(c.accuracy||0)+'.')},
     function(e){S.locating=null;if(quiet){render();return}
