@@ -155,7 +155,9 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 var FB_CONFIG={apiKey:'AIzaSyDu_16hGFQWB8YO3G4u5Wtc8UIaZ_RP18U',authDomain:'khedni-df08b.firebaseapp.com',projectId:'khedni-df08b',storageBucket:'khedni-df08b.firebasestorage.app',messagingSenderId:'646263417160',appId:'1:646263417160:web:291d4f0723b5931894ab7d'};
 var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
-var LIMIT=800;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
+var LIMIT=800;    // within this the ride counts as passing right by the rider
+var REACH=5000;   // metres: rides up to this far from the rider's points are still shown, and the car owner can propose a pick-up point on the way
+var _L=LIMIT;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
 var RATES=[[10,.40],[20,.35],[30,.30],[1e9,.15]]; // what a private car costs to run per km: first 10 km, next 10, next 10, then the rest (long stretches count fuel only)
 var TERMS_V=5;    // bump when the terms text changes: everyone is then asked to agree again
@@ -465,10 +467,10 @@ function onMapTap(p){
 function matchRide(R){
   if(R.seatsLeft<1)return {ok:false,why:'full'};
   var a=nearestOnPath(R,S.rfrom),b=nearestOnPath(R,S.rto);
-  if(a.d>LIMIT)return {ok:false,why:'farpu',d:a.d};
-  if(b.d>LIMIT)return {ok:false,why:'fardr',d:b.d};
+  if(a.d>REACH)return {ok:false,why:'farpu',d:a.d};
+  if(b.d>REACH)return {ok:false,why:'fardr',d:b.d};
   if(b.cum-a.cum<300)return {ok:false,why:'order'};
-  return {ok:true,pu:a,dr:b,puAt:etaOn(R,R.dep,a.cum),drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:segPrice(R,b.cum-a.cum)}}
+  return {ok:true,near:a.d<=LIMIT&&b.d<=LIMIT,pu:a,dr:b,puAt:etaOn(R,R.dep,a.cum),drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:segPrice(R,b.cum-a.cum)}}
 function search(){
   if(S.rfrom.lat==null||S.rto.lat==null){S.rErr=T('اختار النقطتين من الاقتراحات، أو حطّهم عالخريطة بكبسة الدبّوس.','Pick both points from the suggestions, or set them on the map with the pin button.');render();return}
   S.rErr='';S.rbusy=true;S.pick=null;render();
@@ -476,7 +478,7 @@ function search(){
   f.getDocs(f.query(col('rides'),f.where('status','==','open'))).then(function(s){
     var all=rows(s).filter(function(r){return r.dep>now&&r.dep>=d0&&r.dep<d1&&r.driverId!==uid}).map(hyd).filter(function(r){return r.path.length>1});
     var res=all.map(function(R){return {R:R,m:matchRide(R)}});
-    S.found={total:all.length,ok:res.filter(function(x){return x.m.ok}).sort(function(a,b){return a.m.puAt-b.m.puAt})};
+    S.found={total:all.length,ok:res.filter(function(x){return x.m.ok}).sort(function(a,b){return (b.m.near-a.m.near)||(a.m.puAt-b.m.puAt)})};
     S.fsel=0;S.rv='results';S.rbusy=false;paint();
     if(S.found.ok.length)fit([S.found.ok[0].R.path]);
   }).catch(function(e){S.rbusy=false;render();dbErr(T('البحث','search'),e)});
@@ -871,12 +873,13 @@ function riderHTML(){
    '<p class="sub">'+T('بنفتّش بين أصحاب السيارات اللي نازلين أصلاً بهالنهار، وبنبيّنلك اللي طريقهم بيمرق حدّك. بتشاركهم بكلفة المشوار، مش أجرة تاكسي.','We look through the car owners already making a trip that day and show the ones whose road passes near you. You share the cost of the trip with them; it is not a taxi fare.')+'</p>';
 }
 function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(S.rto.text),dayOf(fromYmd(S.rdate||ymdIn(1)).getTime()),'redit',T('غيّر','Edit'));
-  if(!f.ok.length)return head+'<div class="banner">'+(f.total?T('في '+f.total+' مشوار بهالنهار، بس ولا واحد بيمرق حدّ نقطتك (ضمن '+LIMIT+' متر) أو بقي فيه مقاعد.','There are '+f.total+' rides that day, but none passes within '+LIMIT+' m of your points with a free seat.'):T('ما حدا ناشر مشوار بهالنهار بعد. جرّب بعدين أو نهار تاني.','Nobody has posted a ride for that day yet. Try later or another day.'))+'</div>';
+  if(!f.ok.length)return head+'<div class="banner">'+(f.total?T('في '+f.total+' مشوار بهالنهار، بس ولا واحد بيمرق حدّ نقطتك (ضمن '+(REACH/1000)+' كم) أو بقي فيه مقاعد.','There are '+f.total+' rides that day, but none passes within '+(REACH/1000)+' km of your points with a free seat.'):T('ما حدا ناشر مشوار بهالنهار بعد. جرّب بعدين أو نهار تاني.','Nobody has posted a ride for that day yet. Try later or another day.'))+'</div>';
   var x=f.ok[S.fsel]||f.ok[0],m=x.m,R=x.R,mine=null;
   S.myReqs.forEach(function(q){if(q.rideId===R.id&&(q.status==='pending'||q.status==='offered'||q.status==='accepted'||q.status==='rerouted'))mine=q});
   return head+f.ok.map(function(y,i){return '<button type="button" class="rcard" data-found="'+i+'" aria-pressed="'+(i===S.fsel)+'"><span class="t"><span class="name">'+esc(y.R.driverName)+' · '+esc(y.R.car)+'</span><span class="dur" dir="ltr">'+hm(y.m.puAt)+'</span></span>'+
-     '<span class="meta"><span>'+T('بيمرق حدّك','passes you')+'</span><span>'+T('بتنزل ','out at ')+hm(y.m.drAt)+'</span><span>'+y.R.seatsLeft+' '+T('مقاعد','seats')+'</span><span dir="ltr">$'+share(y.m.price,rN(null,y.R))+'</span></span></button>'}).join('')+
+     '<span class="meta">'+(y.m.near?'<span>'+T('بيمرق حدّك','passes you')+'</span>':'<span class="tag wait">'+T('طريقه على بعد ','road is ')+mTxt(y.m.pu.d)+T('',' away')+'</span>')+'<span>'+T('بتنزل ','out at ')+hm(y.m.drAt)+'</span><span>'+y.R.seatsLeft+' '+T('مقاعد','seats')+'</span><span dir="ltr">$'+share(y.m.price,rN(null,y.R))+'</span></span></button>'}).join('')+
    '<div class="box" style="border:2px solid var(--brand)"><div class="row">'+face(R.driverId,52)+'<span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+esc(R.driverName)+T(' بيمرق حدّك (تقريبي)',' passes you (approximate)')+'</b><p class="sub">'+T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you')+'</p></div></div>'+
+   (m.near?'':'<div class="banner">'+T('صاحب السيارة ما بيمرق حدّك بالضبط: أقرب نقطة عطريقه على بعد '+mTxt(m.pu.d)+' منك. ابعت طلب، وهو بيقبل أو بيقترح نقطة طلعة عطريقه، وفيكم تتّفقوا بالرسائل.','The car owner does not pass right by you: the nearest point on their road is '+mTxt(m.pu.d)+' away. Send a request; they can accept or propose a pick-up point on their way, and you can agree by message.')+'</div>')+
    '<div class="kv"><span>'+T('مشواره','Their ride')+'</span><b>'+esc(R.fromText)+ARROW()+esc(R.toText)+'</b></div>'+
    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(m.drAt)+'</b></div><div class="kv"><span>'+T('بتطلع معه','You ride')+'</span><b>'+kmTxt(m.m)+'</b></div>'+
    '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش لصاحب السيارة)','Your share of the cost (cash to the car owner)')+'</span>'+money(share(m.price,rN(null,R)))+'</div><div class="kv"><span>'+T('رسم خدني عليك','Khedni’s fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
