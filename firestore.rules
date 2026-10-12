@@ -14,6 +14,7 @@ service cloud.firestore {
     function req(r) { return get(/databases/$(database)/documents/requests/$(r)).data; }
     function drv() { return si() && get(/databases/$(database)/documents/users/$(uid())).data.dstatus == 'active'; }
     function mine() { return od().riderId == uid() || od().driverId == uid(); }
+    function pk() { return ['status', 'by', 'updatedAt', 'pu', 'puAt', 'puText', 'price', 'fee', 'km']; }
     function pay() { return nd().price is number && nd().price > 0 && nd().fee is number && nd().fee >= nd().price * 0.09; }
 
     match /adminping/{id} { allow get: if adm(); }
@@ -36,7 +37,7 @@ service cloud.firestore {
         && nd().seats is number && nd().seats >= 1 && nd().seats <= 6
         && nd().seatsLeft == nd().seats && nd().price is number && nd().price > 0;
       allow update: if adm() || (si() && od().driverId == uid()
-        && ch().hasOnly(['seatsLeft', 'status']) && nd().seatsLeft is number
+        && ch().hasOnly(['seatsLeft', 'status', 'poly', 'dur', 'stat', 'dist', 'desc']) && nd().seatsLeft is number
         && nd().seatsLeft >= 0 && nd().seatsLeft <= od().seats);
     }
     match /requests/{id} {
@@ -46,20 +47,21 @@ service cloud.firestore {
         && ride(nd().rideId).driverId == nd().driverId
         && ride(nd().rideId).status == 'open';
       allow update: if si() && (
-        (od().driverId == uid() && od().status == 'pending' && nd().status == 'offered' && drv() && pay()
-          && ch().hasOnly(['status', 'by', 'updatedAt', 'pu', 'puAt', 'puText', 'price', 'fee', 'km']))
+        (od().driverId == uid() && od().status == 'pending' && nd().status == 'offered' && drv() && pay() && ch().hasOnly(pk()))
+        || (od().riderId == uid() && od().status == 'rerouted' && nd().status == 'pending' && pay()
+          && ch().hasOnly(pk().concat(['dr', 'drAt'])))
         || (ch().hasOnly(['status', 'by', 'updatedAt']) && (
           (od().driverId == uid() && (
             (od().status == 'pending' && nd().status == 'rejected')
             || (od().status == 'pending' && nd().status == 'accepted' && drv())
-            || (od().status in ['offered', 'accepted'] && nd().status == 'cancelled')))
+            || (od().status in ['offered', 'accepted', 'rerouted'] && nd().status == 'cancelled')
+            || (od().status in ['pending', 'offered', 'accepted'] && nd().status == 'rerouted')))
           || (od().riderId == uid() && (
-            (od().status in ['pending', 'offered', 'accepted'] && nd().status == 'cancelled')
+            (od().status in ['pending', 'offered', 'accepted', 'rerouted'] && nd().status == 'cancelled')
             || (od().status == 'offered' && nd().status == 'accepted'))))));
     }
     match /consents/{id} {
       allow get: if si() && (id == uid() || adm());
-      allow list: if adm();
       allow create, update: if si() && id == uid() && nd().keys().hasOnly(['v', 'at']) && nd().v is number;
     }
     match /photos/{id} {
@@ -82,7 +84,7 @@ service cloud.firestore {
       allow create: if si() && (nd().riderId == uid() || nd().driverId == uid()) && nd().m.size() == 1
         && req(id).riderId == nd().riderId && req(id).driverId == nd().driverId;
       allow update: if si() && mine() && ch().hasOnly(['m'])
-        && nd().m.size() == od().m.size() + 1 && nd().m.size() <= 300;
+        && nd().m.size() == od().m.size() + 1;
     }
     match /payments/{id} {
       allow read: if si() && (od().driverId == uid() || adm());
