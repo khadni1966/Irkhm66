@@ -464,6 +464,8 @@ function onMapTap(p){
   paint();
 }
 /* ---------- rider: is my trip on this driver's road? ---------- */
+// how far the partner walks to the road, in words: metres and minutes on foot
+function walkTxt(d){return '🚶 '+mTxt(d)+' ('+Math.max(1,Math.round(d/80))+' '+T('د مشي','min walk')+')'}
 function matchRide(R){
   if(R.seatsLeft<1)return {ok:false,why:'full'};
   var a=nearestOnPath(R,S.rfrom),b=nearestOnPath(R,S.rto);
@@ -877,8 +879,8 @@ function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(
   var x=f.ok[S.fsel]||f.ok[0],m=x.m,R=x.R,mine=null;
   S.myReqs.forEach(function(q){if(q.rideId===R.id&&(q.status==='pending'||q.status==='offered'||q.status==='accepted'||q.status==='rerouted'))mine=q});
   return head+f.ok.map(function(y,i){return '<button type="button" class="rcard" data-found="'+i+'" aria-pressed="'+(i===S.fsel)+'"><span class="t"><span class="name">'+esc(y.R.driverName)+' · '+esc(y.R.car)+'</span><span class="dur" dir="ltr">'+hm(y.m.puAt)+'</span></span>'+
-     '<span class="meta">'+(y.m.near?'<span>'+T('بيمرق حدّك','passes you')+'</span>':'<span class="tag wait">'+T('طريقه على بعد ','road is ')+mTxt(y.m.pu.d)+T('',' away')+'</span>')+'<span>'+T('بتنزل ','out at ')+hm(y.m.drAt)+'</span><span>'+y.R.seatsLeft+' '+T('مقاعد','seats')+'</span><span dir="ltr">$'+share(y.m.price,rN(null,y.R))+'</span></span></button>'}).join('')+
-   '<div class="box" style="border:2px solid var(--brand)"><div class="row">'+face(R.driverId,52)+'<span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+(m.near?esc(R.driverName)+T(' بيمرق حدّك (تقريبي)',' passes you (approximate)'):T('بيوصل لأقرب نقطة عطريق ','Reaches the nearest point on the road of ')+esc(R.driverName)+T(' (تقريبي)',' (approximate)'))+'</b><p class="sub">'+T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you')+'</p></div></div>'+
+     '<span class="meta">'+(y.m.pu.cum<80?'<span class="tag ok">'+T('طالع من حدّك','starts near you')+'</span>':'')+(y.m.pu.d<=1000?'<span>'+walkTxt(y.m.pu.d)+'</span>':'<span class="tag wait">'+T('طريقه على بعد ','road is ')+mTxt(y.m.pu.d)+T('',' away')+'</span>')+'<span>'+T('بتنزل ','out at ')+hm(y.m.drAt)+'</span><span>'+y.R.seatsLeft+' '+T('مقاعد','seats')+'</span><span dir="ltr">$'+share(y.m.price,rN(null,y.R))+'</span></span></button>'}).join('')+
+   '<div class="box" style="border:2px solid var(--brand)"><div class="row">'+face(R.driverId,52)+'<span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+(m.near?esc(R.driverName)+T(' بيمرق حدّك (تقريبي)',' passes you (approximate)'):T('بيوصل لأقرب نقطة عطريق ','Reaches the nearest point on the road of ')+esc(R.driverName)+T(' (تقريبي)',' (approximate)'))+'</b><p class="sub">'+(m.pu.d<=1000?walkTxt(m.pu.d)+T(' لنقطة الطلعة',' to the pick-up point'):T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you'))+'</p></div></div>'+
    (m.near?'':'<div class="banner">'+T('صاحب السيارة ما بيمرق حدّك بالضبط: أقرب نقطة عطريقه على بعد '+mTxt(m.pu.d)+' منك. ابعت طلب، وهو بيقبل أو بيقترح نقطة طلعة عطريقه، وفيكم تتّفقوا بالرسائل.','The car owner does not pass right by you: the nearest point on their road is '+mTxt(m.pu.d)+' away. Send a request; they can accept or propose a pick-up point on their way, and you can agree by message.')+'</div>')+
    '<div class="kv"><span>'+T('مشواره','Their ride')+'</span><b>'+esc(R.fromText)+ARROW()+esc(R.toText)+'</b></div>'+
    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(m.drAt)+'</b></div><div class="kv"><span>'+T('بتطلع معه','You ride')+'</span><b>'+kmTxt(m.m)+'</b></div>'+
