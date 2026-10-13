@@ -75,10 +75,11 @@ h3{font-family:var(--display);font-size:15px;margin-top:6px}
 
 /* app */
 #app{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-.top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line)}
+.top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 14px 6px 10px;background:linear-gradient(160deg,#0E6E59,#0B5D4B 55%,#084A3C);border-bottom:0}
+.top .chipbtn{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.38);color:#fff}
 .brand{font-family:var(--display);font-size:22px;font-weight:700;color:var(--brand);display:flex;align-items:center}
-.brand img{height:44px;width:auto;display:block}
-#gate h1 img{height:118px;width:auto;max-width:100%;display:block;margin-inline-start:-14px}
+.brand img{height:60px;width:auto;display:block}
+#gate h1 img{height:118px;width:auto;max-width:100%;display:block;margin-inline-start:-4px}
 .chipbtn{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px;font-weight:600}
 .mapwrap{position:relative;flex:1 1 36%;min-height:220px}
 #map{position:absolute;inset:0}
@@ -684,7 +685,7 @@ function introHTML(){var gi=function(ic,t,d){return '<div class="gi"><span class
   return '<div class="gintro">'+gi('🙋',T('بدّك تنزل؟','Need a lift?'),T('لاقي حدا نازل عطريقك، وشاركه بالكلفة بدل ما تدفع تاكسي.','Find someone going your way and share the cost instead of paying for a taxi.'))+
    gi('🚗',T('نازل بسيارتك؟','Driving anyway?'),T('خود حدا معك عطريقك، وما تتحمّل البنزين ومصروف السيارة لحالك.','Take someone along and stop carrying the fuel and car costs alone.'))+
    '<p class="note" style="margin:0"><b>'+T('مشوار واحد، والكلفة مقسومة. مش تاكسي.','One trip, the cost shared. Not a taxi.')+'</b></p></div>'}
-function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png?v=3" alt="خدني Khedni" width="230" height="118"></h1><p>'+sub+'</p></div>'},
+function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png?v=4" alt="خدني Khedni" width="250" height="118"></h1><p>'+sub+'</p></div>'},
   foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
   err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
   if(S.gate==='share')return '<div class="gwrap">'+head(T('المشاركة بالكلفة','Sharing the cost'))+shareHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
@@ -1038,7 +1039,7 @@ var PICKTXT={repick:['نقطة طلعتك عالطريق الجديد','your pic
 var lastHTML=null;
 function render(){
   if(S.gate||!S.me)return;
-  var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-card.png?v=3" width="86" height="44" alt="">';bi=$('#brand img')}bi.alt='خدني Khedni';$('#b-lang').textContent=T('English','عربي');$('#b-acct').textContent=S.view==='main'?T('حسابي','Account'):T('رجوع','Back');
+  var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-light.png?v=4" width="127" height="60" alt="">';bi=$('#brand img')}bi.alt='خدني Khedni';$('#b-lang').textContent=T('English','عربي');$('#b-acct').textContent=S.view==='main'?T('حسابي','Account'):T('رجوع','Back');
   var h=$('#hint');
   var fs=formSlots(),nx=fs&&(S[fs[0]].lat==null?fs[0]:S[fs[1]].lat==null?fs[1]:null);
   if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}
