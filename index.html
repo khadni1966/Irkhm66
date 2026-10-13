@@ -1023,10 +1023,10 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(d.wh){S.whDraft=e.target.value;return}
   if(d.msg){S.draft[d.msg]=e.target.value;return}
   if(w){if(S.hereMsg&&S.hereMsg.which===w)S.hereMsg=null;S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
-  if(e.target.id==='in-time')S.time=e.target.value||'07:30';
+  if(e.target.id==='in-time'&&e.target.value)S.time=e.target.value;
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value),rr=S.routes&&S.routes[S.sel];if(v>0)S.price=rr?Math.min(r2(v),capPrice(rr.dist)):r2(v)}});
 document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
-document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value});
+document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value;if(e.target.id==='in-time'&&e.target.value)S.time=e.target.value});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
   if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
@@ -1091,6 +1091,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
    case 'clrdays':S.days=[];render();return;
    case 'dhome':S.dv='home';S.pt=null;S.pick=null;S.offer=null;S.offerErr='';paint();return;
    case 'go':
+    var ti=$('#in-time');if(ti&&ti.value)S.time=ti.value;
     if(!S.from.text.trim()||!S.to.text.trim()){S.formErr=T('حط من وين ولوين.','Enter both places.');render();return}
     if(!S.days.length){S.formErr=T('اختار نهار واحد على الأقل.','Pick at least one day.');render();return}
     S.days.sort();if(depDate()<new Date()){S.formErr=T('ساعة الطلعة مرقت لنهار اليوم. اختار وقت جاي أو شيل اليوم.','That time has already passed today. Pick a later time or untick today.');render();return}
