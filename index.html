@@ -252,6 +252,8 @@ function fromYmd(v){var p=String(v).split('-');return new Date(+p[0],(+p[1]||1)-
 function ymdIn(n){return ymd(new Date(dayStart(n)))}
 function depAt(v){var p=S.time.split(':'),d=fromYmd(v);d.setHours(+p[0]||0,+p[1]||0,0,0);return d}
 function depDate(){return depAt(S.days[0]||ymdIn(1))}
+// a new departure time: clears the "time has passed" message and, once routes are shown, moves the ride to the new time
+function setTime(v,redraw){S.time=v;if(S.routes)S.dep=depDate();if(S.formErr&&depDate()>=new Date())S.formErr='';if(redraw)render()}
 function daysLabel(){return S.days.length>1?S.days.length+T(' أيام، من ',' days, from ')+dayOf(fromYmd(S.days[0]).getTime()):dayOf(fromYmd(S.days[0]).getTime())}
 // the next five working days (Monday to Friday), starting tomorrow
 function workdays(){var out=[];for(var n=1;n<=AHEAD&&out.length<5;n++){var d=new Date(dayStart(n)),w=d.getDay();if(w>=1&&w<=5)out.push(ymd(d))}return out}
@@ -821,6 +823,7 @@ function newRideHTML(){
    '<div class="grid2"><div class="field"><span class="lbl">'+T('مقاعد فاضية','Free seats')+'</span><div class="stepper"><button type="button" data-seat="-1" aria-label="'+T('نقّص مقعد','Remove a seat')+'">−</button><b>'+S.seats+'</b><button type="button" data-seat="1" aria-label="'+T('زيد مقعد','Add a seat')+'">+</button></div></div>'+
    '<div class="field"><label for="in-price">'+T('مشاركة شريك واحد بكل الطريق ($)','One road partner’s share, full route ($)')+'</label><input type="number" id="in-price" inputmode="decimal" min="0.5" max="'+capPrice(r.dist)+'" step="0.5" value="'+S.price+'"></div></div>'+
    '<p class="sub">'+T('كلفة هالمشوار عالسيارة حوالي $'+r2(tripCost(r.dist))+' (بنزين، صيانة، واستهلاك). شريك الطريق بيشارك بنصها أو أقل، وهيدي مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+'. شريك الطريق بيشارك على قد المسافة اللي بيطلعها معك، الكلفة بتتقسّم على كل اللي بالسيارة: إذا طلع معك شريك واحد بيشارك بـ$'+S.price+'، شريكين كل واحد $'+share(S.price,2)+'، تلاتة كل واحد $'+share(S.price,3)+'. خدني بتاخد 10% من المشاركة.','This trip costs the car about $'+r2(tripCost(r.dist))+' (fuel, maintenance and wear). A road partner shares half of that or less; it is not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+'. A road partner shares in proportion to the distance they ride with you. The cost is split between everyone in the car: one partner shares $'+S.price+', two partners $'+share(S.price,2)+' each, three $'+share(S.price,3)+' each. Khedni takes 10% of the share.')+'</p>'+
+   '<div class="field"><label for="in-time2">'+T('ساعة الطلعة (فيك تغيّرها هون)','Departure time (you can change it here)')+'</label><input type="time" id="in-time2" value="'+esc(S.time)+'"></div>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
    '<button class="btn sun" type="button" id="publish"'+(S.busy?' disabled':'')+'>'+T('انشر المشوار','Publish the ride')+'</button>'+
    '<button class="btn ghost" type="button" id="unconfirm">'+T('اختار طريق تاني','Choose another route')+'</button>';
@@ -1036,10 +1039,10 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(d.wh){S.whDraft=e.target.value;return}
   if(d.msg){S.draft[d.msg]=e.target.value;return}
   if(w){if(S.hereMsg&&S.hereMsg.which===w)S.hereMsg=null;S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
-  if(e.target.id==='in-time'&&e.target.value)S.time=e.target.value;
+  if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,false);
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value),rr=S.routes&&S.routes[S.sel];if(v>0)S.price=rr?Math.min(r2(v),capPrice(rr.dist)):r2(v)}});
 document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
-document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value;if(e.target.id==='in-time'&&e.target.value)S.time=e.target.value});
+document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value;if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,true)});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
   if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
@@ -1107,7 +1110,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
    case 'clrdays':S.days=[];render();return;
    case 'dhome':S.dv='home';S.pt=null;S.pick=null;S.offer=null;S.offerErr='';paint();return;
    case 'go':
-    var ti=$('#in-time');if(ti&&ti.value)S.time=ti.value;
+    var ti=$('#in-time');if(ti&&ti.value)S.time=ti.value;S.formErr='';
     if(!S.from.text.trim()||!S.to.text.trim()){S.formErr=T('حط من وين ولوين.','Enter both places.');render();return}
     if(!S.days.length){S.formErr=T('اختار نهار واحد على الأقل.','Pick at least one day.');render();return}
     S.days.sort();if(depDate()<new Date()){S.formErr=T('ساعة الطلعة مرقت لنهار اليوم. اختار وقت جاي أو شيل اليوم.','That time has already passed today. Pick a later time or untick today.');render();return}
@@ -1118,11 +1121,11 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
        else showErr(T('ما قدرنا نجيب الطرقات','Could not get the routes'),m,explain(m));
        render()});
     return;
-   case 'edit':S.routes=null;S.confirmed=false;S.pt=null;paint();return;
+   case 'edit':S.formErr='';S.routes=null;S.confirmed=false;S.pt=null;paint();return;
    case 'confirm':S.confirmed=true;paint();return;
    case 'unconfirm':S.confirmed=false;S.pt=null;paint();return;
-   case 'publish':var r=S.routes[S.sel];
-    if(S.dep<new Date()){S.formErr=T('ساعة الطلعة مرقت. اكبس "غيّر" واختار وقت جاي.','The departure time has passed. Tap "Edit" and pick a later time.');render();return}
+   case 'publish':var r=S.routes[S.sel],t2=$('#in-time2');if(t2&&t2.value&&t2.value!==S.time){S.time=t2.value;S.dep=depDate()}
+    if(S.dep<new Date()){S.formErr=T('ساعة الطلعة مرقت. غيّر الساعة فوق لوقت جاي، وبعدين انشر.','The departure time has passed. Change the time above to a later one, then publish.');render();return}
     S.busy=true;render();
     // one ride per chosen day, same road and time; the traffic estimate comes from the first day
     var base={driverId:S.user.uid,driverName:S.me.name,car:S.me.car||'',plate:S.me.plate||'',fromText:S.from.text,toText:S.to.text,
