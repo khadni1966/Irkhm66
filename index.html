@@ -856,7 +856,7 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=L.owed>=OWE_LIMIT,
     '<div class="row" style="flex-wrap:wrap">'+chatBtn(q)+'<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('الغي شريك الطريق هيدا','Cancel this road partner')+'</button></div></div>'+chatPanel(q)});
   rer.forEach(function(q){h+='<div class="banner col" style="gap:8px"><div class="row">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+'</b><br>'+T('غيّرت الطريق: ناطرينه يختار نقطة طلعته عالطريق الجديد.','You changed the route: waiting for them to pick a pick-up point on it.')+'</div></div>'+chatBtn(q)+'</div>'+chatPanel(q)});
   if(!pen.length&&!off.length&&!acc.length&&!rer.length)h+='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. أول ما حدا يطلب مقعد، بيبيّن هون.','Your ride is posted and has no requests yet. A seat request appears here as soon as someone sends one.')+'</div>';
-  return backRow(esc(R.fromText)+ARROW()+esc(R.toText),dayOf(R.dep)+' · '+hm(R.dep),'dhome',T('رجوع','Back'))+h+
+  return backRow(esc(R.fromText)+ARROW()+esc(R.toText),dayOf(R.dep)+' · '+hm(R.dep),'dhome',T('كل مشاويري','All my rides'))+h+
    '<div class="box"><div class="kv"><span>'+T('الطريق','Route')+'</span><b>'+(R.desc?esc(R.desc):'—')+'</b></div><div class="kv"><span>'+T('الوقت بالعجقة','Time with traffic')+'</span><b>'+durTxt(R.dur)+' · '+kmTxt(R.dist)+'</b></div>'+
    '<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seatsLeft+' / '+R.seats+'</b></div><div class="kv"><span>'+T('شركاء مأكّدين','Confirmed road partners')+'</span><b>'+acc.length+'</b></div>'+
    (acc.length?'<div class="kv"><span>'+T('مجموع مشاركاتهم (كاش)','Their shares together (cash)')+'</span>'+money(acc.reduce(function(t,q){return t+dPay(q)},0))+'</div>':'')+
@@ -864,6 +864,8 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=L.owed>=OWE_LIMIT,
    '<p class="sub">'+T('الكلفة بتتقسّم على كل اللي بالسيارة: إذا صاروا شريكين، كل واحد ','The cost is split between everyone in the car: with two road partners each shares ')+'$'+share(R.price,2)+T('، وإذا تلاتة ',', with three ')+'$'+share(R.price,3)+T(' (لكل الطريق).',' (full route).')+'</p></div>'+ptHTML()+
    '<p class="sub">'+T('اكبس على أي نقطة عالخط الأزرق لتعرف أي ساعة بتمرق فيها.','Tap any point on the blue line to see when you pass it.')+'</p>'+
    '<button class="btn ghost" type="button" id="reroute">'+T('غيّر الطريق','Change the route')+'</button>'+
+   '<button class="btn sun" type="button" id="again">'+T('➕ نفس الطريق، بساعة أو نهار تاني','➕ Same road, another time or day')+'</button>'+
+   '<button class="btn ghost" type="button" id="newride">'+T('➕ مشوار جديد','➕ New ride')+'</button>'+
    '<button class="btn warn" type="button" id="cancelride">'+T('الغي هالمشوار','Cancel this ride')+'</button>';
 }
 
@@ -1098,6 +1100,9 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     if(S.af.car.trim().length<2||S.af.plate.trim().length<2){S.applyErr=T('اكتب نوع السيارة ورقم اللوحة.','Enter the car model and the plate number.');render();return}
     S.applyErr='';f.updateDoc(ref('users',S.user.uid),{car:S.af.car.trim(),plate:S.af.plate.trim(),dstatus:'pending'}).catch(fail(T('الطلب','request')));return;
    case 'newride':S.dv='new';resetNew();S.days=[ymdIn(1)];paint();useHere('from',true);return;
+   case 'again':R=myRide(S.rideId);if(!R||R.path.length<2)return;S.dv='new';resetNew();var e0=R.path[0],e1=R.path[R.path.length-1],dd=new Date(R.dep);
+    S.from={text:R.fromText,lat:e0.lat,lng:e0.lng};S.to={text:R.toText,lat:e1.lat,lng:e1.lng};S.time=pad(dd.getHours())+':'+pad(dd.getMinutes());
+    S.days=[dd<new Date(dayStart(0))?ymdIn(1):ymd(dd)];S.formErr='';paint();return;
    case 'workweek':S.days=workdays();render();return;
    case 'clrdays':S.days=[];render();return;
    case 'dhome':S.dv='home';S.pt=null;S.pick=null;S.offer=null;S.offerErr='';paint();return;
