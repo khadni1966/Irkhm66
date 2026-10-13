@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>خدني</title>
+<title>خدني | Khedni</title>
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#0B5D4B">
@@ -673,7 +673,7 @@ function drvPart(){var a=S.af;
   return '<div class="col" style="gap:4px"><span class="glbl">'+T('كيف بدّك تستعمل خدني؟','How will you use Khedni?')+'</span><div class="seg" role="group"><button type="button" data-drv="0" aria-pressed="'+(!a.drv)+'">'+T('بدّي حدا يوصّلني','I need a lift')+'</button><button type="button" data-drv="1" aria-pressed="'+a.drv+'">'+T('عندي محل بسيارتي','I have a free seat')+'</button></div></div>'+
   (a.drv?gin('car',T('نوع السيارة ولونها','Car model and colour'),'text',a.car,T('مثلاً: كيا ريو فضّية','e.g. silver Kia Rio'),'off')+gin('plate',T('رقم اللوحة','Plate number'),'text',a.plate,'B 123456','off',true)+
     '<p class="note">'+T('حساب صاحب السيارة بيتفعّل بعد ما الإدارة توافق عليه. لبين ما توافق، فيك تطلع كشريك طريق.','A car owner account starts working once the admin approves it. Until then you can still ride as a road partner.')+'</p>':'')}
-function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png" alt="'+T('خدني','Khedni')+'" width="230" height="118"></h1><p>'+sub+'</p></div>'},
+function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png" alt="خدني Khedni" width="230" height="118"></h1><p>'+sub+'</p></div>'},
   foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
   err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
   if(S.gate==='share')return '<div class="gwrap">'+head(T('المشاركة بالكلفة','Sharing the cost'))+shareHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
@@ -1027,7 +1027,7 @@ var PICKTXT={repick:['نقطة طلعتك عالطريق الجديد','your pic
 var lastHTML=null;
 function render(){
   if(S.gate||!S.me)return;
-  var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-card.png" width="86" height="44" alt="">';bi=$('#brand img')}bi.alt=T('خدني','Khedni');$('#b-lang').textContent=T('English','عربي');$('#b-acct').textContent=S.view==='main'?T('حسابي','Account'):T('رجوع','Back');
+  var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-card.png" width="86" height="44" alt="">';bi=$('#brand img')}bi.alt='خدني Khedni';$('#b-lang').textContent=T('English','عربي');$('#b-acct').textContent=S.view==='main'?T('حسابي','Account'):T('رجوع','Back');
   var h=$('#hint');
   var fs=formSlots(),nx=fs&&(S[fs[0]].lat==null?fs[0]:S[fs[1]].lat==null?fs[1]:null);
   if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}
