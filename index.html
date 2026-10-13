@@ -373,11 +373,12 @@ function loadMaps(key){return new Promise(function(res,rej){
   s.async=true;s.onerror=function(){rej(new Error('Failed to fetch Google Maps script'))};document.head.appendChild(s)})}
 function initMap(){
   if(map)return;
-  map=new google.maps.Map($('#map'),{center:{lat:33.86,lng:35.56},zoom:11,disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',clickableIcons:false});
+  map=new google.maps.Map($('#map'),{center:{lat:33.86,lng:35.56},zoom:11,disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',clickableIcons:true});
   map.addListener('click',tapEvt);
   google.maps.importLibrary('places').then(function(lib){places=lib;try{token=new lib.AutocompleteSessionToken()}catch(e){}}).catch(function(){places=null});
 }
-function tapEvt(e){onMapTap({lat:e.latLng.lat(),lng:e.latLng.lng()})}
+// a tap on a place icon on Google's map (shop, restaurant, bank…) carries its id, so the point gets that place's name
+function tapEvt(e){if(e.placeId&&e.stop)e.stop();onMapTap({lat:e.latLng.lat(),lng:e.latLng.lng(),placeId:e.placeId||null})}
 function add(o){ov.push(o);return o}
 function line(path,color,w,op,z,onClick){var l=add(new google.maps.Polyline({path:path,map:map,strokeColor:color,strokeWeight:w,strokeOpacity:op,zIndex:z}));l.addListener('click',onClick||tapEvt);return l}
 function pin(pos,label){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}))}
@@ -389,7 +390,7 @@ function spot(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:
 function dragPin(which,label){var p=S[which];if(p.lat==null)return;var m=add(new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map:map,zIndex:30,draggable:true,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}));
   if(m.addListener)m.addListener('dragend',function(e){setPoint(which,{lat:e.latLng.lat(),lng:e.latLng.lng()})})}
 function formSlots(){if(S.view!=='main'||!S.me)return null;if(S.role==='driver')return S.me.dstatus==='active'&&S.dv==='new'&&!S.routes?['from','to']:null;return S.rv==='home'?['rfrom','rto']:null}
-function setPoint(w,p){S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};nameIt(w,S[w]);if(w==='rfrom'||w==='rto')S.found=null;S.hereMsg=null;paint()}
+function setPoint(w,p){S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};nameIt(w,S[w],p.placeId);if(w==='rfrom'||w==='rto')S.found=null;S.hereMsg=null;paint()}
 function ends(R){if(R.path.length){pin(R.path[0],'A');pin(R.path[R.path.length-1],'B')}}
 function redraw(){
   if(!map)return;ov.forEach(function(o){o.setMap(null)});ov=[];
@@ -735,14 +736,26 @@ var ANDROID=/Android/i.test(navigator.userAgent),INAPP=/; wv\)|WhatsApp|FBAN|FBA
 function chromeLink(){return 'intent://'+location.host+location.pathname+location.search+'#Intent;scheme=https;package=com.android.chrome;end'}
 function chromeBtn(){return ANDROID?'<a class="btn sm sun" href="'+chromeLink()+'">'+T('افتح بـChrome','Open in Chrome')+'</a>':''}
 function inappHTML(){return INAPP?'<div class="banner col" style="gap:8px">'+T('إنت فاتح خدني من جوّا تطبيق تاني، وهون الموقع ممكن ما يشتغل. افتحه بـChrome أحسن.','You opened Khedni inside another app, where your location may not work. Open it in Chrome instead.')+chromeBtn()+'</div>':''}
-// put a readable street and area name on a point (needs the Geocoding API on the maps key; without it the plain label stays)
-function nameIt(which,slot){if(geoOff||!window.google||!google.maps.Geocoder)return;
+// name a point the way people say it: a known place right there (restaurant, mall, bank, shop) plus the area;
+// with no place close by, the street and area. Places needs Places API (New), the street needs the Geocoding API; without them the plain label stays
+function nameIt(which,slot,placeId){var poi=null,geo=null,left=2;
+  var done=function(){if(--left)return;if(S[which]!==slot)return;
+    var area=geo&&geo.area,name=poi?(area&&poi.indexOf(area)<0?poi+'، '+area:poi):geo&&geo.text;
+    if(name){slot.text=name;slot.named=true;render()}};
+  var P=places&&places.Place;
+  if(!P){left--}else{try{
+    (placeId?new P({id:placeId}).fetchFields({fields:['displayName']}).then(function(r){return (r&&r.place||{}).displayName}):
+      P.searchNearby({fields:['displayName','location'],locationRestriction:{center:{lat:slot.lat,lng:slot.lng},radius:60},maxResultCount:1,
+        rankPreference:places.SearchNearbyRankPreference?places.SearchNearbyRankPreference.DISTANCE:'DISTANCE',language:S.lang,region:'LB'})
+       .then(function(r){var pl=r&&r.places&&r.places[0];return pl&&pl.location&&hav({lat:pl.location.lat(),lng:pl.location.lng()},slot)<=80?pl.displayName:null}))
+     .then(function(n){poi=n?String(n):null;done()},function(){done()})}catch(e){left--}}
+  if(geoOff||!window.google||!google.maps.Geocoder){done();return}
   try{new google.maps.Geocoder().geocode({location:{lat:slot.lat,lng:slot.lng},language:S.lang,region:'LB'},function(res,st){
-    if(st!=='OK'||!res||!res.length){if(st==='REQUEST_DENIED')geoOff=true;return}
+    if(st!=='OK'||!res||!res.length){if(st==='REQUEST_DENIED')geoOff=true;done();return}
     var pick=function(types){for(var i=0;i<res.length;i++){var cs=res[i].address_components||[];for(var j=0;j<cs.length;j++)for(var k=0;k<types.length;k++)if(cs[j].types.indexOf(types[k])>=0)return cs[j].long_name}return ''};
+    var ok=function(x){return x&&!/^unnamed|^Unnamed|بدون اسم/.test(x)};
     var street=pick(['route']),area=pick(['neighborhood','sublocality_level_1','sublocality','locality','administrative_area_level_3','administrative_area_level_2']);
-    var name=[street,area].filter(function(x,i,a){return x&&a.indexOf(x)===i&&!/^unnamed|^Unnamed|بدون اسم/.test(x)}).join('، ')||String(res[0].formatted_address||'').replace(/,?\s*(Lebanon|لبنان)\s*$/,'');
-    if(name&&S[which]===slot){slot.text=name;slot.named=true;render()}})}catch(e){}}
+    geo={area:ok(area)?area:'',text:[street,area].filter(function(x,i,a){return ok(x)&&a.indexOf(x)===i}).join('، ')||String(res[0].formatted_address||'').replace(/,?\s*(Lebanon|لبنان)\s*$/,'')};done()})}catch(e){done()}}
 function useHere(which,quiet){
   var say=function(ok,text){S.hereMsg={which:which,ok:ok,text:text};paint()};
   if(!navigator.geolocation){if(!quiet)say(false,T('هالمتصفح ما بيعطي الموقع. افتح الصفحة بـChrome.','This browser does not give a location. Open the page in Chrome.'));return}
