@@ -55,6 +55,7 @@ h3{font-family:var(--display);font-size:15px;margin-top:6px}
 #gate .gi .ic{font-size:26px;line-height:1.2;flex:none}
 #gate .gi b{display:block;color:var(--sun);font-family:var(--display);font-size:16px}
 #gate .gi span{color:rgba(255,255,255,.92);font-size:14px}
+#gate a{color:#fff;text-decoration:underline;font-weight:600}
 #gate .note{font-size:13px;color:rgba(255,255,255,.85)}
 #gate .gerr{background:#fff;color:var(--danger);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:500}
 #gate .btn.ghost{border-color:rgba(255,255,255,.5);color:#fff}
@@ -687,6 +688,8 @@ function introHTML(){var gi=function(ic,t,d){return '<div class="gi"><span class
   return '<div class="gintro">'+gi('🙋',T('بدّك تنزل؟','Need a lift?'),T('لاقي حدا نازل عطريقك، وشاركه بالكلفة بدل ما تدفع تاكسي.','Find someone going your way and share the cost instead of paying for a taxi.'))+
    gi('🚗',T('نازل بسيارتك؟','Driving anyway?'),T('خود حدا معك عطريقك، وما تتحمّل البنزين ومصروف السيارة لحالك.','Take someone along and stop carrying the fuel and car costs alone.'))+
    '<p class="note" style="margin:0"><b>'+T('مشوار واحد، والكلفة مقسومة. مش تاكسي.','One trip, the cost shared. Not a taxi.')+'</b></p></div>'}
+// one address for questions, requests and problems
+function contactHTML(){return '<p class="note contact" style="margin:0">✉️ '+T('لأي سؤال أو طلب أو مشكلة، ابعتلنا إيميل على ','For any question, request or problem, email us at ')+'<a href="mailto:info@khedni.app" dir="ltr">info@khedni.app</a></p>'}
 function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png?v=4" alt="خدني Khedni" width="250" height="118"></h1><p>'+sub+'</p></div>'},
   foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
   err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
@@ -713,7 +716,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="log
     '<div class="col" style="gap:4px"><label for="af-pw">'+(up?T('كلمة سر (6 أحرف أو أكتر)','Password (6 characters or more)'):T('كلمة السر','Password'))+'</label><div class="pwrow"><input id="af-pw" data-af="pw" class="ltr" type="'+(a.show?'text':'password')+'" value="'+esc(a.pw)+'" autocomplete="'+(up?'new-password':'current-password')+'"><button type="button" id="af-show" aria-pressed="'+a.show+'">'+(a.show?T('خبّي','Hide'):T('بيّن','Show'))+'</button></div></div>'+
     (up?drvPart()+chkTerms():'')+err+
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+(a.busy?T('لحظة…','One moment…'):up?T('اعمل الحساب','Create the account'):T('ادخل','Sign in'))+'</button></form>'+
-    '<p class="note">'+(up?T('رقمك ما بيبيّن لا لصاحب السيارة ولا لشريك الطريق. بتشوفه الإدارة بس.','Your number is not shown to car owners or road partners. Only the admin sees it.'):T('نسيت كلمة السر؟ احكي مع الإدارة.','Forgot your password? Contact the admin.'))+'</p>'+foot+'</div>';
+    '<p class="note">'+(up?T('رقمك ما بيبيّن لا لصاحب السيارة ولا لشريك الطريق. بتشوفه الإدارة بس.','Your number is not shown to car owners or road partners. Only the admin sees it.'):T('نسيت كلمة السر؟ احكي مع الإدارة.','Forgot your password? Contact the admin.'))+'</p>'+foot+contactHTML()+'</div>';
 }
 function showGate(){
   document.documentElement.lang=S.lang;document.documentElement.dir=T('rtl','ltr');
@@ -998,6 +1001,7 @@ function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
    (!shared&&S.localKey?'<button class="btn ghost" type="button" id="chkey">'+T('غيّر مفتاح الخرائط على هالتلفون','Change the maps key on this phone')+'</button>':'')+
    '<button class="btn ghost" type="button" id="viewshare">'+T('كيف منحسب المشاركة بالكلفة','How the cost share is worked out')+'</button>'+
    '<button class="btn ghost" type="button" id="viewterms">'+T('شروط الاستخدام','Terms of use')+'</button>'+
+   '<div class="box">'+contactHTML()+'</div>'+
    '<button class="btn ghost" type="button" id="signout">'+T('تسجيل خروج','Sign out')+'</button>'+
    '<p class="sub">'+T('رقمك ما بيبيّن لا لصاحب السيارة ولا لشريك الطريق. بتشوفه الإدارة بس.','Your number is not shown to car owners or road partners. Only the admin sees it.')+'</p>';
 }
