@@ -383,6 +383,11 @@ function dot(pos,fill){return add(new google.maps.Marker({position:{lat:pos.lat,
 function car(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:40,label:{text:'🚗',fontSize:'18px'},icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:'#FFFFFF',fillOpacity:1,strokeColor:'#0B5D4B',strokeWeight:3}}))}
 function person(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:35,label:{text:'🧍',fontSize:'18px'},icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:'#FFFFFF',fillOpacity:1,strokeColor:'#F5B921',strokeWeight:3}}))}
 function spot(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:18,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:'#F5B921',fillOpacity:1,strokeColor:'#FFFFFF',strokeWeight:2}}))}
+// a start/end pin on the new-ride or search form; drag it to fine-tune the spot
+function dragPin(which,label){var p=S[which];if(p.lat==null)return;var m=add(new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map:map,zIndex:30,draggable:true,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}));
+  if(m.addListener)m.addListener('dragend',function(e){setPoint(which,{lat:e.latLng.lat(),lng:e.latLng.lng()})})}
+function formSlots(){if(S.view!=='main'||!S.me)return null;if(S.role==='driver')return S.me.dstatus==='active'&&S.dv==='new'&&!S.routes?['from','to']:null;return S.rv==='home'?['rfrom','rto']:null}
+function setPoint(w,p){S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};nameIt(w,S[w]);if(w==='rfrom'||w==='rto')S.found=null;S.hereMsg=null;paint()}
 function ends(R){if(R.path.length){pin(R.path[0],'A');pin(R.path[R.path.length-1],'B')}}
 function redraw(){
   if(!map)return;ov.forEach(function(o){o.setMap(null)});ov=[];
@@ -392,7 +397,7 @@ function redraw(){
     if(S.dv==='reroute'&&S.rr&&S.rr.routes){var RQ=myRide(S.rideId);
       S.rr.routes.forEach(function(r,i){var on=i===S.rr.sel;line(r.path,on?'#1A6FE0':'#6F7D78',on?7:5,on?1:.7,on?10:1,function(){S.rr.sel=i;paint()})});
       ends(S.rr.routes[S.rr.sel]);if(RQ)reqsFor(RQ.id).forEach(function(q){if(q.status==='pending'||q.status==='offered'||q.status==='accepted'){if(q.from)spot(q.from);dot(q.dr,'#FFFFFF')}});return}
-    if(S.dv==='new'&&!S.routes){if(S.from.lat!=null)dot(S.from,'#F5B921');if(S.to.lat!=null)dot(S.to,'#FFFFFF');return}
+    if(S.dv==='new'&&!S.routes){dragPin('from','A');dragPin('to','B');return}
     if(S.dv==='new'&&S.routes){
       S.routes.forEach(function(r,i){var on=i===S.sel;if(S.confirmed&&!on)return;
         line(r.path,on?'#1A6FE0':'#6F7D78',on?7:5,on?1:.7,on?10:1,function(e){if(i!==S.sel&&!S.confirmed){S.sel=i;S.pt=null;paint()}else tapEvt(e)})});
@@ -408,6 +413,7 @@ function redraw(){
     if(S.reqRide&&S.reqRide.id===q.rideId){var RR=S.reqRide,a=nearestOnPath(RR,q.pu),b=nearestOnPath(RR,q.dr);line(RR.path,'#1A6FE0',6,.75,10);if(b.cum>a.cum)line(sub(RR,a.cum,b.cum),'#0B5D4B',9,1,15)}
     if(q.status==='rerouted'){var rm2=reMatch(q);if(q.from)spot(q.from);dot(q.dr,'#FFFFFF');if(rm2)dot(rm2.a.pos,'#1A6FE0');return}
     dot(q.pu,'#F5B921');dot(q.dr,'#FFFFFF');if(q.from&&q.status==='offered')spot(q.from);var li=q.status==='accepted'?liveInfo(q):null;if(li)car(li.pos);if(S.track&&S.track.docId===q.id&&S.track.pos)person(S.track.pos);return}}
+  if(S.rv==='home'){dragPin('rfrom','A');dragPin('rto','B');return}
   if(S.rfrom.lat!=null)dot(S.rfrom,'#F5B921');
   if(S.rto.lat!=null)dot(S.rto,'#FFFFFF');
 }
@@ -457,7 +463,9 @@ function onMapTap(p){
     if(seg<300){S.offerErr=T('نقطة الطلعة لازم تكون قبل نقطة نزوله.','The pick-up point must come before their drop-off.');render();return}
     S.offer={id:q0.id,pos:n0.pos,at:etaOn(R0,R0.dep,n0.cum).getTime(),km:Math.round(seg),price:segPrice(R0,seg),far:hav(q0.from||q0.pu,n0.pos)};
     S.offerErr='';S.pick=null;paint();return}
-  if(S.pick){var w=S.pick;S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};nameIt(w,S[w]);S.pick=null;paint();return}
+  if(S.pick){var w=S.pick;S.pick=null;setPoint(w,p);return}
+  // on the form a plain tap fills the start first, then the end; once both are set it moves the nearer one
+  var fs=formSlots();if(fs){var a=S[fs[0]],b=S[fs[1]],w2=a.lat==null?fs[0]:b.lat==null?fs[1]:(hav(a,p)<hav(b,p)?fs[0]:fs[1]);setPoint(w2,p);return}
   if(S.view!=='main'||S.role!=='driver')return;
   var R=S.dv==='ride'?myRide(S.rideId):(S.dv==='new'&&S.routes?S.routes[S.sel]:null);if(!R)return;
   var n=nearestOnPath(R,p);
@@ -988,7 +996,9 @@ function render(){
   if(S.gate||!S.me)return;
   $('#brand').textContent=T('خدني','Khedni');$('#b-lang').textContent=T('English','عربي');$('#b-acct').textContent=S.view==='main'?T('حسابي','Account'):T('رجوع','Back');
   var h=$('#hint');
-  if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}else h.hidden=true;
+  var fs=formSlots(),nx=fs&&(S[fs[0]].lat==null?fs[0]:S[fs[1]].lat==null?fs[1]:null);
+  if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}
+  else if(fs&&mapState==='ready'){h.hidden=false;h.textContent=nx?T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[nx][0],PICKTXT[nx][1]):T('اسحب الدبّوس A أو B لتعدّل محلّه','Drag pin A or B to adjust it')}else h.hidden=true;
   $('#app').classList.toggle('full',S.view!=='main');
   var html=(S.view==='main'?inappHTML():'')+(S.view==='account'?accountHTML():S.view==='terms'?'<h2>'+T('شروط الاستخدام','Terms of use')+'</h2>'+termsHTML():S.view==='share'?'<h2>'+T('المشاركة بالكلفة','Sharing the cost')+'</h2>'+shareHTML():S.view==='admin'?adminHTML():roleSeg()+(S.role==='driver'?driverHTML():riderHTML()));
   if(html===lastHTML)return;
