@@ -159,7 +159,8 @@ var LIMIT=800;    // within this the ride counts as passing right by the rider
 var REACH=5000;   // metres: rides up to this far from the rider's points are still shown, and the car owner can propose a pick-up point on the way
 var _L=LIMIT;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
-var RATES=[[10,.40],[20,.35],[30,.30],[1e9,.15]]; // what a private car costs to run per km: first 10 km, next 10, next 10, then the rest (long stretches count fuel only)
+var RATES=[[10,.60],[20,.50],[50,.30],[1e9,0]]; // what a private car costs to run per km: first 10 km, next 10, then up to 50 km; past 50 km the share stops growing
+var MINS=2.5; // the smallest share for one road partner, even for a short hop
 var TERMS_V=5;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
@@ -279,9 +280,9 @@ function sub(R,c0,c1){var out=[at(R,c0)];for(var i=0;i<R.path.length;i++)if(R.cu
 function etaOn(R,dep,c){return new Date(+dep+c/total(R)*R.dur*1000)}
 function tripCost(m){var k=m/1000,prev=0,c=0;for(var i=0;i<RATES.length&&k>prev;i++){c+=(Math.min(k,RATES[i][0])-prev)*RATES[i][1];prev=RATES[i][0]}return c}
 // one rider and the driver split the cost of the trip, so a rider's share is at most half of it
-function capPrice(m){return Math.max(.5,Math.round(tripCost(m)/2*2)/2)}
+function capPrice(m){return Math.max(MINS,Math.round(tripCost(m)/2*2)/2)}
 // a rider who joins for part of the road shares what that distance is worth, lowered by the same proportion the driver lowered the full ride
-function segPrice(R,seg){var road=R.dist||total(R),ratio=Math.min(1,R.price/capPrice(road));return Math.max(.5,Math.round(capPrice(seg/total(R)*road)*ratio*2)/2)}
+function segPrice(R,seg){var road=R.dist||total(R),ratio=Math.min(1,R.price/capPrice(road));return Math.max(Math.min(MINS,R.price),Math.round(capPrice(seg/total(R)*road)*ratio*2)/2)}
 // the cost is split between everyone in the car, driver included: the stored amount is the share when one rider is aboard,
 // and it shrinks as more riders are confirmed (1 rider: all of it, 2: two thirds each, 3: half each)
 function share(base,n){n=Math.max(1,n||1);return Math.max(.5,Math.round(base*2/(n+1)*2)/2)}
@@ -629,12 +630,12 @@ function termsHTML(){return '<ol class="terms">'+TERMS.map(function(t){return '<
 function shareHTML(){var d=function(n){return '<span dir="ltr">$'+n+'</span>'};
   return '<div class="col"><p>'+T('خدني مش تاكسي. صاحب السيارة نازل عطريقه أصلاً، واللي بيطلع معه بيشاركه بكلفة المشوار: بنزين، صيانة، واستهلاك سيارة.','Khedni is not a taxi. The car owner is making the trip anyway, and whoever rides along shares its cost: fuel, maintenance and wear.')+'</p>'+
    '<p><b>'+T('المبلغ هو مشاركة بس، مش أجرة.','The amount is a share only, not a fare.')+'</b> '+T('منحسبه سلفاً ومنبيّنه لصاحب السيارة ولشريك الطريق قبل المشوار، ليعرف كل واحد قدّيش بيشارك: لا أكتر ولا أقل. هيك ما في إحراج ولا مفاصلة بالسيارة.','We work it out in advance and show it to the car owner and the road partner before the trip, so each knows what they share: no more and no less. That way there is no awkwardness or bargaining in the car.')+'</p>'+
-   '<ol class="terms"><li><b>'+T('كلفة السيارة','What the car costs')+'</b>'+T('أول 10 كم: ','First 10 km: ')+d(RATES[0][1].toFixed(2))+T(' للكيلومتر. الـ10 اللي بعدهم: ',' per km. The next 10: ')+d(RATES[1][1].toFixed(2))+T('. الـ10 اللي بعدهم: ','. The next 10: ')+d(RATES[2][1].toFixed(2))+T('. وبعد الـ30 كم: ','. Beyond 30 km: ')+d(RATES[3][1].toFixed(2))+T(' (بنزين بس).',' (fuel only).')+'</li>'+
+   '<ol class="terms"><li><b>'+T('كلفة السيارة','What the car costs')+'</b>'+T('أول 10 كم: ','First 10 km: ')+d(RATES[0][1].toFixed(2))+T(' للكيلومتر. الـ10 اللي بعدهم: ',' per km. The next 10: ')+d(RATES[1][1].toFixed(2))+T('. وبعدها: ','. After that: ')+d(RATES[2][1].toFixed(2))+T(' لحدّ الـ50 كم. وبعد الـ50 كم ما بتزيد المشاركة.',' up to 50 km. Past 50 km the share does not grow.')+' '+T('وأقل مشاركة ','The smallest share is ')+d(MINS)+'.'+'</li>'+
    '<li><b>'+T('مشاركة شريك الطريق','The road partner’s share')+'</b>'+T('صاحب السيارة كمان شريك بسيارته، فشريك الطريق الواحد بيشارك بنص الكلفة. وإذا كانوا أكتر من شريك، الكلفة بتتقسّم عالكل وبتنقص مشاركة كل واحد.','The car owner rides in the car too, so one road partner shares half of the cost. With more road partners the cost is split between everyone and each share falls.')+'</li>'+
    '<li><b>'+T('صاحب السيارة فيه ينقّص، وما فيه يزيد','The car owner may lower it, never raise it')+'</b>'+T('المبلغ المحسوب هو السقف.','The amount worked out is the ceiling.')+'</li>'+
    '<li><b>'+T('رسم خدني','Khedni’s fee')+'</b>'+T('10% من المشاركة، بيدفعها صاحب السيارة. شريك الطريق ما بيدفع لخدني شي.','10% of the share, paid by the car owner. The road partner pays Khedni nothing.')+'</li></ol>'+
    '<table class="tbl"><thead><tr><th>'+T('المسافة','Distance')+'</th><th>'+T('شريك واحد','One road partner')+'</th><th>'+T('شريكين','Two road partners')+'</th><th>'+T('3 شركاء','Three road partners')+'</th></tr></thead><tbody>'+
-   [5,10,20,30,50,80].map(function(k){var c=capPrice(k*1000);return '<tr><td>'+k+' '+T('كم','km')+'</td><td>'+d(c)+'</td><td>'+d(share(c,2))+'</td><td>'+d(share(c,3))+'</td></tr>'}).join('')+'</tbody></table>'+
+   [3,10,14,20,30,50,80].map(function(k){var c=capPrice(k*1000);return '<tr><td>'+k+' '+T('كم','km')+'</td><td>'+d(c)+'</td><td>'+d(share(c,2))+'</td><td>'+d(share(c,3))+'</td></tr>'}).join('')+'</tbody></table>'+
    '<p class="sub" style="color:inherit;opacity:.8">'+T('المبالغ لكل شريك. المسافات اللي بين هالأرقام بتنحسب بنفس الطريقة.','Amounts are per road partner. Distances in between are worked out the same way.')+'</p></div>'}
 var AG={};
 function agreeLocal(uid){AG[uid]=1;sset('kh-terms-'+uid,String(TERMS_V))}
