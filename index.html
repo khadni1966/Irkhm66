@@ -76,7 +76,7 @@ h3{font-family:var(--display);font-size:15px;margin-top:6px}
 /* app */
 #app{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 14px 6px 10px;background:linear-gradient(160deg,#0E6E59,#0B5D4B 55%,#084A3C);border-bottom:0}
-.top .chipbtn{min-height:42px;padding:0 16px;background:#FFFFFF;border:2px solid #F5B921;color:#0B5D4B;font-weight:700;font-size:14px;box-shadow:0 3px 8px rgba(0,0,0,.25)}
+.top .chipbtn{width:46px;height:46px;min-height:46px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#FFFFFF;border:2px solid #F5B921;color:#0B5D4B;font-weight:700;font-size:16px;box-shadow:0 3px 8px rgba(0,0,0,.25)}
 .top .chipbtn:active{background:#FFF1C7;transform:translateY(1px)}
 .brand{font-family:var(--display);font-size:22px;font-weight:700;color:var(--brand);display:flex;align-items:center}
 .brand img{height:60px;width:auto;display:block}
@@ -1040,7 +1040,7 @@ var PICKTXT={repick:['نقطة طلعتك عالطريق الجديد','your pic
 var lastHTML=null;
 function render(){
   if(S.gate||!S.me)return;
-  var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-light.png?v=4" width="127" height="60" alt="">';bi=$('#brand img')}bi.alt='خدني Khedni';$('#b-lang').textContent=T('English','عربي');$('#b-acct').textContent=S.view==='main'?T('حسابي','Account'):T('رجوع','Back');
+  var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-light.png?v=4" width="127" height="60" alt="">';bi=$('#brand img')}bi.alt='خدني Khedni';var bl=$('#b-lang'),ba=$('#b-acct');bl.textContent=T('EN','ع');bl.setAttribute('aria-label',T('English','عربي'));bl.title=T('English','عربي');var acc=S.view==='main';ba.innerHTML=acc?'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="currentColor"/></svg>':'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" transform="'+(S.lang==='ar'?'rotate(180 12 12)':'')+'"/></svg>';ba.setAttribute('aria-label',acc?T('حسابي','Account'):T('رجوع','Back'));ba.title=ba.getAttribute('aria-label');
   var h=$('#hint');
   var fs=formSlots(),nx=fs&&(S[fs[0]].lat==null?fs[0]:S[fs[1]].lat==null?fs[1]:null);
   if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}
