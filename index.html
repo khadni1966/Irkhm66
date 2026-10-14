@@ -773,7 +773,7 @@ function introHTML(){var gi=function(ic,t,d){return '<div class="gi"><span class
 var INST=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();INST=e;if(typeof render==='function'&&!S.gate)render()});
 window.addEventListener('appinstalled',function(){INST=null;if(!S.gate)render()});
 function installHTML(){return INST?'<div class="box row between"><span>'+IC('pin')+' '+T('حطّ خدني كتطبيق على شاشة تلفونك','Add Khedni as an app on your phone')+'</span><button class="btn sm sun" type="button" id="install">'+T('ثبّت','Install')+'</button></div>':''}
-function contactHTML(){return '<p class="note contact" style="margin:0">'+IC('mail',15)+' '+T('لأي سؤال أو طلب أو مشكلة، ابعتلنا إيميل على ','For any question, request or problem, email us at ')+'<a href="mailto:info@khedni.app" dir="ltr">info@khedni.app</a></p>'}
+function contactHTML(){return '<p class="note contact" style="margin:0">'+IC('mail',15)+' '+T('لأي سؤال أو طلب أو مشكلة، ابعتلنا إيميل على ','For any question, request or problem, email us at ')+'<a href="mailto:info@khedni.app" dir="ltr">info@khedni.app</a> · <a href="privacy.html">'+T('سياسة الخصوصية','Privacy policy')+'</a></p>'}
 function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png?v=4" alt="خدني Khedni" width="250" height="118"></h1><p>'+sub+'</p></div>'},
   foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
   err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
