@@ -50,6 +50,7 @@ h3{font-family:var(--display);font-size:15px;margin-top:6px}
 #gate p{color:rgba(255,255,255,.9)}
 #gate label,.glbl{font-size:13px}
 #gate input{width:100%;min-height:54px;padding:0 14px;border:0;border-radius:14px;background:#fff;color:var(--ink);font-size:16px}
+#gate .gtag{display:block;font-family:var(--display);font-weight:700;font-size:24px;line-height:1.25;color:var(--sun);margin:2px 0 6px}
 #gate .gintro{display:flex;flex-direction:column;gap:8px}
 #gate .gi{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.1);border-radius:14px;padding:10px 12px}
 #gate .gi .ic{font-size:26px;line-height:1.2;flex:none}
@@ -687,9 +688,9 @@ function drvPart(){var a=S.af;
     '<p class="note">'+T('حساب صاحب السيارة بيتفعّل بعد ما الإدارة توافق عليه. لبين ما توافق، فيك تطلع كشريك طريق.','A car owner account starts working once the admin approves it. Until then you can still ride as a road partner.')+'</p>':'')}
 // who Khedni is for: both sides of the same trip
 function introHTML(){var gi=function(ic,t,d){return '<div class="gi"><span class="ic" aria-hidden="true">'+ic+'</span><div><b>'+t+'</b><span>'+d+'</span></div></div>'};
-  return '<div class="gintro">'+gi('🙋',T('بدّك تنزل؟','Need a lift?'),T('لاقي حدا نازل عطريقك، وشاركه بالكلفة بدل ما تدفع تاكسي.','Find someone going your way and share the cost instead of paying for a taxi.'))+
-   gi('🚗',T('نازل بسيارتك؟','Driving anyway?'),T('خود حدا معك عطريقك، وما تتحمّل البنزين ومصروف السيارة لحالك.','Take someone along and stop carrying the fuel and car costs alone.'))+
-   '<p class="note" style="margin:0"><b>'+T('مشوار واحد، والكلفة مقسومة. مش تاكسي.','One trip, the cost shared. Not a taxi.')+'</b></p></div>'}
+  return '<div class="gintro">'+gi('🚗',T('نازل بسيارتك؟ بتوفّر','Driving anyway? You save'),T('حدا بيشاركك بالبنزين ومصروف السيارة، فبيخفّ عنك مصروف مشوارك.','Someone shares your fuel and car costs, so your trip costs you less.'))+
+   gi('🙋',T('بدّك تنزل؟ بتوفّر','Need a lift? You save'),T('بتشارك بكلفة المشوار بس، وبتدفع أقل من التاكسي.','You only share the cost of the trip, and pay less than a taxi.'))+
+   '<p class="note" style="margin:0"><b>'+T('مشوار واحد، كلفة مقسومة، والاتنين بيوفّروا. مش تاكسي.','One trip, the cost shared, and both of you save. Not a taxi.')+'</b></p></div>'}
 // one address for questions, requests and problems
 function contactHTML(){return '<p class="note contact" style="margin:0">✉️ '+T('لأي سؤال أو طلب أو مشكلة، ابعتلنا إيميل على ','For any question, request or problem, email us at ')+'<a href="mailto:info@khedni.app" dir="ltr">info@khedni.app</a></p>'}
 function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png?v=4" alt="خدني Khedni" width="250" height="118"></h1><p>'+sub+'</p></div>'},
@@ -699,7 +700,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="log
   if(S.gate==='terms')return '<div class="gwrap">'+head(T('شروط الاستخدام','Terms of use'))+termsHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
   if(S.gate==='agree')return '<div class="gwrap">'+head(T('قبل ما تكمّل، اقرا الشروط ووافق عليها.','Before you continue, read the terms and agree to them.'))+termsHTML()+
     '<button class="btn sun" type="button" id="agree">'+T('قرأت ووافقت، وعمري 18 أو أكتر','I have read and agree, and I am 18 or older')+'</button>'+foot+'</div>';
-  if(S.gate==='boot')return '<div class="gwrap">'+head(T('خدني بتجمع اللي بدّو ينزل مع اللي نازل بسيارته عنفس الطريق.','Khedni brings together someone who needs a lift and someone already driving the same way.'))+
+  if(S.gate==='boot')return '<div class="gwrap">'+head('<span class="gtag">'+T('وفّر من جيبتك بكل مشوار 💰','Save money on every trip 💰')+'</span>'+T('خدني بتجمع اللي بدّو ينزل مع اللي نازل بسيارته عنفس الطريق، والاتنين بيوفّروا.','Khedni brings together someone who needs a lift and someone already driving the same way, and both of them save.'))+
     '<div class="gload" role="status">'+(S.bootFail?'':'<span class="spin" aria-hidden="true"></span>')+'<span>'+esc(S.bootMsg)+'</span></div>'+(S.bootFail||S.user?foot:'')+'</div>';
   if(S.gate==='key')return '<div class="gwrap">'+head(T('الخريطة بدها مفتاح جوجل.','The map needs a Google key.'))+
     '<form id="keyform" class="col" novalidate><div class="col" style="gap:4px"><label for="key">'+T('الصق مفتاح خرائط جوجل هون','Paste the Google Maps key here')+'</label><input type="text" id="key" class="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza..."></div>'+
@@ -709,7 +710,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="log
     '<form id="profform" class="col" novalidate>'+gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name')+drvPart()+chkTerms()+err+
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+T('كمّل','Continue')+'</button></form>'+foot+'</div>';
   var up=a.mode==='up';
-  return '<div class="gwrap">'+head(T('خدني بتجمع اللي بدّو ينزل مع اللي نازل بسيارته عنفس الطريق.','Khedni brings together someone who needs a lift and someone already driving the same way.'))+
+  return '<div class="gwrap">'+head('<span class="gtag">'+T('وفّر من جيبتك بكل مشوار 💰','Save money on every trip 💰')+'</span>'+T('خدني بتجمع اللي بدّو ينزل مع اللي نازل بسيارته عنفس الطريق، والاتنين بيوفّروا.','Khedni brings together someone who needs a lift and someone already driving the same way, and both of them save.'))+
     inappHTML()+introHTML()+'<p class="note">'+T('المبلغ مشاركة بكلفة المشوار بس، محسوب سلفاً: لا أكتر ولا أقل. ','The amount is only a share of the trip’s cost, worked out in advance: no more and no less. ')+'<button type="button" class="lnk" id="seeshare">'+T('كيف منحسبها؟','How is it worked out?')+'</button></p>'+
     '<div class="seg" role="group"><button type="button" data-amode="in" aria-pressed="'+(!up)+'">'+T('دخول','Sign in')+'</button><button type="button" data-amode="up" aria-pressed="'+up+'">'+T('حساب جديد','New account')+'</button></div>'+
     '<form id="authform" class="col" novalidate>'+
