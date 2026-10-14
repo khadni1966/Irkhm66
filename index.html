@@ -634,7 +634,7 @@ function saveDoc(file){var k=S.docKind;if(!file||!DOCS[k])return;S.docBusy=k;S.d
   img.onerror=bad;img.src=url}
 // tells the admin by email (through FormSubmit, to info@) once a car owner's papers are complete; no photos or phone number are sent
 function notifyAdmin(){var u=S.user&&S.user.uid,d=S.docs[u]||{};if(!u||!S.me||S.me.dstatus!=='pending'||!S.ph[u]||!d.lic||!d.car||sget('kh-told-'+u))return;sset('kh-told-'+u,'1');
-  fetch('https://formsubmit.co/ajax/info@khedni.app',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+  fetch('https://formsubmit.co/ajax/61860d2700ab7164f97fcd29b53b5af3',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
     body:JSON.stringify({_subject:'خدني: صاحب سيارة جديد ناطر الموافقة · '+S.me.name,_template:'table',_captcha:'false','الاسم':S.me.name,'السيارة':S.me.car||'','اللوحة':S.me.plate||'','شو لازم تعمل':'افتح https://khedni.app ← حسابي ← لوحة الإدارة، قارن الصور ووافق أو ارفض.'})})
    .catch(function(){sdel('kh-told-'+u)})}
 function docsHTML(){photo(S.user.uid);var d=docsOf(S.user.uid)||{},hasFace=!!S.ph[S.user.uid],row=function(ok,label,btn){return '<div class="row between"><span>'+(ok?'<span class="tag ok">✓</span> ':'<span class="tag wait">!</span> ')+label+'</span>'+btn+'</div>'};
