@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#0B5D4B">
 <meta name="color-scheme" content="only light">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700&family=Readex+Pro:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
 <style>
 /* Khedni trial. Accounts and shared rides live in Firebase; routes and traffic come from Google Maps. */
 :root{color-scheme:only light;
@@ -16,30 +16,30 @@
   --brand:#0B5D4B;--brand-ink:#FFFFFF;--brand-soft:#D9EBE5;--brand-deep:#073F33;
   --sun:#F5B921;--sun-ink:#0E1F1A;--sun-soft:#FFF1C7;--sun-soft-ink:#3F3A22;
   --danger:#B3261E;--danger-soft:#FBE4E2;--route:#1A6FE0;
-  --display:'Alexandria','Readex Pro',Tahoma,sans-serif;--body:'Readex Pro',Tahoma,'Segoe UI',sans-serif;
+  --display:'IBM Plex Sans Arabic',Tahoma,'Segoe UI',sans-serif;--body:'IBM Plex Sans Arabic',Tahoma,'Segoe UI',sans-serif;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;display:flex;flex-direction:column}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
 h1,h2,h3,p{margin:0}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
 [hidden]{display:none!important}
 :focus-visible{outline:3px solid var(--sun);outline-offset:2px}
-.sub{font-size:13px;color:var(--muted)}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 18px;border:0;border-radius:16px;font-size:16px;font-weight:600;width:100%}
+.sub{font-size:12.5px;color:var(--muted)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border:0;border-radius:12px;font-size:15px;font-weight:600;width:100%}
 .btn.pri{background:var(--brand);color:var(--brand-ink)}
 .btn.sun{background:var(--sun);color:var(--sun-ink)}
 .btn.ghost{background:transparent;border:1px solid var(--line)}
 .btn.warn{background:transparent;border:1px solid var(--danger);color:var(--danger)}
-.btn.sm{min-height:44px;width:auto;font-size:14px;border-radius:12px;padding:0 14px;flex:none}
+.btn.sm{min-height:40px;width:auto;font-size:13px;border-radius:10px;padding:0 14px;flex:none}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .row{display:flex;align-items:center;gap:10px}
 .between{justify-content:space-between}
 .grow{flex:1 1 auto;min-width:0}
 .col{display:flex;flex-direction:column;gap:12px}
-h2{font-family:var(--display);font-size:18px;overflow-wrap:anywhere}
-h3{font-family:var(--display);font-size:15px;margin-top:6px}
+h2{font-family:var(--display);font-size:16px;font-weight:600;overflow-wrap:anywhere}
+h3{font-family:var(--display);font-size:14px;font-weight:600;margin-top:6px}
 .ltr{direction:ltr;text-align:left}
 [dir=rtl] input.ltr{text-align:right}
 
@@ -49,13 +49,13 @@ h3{font-family:var(--display);font-size:15px;margin-top:6px}
 #gate h1{font-family:var(--display);font-size:52px;line-height:1.1}
 #gate p{color:rgba(255,255,255,.9)}
 #gate label,.glbl{font-size:13px}
-#gate input{width:100%;min-height:54px;padding:0 14px;border:0;border-radius:14px;background:#fff;color:var(--ink);font-size:16px}
-#gate .gtag{display:block;font-family:var(--display);font-weight:700;font-size:24px;line-height:1.25;color:var(--sun);margin:2px 0 6px}
+#gate input{width:100%;min-height:50px;padding:0 14px;border:0;border-radius:12px;background:#fff;color:var(--ink);font-size:15px}
+#gate .gtag{display:block;font-family:var(--display);font-weight:600;font-size:19px;line-height:1.35;color:var(--sun);margin:2px 0 6px}
 #gate .gintro{display:flex;flex-direction:column;gap:8px}
-#gate .gi{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.1);border-radius:14px;padding:10px 12px}
-#gate .gi .ic{font-size:26px;line-height:1.2;flex:none}
-#gate .gi b{display:block;color:var(--sun);font-family:var(--display);font-size:16px}
-#gate .gi span{color:rgba(255,255,255,.92);font-size:14px}
+#gate .gi{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px}
+#gate .gi .ic{flex:none;width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(245,185,33,.7);color:var(--sun);display:flex;align-items:center;justify-content:center}
+#gate .gi b{display:block;color:#fff;font-family:var(--display);font-size:14.5px;font-weight:600}
+#gate .gi span{color:rgba(255,255,255,.8);font-size:13px}
 #gate a{color:#fff;text-decoration:underline;font-weight:600}
 #gate .note{font-size:13px;color:rgba(255,255,255,.85)}
 #gate .gerr{background:#fff;color:var(--danger);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:500}
@@ -83,46 +83,46 @@ h3{font-family:var(--display);font-size:15px;margin-top:6px}
 .top .chipbtn:active{background:#FFF1C7;transform:translateY(1px)}
 .brand{font-family:var(--display);font-size:22px;font-weight:700;color:var(--brand);display:flex;align-items:center}
 .brand img{height:60px;width:auto;display:block}
-#gate h1 img{height:118px;width:auto;max-width:100%;display:block;margin-inline-start:-4px}
+#gate h1 img{height:96px;width:auto;max-width:100%;display:block;margin-inline-start:-4px}
 .chipbtn{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px;font-weight:600}
 .mapwrap{position:relative;flex:1 1 36%;min-height:220px}
 #map{position:absolute;inset:0}
 .hint{position:absolute;top:10px;inset-inline:10px;padding:8px 12px;border-radius:12px;background:var(--ink);color:#fff;font-size:13px;text-align:center}
-.sheet{flex:0 1 auto;max-height:62%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);border-radius:22px 22px 0 0;margin-top:-16px;position:relative}
+.sheet{flex:0 1 auto;max-height:62%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);border-radius:22px 22px 0 0;margin-top:-16px;position:relative}
 #app.full .mapwrap{display:none}
 #app.full .sheet{flex:1 1 auto;max-height:none;margin-top:0;border-radius:0;border-top:0}
 .seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--seg)}
-.seg button{flex:1 1 0;min-height:44px;border:0;border-radius:999px;background:transparent;font-size:15px;font-weight:500}
+.seg button{flex:1 1 0;min-height:42px;border:0;border-radius:999px;background:transparent;font-size:14px;font-weight:500}
 .seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);font-weight:600}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0;position:relative}
 .field label,.lbl{font-size:12px;color:var(--muted)}
 .inrow{display:flex;gap:8px}
-.sheet input[type=text],.sheet input[type=time],.sheet input[type=date],.sheet input[type=number],.sheet select{width:100%;min-height:52px;padding:0 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font-size:15px;font-weight:600}
-.pinbtn{flex:none;width:52px;height:52px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--brand)}
+.sheet input[type=text],.sheet input[type=time],.sheet input[type=date],.sheet input[type=number],.sheet select{width:100%;min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:14px;font-weight:500}
+.pinbtn{flex:none;width:48px;height:48px;border:1px solid var(--line);border-radius:12px;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--brand)}
 .pinbtn[aria-pressed="true"]{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
 .sug{list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;flex-direction:column;gap:2px}
 .sug button{display:block;width:100%;min-height:44px;padding:8px 10px;border:0;border-radius:10px;background:none;text-align:start;font-size:14px}
 .sug button:hover,.sug button:focus-visible{background:var(--seg)}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .err{color:var(--danger);font-size:13px;font-weight:500}
-.rcard{display:flex;flex-direction:column;gap:8px;width:100%;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--surface);text-align:start}
+.rcard{display:flex;flex-direction:column;gap:8px;width:100%;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:start}
 button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);padding:13px}
 .rcard .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-.rcard .name{font-size:15px;font-weight:600;min-width:0;overflow-wrap:anywhere}
-.rcard .dur{font-family:var(--display);font-size:26px;font-weight:700;color:var(--brand);flex:none;font-variant-numeric:tabular-nums}
-.rcard .meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted)}
+.rcard .name{font-size:14px;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.rcard .dur{font-family:var(--display);font-size:20px;font-weight:600;color:var(--brand);flex:none;font-variant-numeric:tabular-nums}
+.rcard .meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--muted)}
 .tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .tag.fast,.tag.ok{background:var(--brand-soft);color:var(--brand-deep)}
 .tag.jam,.tag.wait{background:var(--sun-soft);color:var(--sun-soft-ink)}
 .tag.no{background:var(--danger-soft);color:var(--danger)}
-.banner{padding:10px 12px;border-radius:14px;background:var(--sun-soft);color:var(--sun-soft-ink);font-size:14px}
-.okbox{padding:12px;border-radius:14px;background:var(--brand-soft);color:var(--brand-deep);font-size:14px}
-.box{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:18px}
-.kv{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.banner{padding:10px 12px;border-radius:12px;background:var(--sun-soft);color:var(--sun-soft-ink);font-size:13.5px}
+.okbox{padding:12px;border-radius:12px;background:var(--brand-soft);color:var(--brand-deep);font-size:13.5px}
+.box{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:14px}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
 .kv span:first-child{color:var(--muted)}
 .kv b{font-weight:600;text-align:end;overflow-wrap:anywhere;min-width:0}
-.big{font-family:var(--display);font-size:34px;font-weight:700;line-height:1;color:var(--brand);font-variant-numeric:tabular-nums}
-.stepper{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:0 4px;border:1px solid var(--line);border-radius:14px}
+.big{font-family:var(--display);font-size:26px;font-weight:600;line-height:1;color:var(--brand);font-variant-numeric:tabular-nums}
+.stepper{display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 4px;border:1px solid var(--line);border-radius:14px}
 .stepper button{width:44px;height:44px;border:0;border-radius:12px;background:var(--seg);font-size:20px;font-weight:600}
 .stepper b{font-family:var(--display);font-size:18px}
 .spin{width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;animation:rot 1s linear infinite;flex:none}
@@ -134,7 +134,7 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .msg small{font-size:11px;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .days{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-.days .chip{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;line-height:1.25;min-height:52px;border-radius:14px}
+.days .chip{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;line-height:1.25;min-height:48px;border-radius:12px}
 .days .chip small{font-size:11px;color:var(--muted)}
 .days .chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 .days .chip[aria-pressed="true"] small{color:var(--brand-ink)}
@@ -143,6 +143,7 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 #errbox{position:fixed;inset-inline:10px;bottom:10px;z-index:50;max-height:60%;overflow:auto;padding:14px;border-radius:16px;background:var(--danger-soft);color:var(--ink);border:2px solid var(--danger);display:flex;flex-direction:column;gap:8px}
 #errbox h3{font-size:16px;color:var(--danger);margin:0}
 #errbox pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;direction:ltr;text-align:left;background:#fff;border-radius:10px;padding:8px}
+.ico{display:inline-block;vertical-align:-3px;flex:none}
 </style>
 </head>
 <body>
@@ -387,7 +388,7 @@ function wantFormHTML(empty){var mine=myOpenWants().filter(function(w){return ym
    '<p class="sub" style="margin:0">'+T('طلبك بيبقى معروض. أصحاب السيارات اللي نازلين عطريقك بيشوفوه، وفيهم يعرضوا ياخدوك (حتى لو بيغيّروا طريقهم شوي). إنت بتأكّد قبل ما شي يصير.','Your request stays up. Car owners going your way see it and can offer to take you (even with a small detour). Nothing happens until you confirm.')+'</p>'+
    '<div class="field" style="margin:0"><label for="in-wtime">'+T('حوالي أي ساعة بدّك تطلع؟','About what time do you want to leave?')+'</label><input type="time" id="in-wtime" value="'+esc(S.wtime)+'"></div>'+
    (S.wErr?'<p class="err" role="alert">'+esc(S.wErr)+'</p>':'')+
-   '<button class="btn sun" type="button" id="wpost"'+(S.rbusy?' disabled':'')+'>'+T('🙋 انشر طلبي','🙋 Post my request')+'</button></div>'}
+   '<button class="btn sun" type="button" id="wpost"'+(S.rbusy?' disabled':'')+'>'+T('انشر طلبي','Post my request')+'</button></div>'}
 function ledger(){var fees=0,paid=0;S.inReqs.forEach(function(q){if(q.status==='accepted')fees+=r2(dPay(q)*FEE)});S.pays.forEach(function(p){paid+=p.amount||0});return {fees:r2(fees),paid:r2(paid),owed:r2(fees-paid)}}
 
 /* ---------- Google: load, map, places, routes ---------- */
@@ -520,7 +521,7 @@ function onMapTap(p){
 }
 /* ---------- rider: is my trip on this driver's road? ---------- */
 // how far the partner walks to the road, in words: metres and minutes on foot
-function walkTxt(d){return '🚶 '+mTxt(d)+' ('+Math.max(1,Math.round(d/80))+' '+T('د مشي','min walk')+')'}
+function walkTxt(d){return IC('walk',14)+' '+mTxt(d)+' ('+Math.max(1,Math.round(d/80))+' '+T('د مشي','min walk')+')'}
 function matchRide(R){
   if(R.seatsLeft<1)return {ok:false,why:'full'};
   var a=nearestOnPath(R,S.rfrom),b=nearestOnPath(R,S.rto);
@@ -575,7 +576,7 @@ function chatHTML(q,role){var m=S.chat[q.id]||[],me=S.user.uid;markSeen(q.id);
    '<div class="inrow"><input type="text" id="msg-'+q.id+'" data-msg="'+q.id+'" maxlength="200" autocomplete="off" value="'+esc(S.draft[q.id]||'')+'" placeholder="'+T('اكتب رسالة','Write a message')+'"><button type="button" class="btn sm pri" data-send="'+q.id+'">'+T('ابعت','Send')+'</button></div>'+
    '<p class="sub">'+T('أرقام التلفونات ما بتنبعت بالرسائل.','Phone numbers are not sent in messages.')+'</p></div>'}
 function chatBtn(q){if(S.chatOpen===q.id)markSeen(q.id);var n=unread(q.id),c=(S.chat[q.id]||[]).length;
-  return '<button class="btn sm '+(n?'sun':'ghost')+'" type="button" data-chat="'+q.id+'" aria-expanded="'+(S.chatOpen===q.id)+'">💬 '+T('رسائل','Messages')+(n?' · '+n+' '+T('جديدة','new'):c?' ('+c+')':'')+'</button>'}
+  return '<button class="btn sm '+(n?'sun':'ghost')+'" type="button" data-chat="'+q.id+'" aria-expanded="'+(S.chatOpen===q.id)+'">'+IC('chat')+' '+T('رسائل','Messages')+(n?' · '+n+' '+T('جديدة','new'):c?' ('+c+')':'')+'</button>'}
 function chatPanel(q){return S.chatOpen===q.id?chatHTML(q,'driver'):''}
 function sendMsg(id,text){var q=anyReq(id);text=mask(String(text||'').trim()).trim().slice(0,200);if(!q||!text)return;
   S.draft[id]='';
@@ -688,7 +689,7 @@ function shareHTML(){var d=function(n){return '<span dir="ltr">$'+n+'</span>'};
    '<ol class="terms"><li><b>'+T('كلفة السيارة','What the car costs')+'</b>'+T('أول 10 كم: ','First 10 km: ')+d(RATES[0][1].toFixed(2))+T(' للكيلومتر. الـ10 اللي بعدهم: ',' per km. The next 10: ')+d(RATES[1][1].toFixed(2))+T('. وبعدها: ','. After that: ')+d(RATES[2][1].toFixed(2))+T(' لحدّ الـ50 كم. وبعد الـ50 كم ما بتزيد المشاركة.',' up to 50 km. Past 50 km the share does not grow.')+' '+T('وأقل مشاركة ','The smallest share is ')+d(MINS)+'.'+'</li>'+
    '<li><b>'+T('مشاركة شريك الطريق','The road partner’s share')+'</b>'+T('صاحب السيارة كمان شريك بسيارته، فشريك الطريق الواحد بيشارك بنص الكلفة. وإذا كانوا أكتر من شريك، الكلفة بتتقسّم عالكل وبتنقص مشاركة كل واحد.','The car owner rides in the car too, so one road partner shares half of the cost. With more road partners the cost is split between everyone and each share falls.')+'</li>'+
    '<li><b>'+T('صاحب السيارة فيه ينقّص، وما فيه يزيد','The car owner may lower it, never raise it')+'</b>'+T('المبلغ المحسوب هو السقف.','The amount worked out is the ceiling.')+'</li>'+
-   '<li><b>'+T('رسم خدني','Khedni’s fee')+'</b>'+T('10% من المشاركة، بيدفعها صاحب السيارة. شريك الطريق ما بيدفع لخدني شي.','10% of the share, paid by the car owner. The road partner pays Khedni nothing.')+(feeOn()?'':' <b>'+T('هلّق مجاني بفترة الإطلاق 🎉','Free for now during the launch 🎉')+'</b>')+'</li></ol>'+
+   '<li><b>'+T('رسم خدني','Khedni’s fee')+'</b>'+T('10% من المشاركة، بيدفعها صاحب السيارة. شريك الطريق ما بيدفع لخدني شي.','10% of the share, paid by the car owner. The road partner pays Khedni nothing.')+(feeOn()?'':' <b>'+T('هلّق مجاني بفترة الإطلاق','Free for now during the launch')+'</b>')+'</li></ol>'+
    '<table class="tbl"><thead><tr><th>'+T('المسافة','Distance')+'</th><th>'+T('شريك واحد','One road partner')+'</th><th>'+T('شريكين','Two road partners')+'</th><th>'+T('3 شركاء','Three road partners')+'</th></tr></thead><tbody>'+
    [3,10,14,20,30,50,80].map(function(k){var c=capPrice(k*1000);return '<tr><td>'+k+' '+T('كم','km')+'</td><td>'+d(c)+'</td><td>'+d(share(c,2))+'</td><td>'+d(share(c,3))+'</td></tr>'}).join('')+'</tbody></table>'+
    '<p class="sub" style="color:inherit;opacity:.8">'+T('المبالغ لكل شريك. المسافات اللي بين هالأرقام بتنحسب بنفس الطريقة.','Amounts are per road partner. Distances in between are worked out the same way.')+'</p></div>'}
@@ -706,12 +707,20 @@ function drvPart(){var a=S.af;
   (a.drv?gin('car',T('نوع السيارة ولونها','Car model and colour'),'text',a.car,T('مثلاً: كيا ريو فضّية','e.g. silver Kia Rio'),'off')+gin('plate',T('رقم اللوحة','Plate number'),'text',a.plate,'B 123456','off',true)+
     '<p class="note">'+T('حساب صاحب السيارة بيتفعّل بعد ما الإدارة توافق عليه. لبين ما توافق، فيك تطلع كشريك طريق.','A car owner account starts working once the admin approves it. Until then you can still ride as a road partner.')+'</p>':'')}
 // who Khedni is for: both sides of the same trip
+// simple line icons, drawn in the text colour
+var ICP={car:'<path d="M5 16h14M6.5 16l1.4-5.2A2 2 0 0 1 9.8 9.3h4.4a2 2 0 0 1 1.9 1.5L17.5 16"/><rect x="3.5" y="13" width="17" height="5" rx="1.5"/><circle cx="7.5" cy="18.5" r="1.3"/><circle cx="16.5" cy="18.5" r="1.3"/>',
+  user:'<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.8-3.8 3.9-6 7.5-6s6.7 2.2 7.5 6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',chat:'<path d="M4 5h16v11H9l-5 4z"/>',
+  mail:'<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/>',
+  walk:'<circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2.2-6.5L10 11l3-3 2.5 3.5H18M12.2 14.5 15 21M10 11l-3 2"/>',
+  pin:'<path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0c0 4.9-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>'};
+function IC(n,z){z=z||16;return '<svg class="ico" width="'+z+'" height="'+z+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+ICP[n]+'</svg>'}
 function introHTML(){var gi=function(ic,t,d){return '<div class="gi"><span class="ic" aria-hidden="true">'+ic+'</span><div><b>'+t+'</b><span>'+d+'</span></div></div>'};
-  return '<div class="gintro">'+gi('🚗',T('نازل بسيارتك؟ بتوفّر','Driving anyway? You save'),T('حدا بيشاركك بالبنزين ومصروف السيارة، فبيخفّ عنك مصروف مشوارك.','Someone shares your fuel and car costs, so your trip costs you less.'))+
-   gi('🙋',T('بدّك تنزل؟ بتوفّر','Need a lift? You save'),T('بتشارك بكلفة المشوار بس، وهيك بتخفّ كلفة نقلك.','You only share the cost of the trip, so getting around costs you less.'))+
+  return '<div class="gintro">'+gi(IC('car',20),T('نازل بسيارتك؟ بتوفّر','Driving anyway? You save'),T('حدا بيشاركك بالبنزين ومصروف السيارة، فبيخفّ عنك مصروف مشوارك.','Someone shares your fuel and car costs, so your trip costs you less.'))+
+   gi(IC('user',20),T('بدّك تنزل؟ بتوفّر','Need a lift? You save'),T('بتشارك بكلفة المشوار بس، وهيك بتخفّ كلفة نقلك.','You only share the cost of the trip, so getting around costs you less.'))+
    '<p class="note" style="margin:0"><b>'+T('مشوار واحد، كلفة مقسومة، والاتنين بيوفّروا.','One trip, the cost shared, and both of you save.')+'</b></p></div>'}
 // one address for questions, requests and problems
-function contactHTML(){return '<p class="note contact" style="margin:0">✉️ '+T('لأي سؤال أو طلب أو مشكلة، ابعتلنا إيميل على ','For any question, request or problem, email us at ')+'<a href="mailto:info@khedni.app" dir="ltr">info@khedni.app</a></p>'}
+function contactHTML(){return '<p class="note contact" style="margin:0">'+IC('mail',15)+' '+T('لأي سؤال أو طلب أو مشكلة، ابعتلنا إيميل على ','For any question, request or problem, email us at ')+'<a href="mailto:info@khedni.app" dir="ltr">info@khedni.app</a></p>'}
 function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png?v=4" alt="خدني Khedni" width="250" height="118"></h1><p>'+sub+'</p></div>'},
   foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
   err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
@@ -719,7 +728,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="log
   if(S.gate==='terms')return '<div class="gwrap">'+head(T('شروط الاستخدام','Terms of use'))+termsHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
   if(S.gate==='agree')return '<div class="gwrap">'+head(T('قبل ما تكمّل، اقرا الشروط ووافق عليها.','Before you continue, read the terms and agree to them.'))+termsHTML()+
     '<button class="btn sun" type="button" id="agree">'+T('قرأت ووافقت، وعمري 18 أو أكتر','I have read and agree, and I am 18 or older')+'</button>'+foot+'</div>';
-  if(S.gate==='boot')return '<div class="gwrap">'+head('<span class="gtag">'+T('وفّر من جيبتك بكل مشوار 💰','Save money on every trip 💰')+'</span>'+T('خدني بتجمع اللي بدّو ينزل مع اللي نازل بسيارته عنفس الطريق، والاتنين بيوفّروا.','Khedni brings together someone who needs a lift and someone already driving the same way, and both of them save.'))+
+  if(S.gate==='boot')return '<div class="gwrap">'+head('<span class="gtag">'+T('وفّر من جيبتك بكل مشوار','Save money on every trip')+'</span>'+T('خدني بتجمع اللي بدّو ينزل مع اللي نازل بسيارته عنفس الطريق، والاتنين بيوفّروا.','Khedni brings together someone who needs a lift and someone already driving the same way, and both of them save.'))+
     '<div class="gload" role="status">'+(S.bootFail?'':'<span class="spin" aria-hidden="true"></span>')+'<span>'+esc(S.bootMsg)+'</span></div>'+(S.bootFail||S.user?foot:'')+'</div>';
   if(S.gate==='key')return '<div class="gwrap">'+head(T('الخريطة بدها مفتاح جوجل.','The map needs a Google key.'))+
     '<form id="keyform" class="col" novalidate><div class="col" style="gap:4px"><label for="key">'+T('الصق مفتاح خرائط جوجل هون','Paste the Google Maps key here')+'</label><input type="text" id="key" class="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza..."></div>'+
@@ -729,7 +738,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="log
     '<form id="profform" class="col" novalidate>'+gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name')+drvPart()+chkTerms()+err+
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+T('كمّل','Continue')+'</button></form>'+foot+'</div>';
   var up=a.mode==='up';
-  return '<div class="gwrap">'+head('<span class="gtag">'+T('وفّر من جيبتك بكل مشوار 💰','Save money on every trip 💰')+'</span>'+T('خدني بتجمع اللي بدّو ينزل مع اللي نازل بسيارته عنفس الطريق، والاتنين بيوفّروا.','Khedni brings together someone who needs a lift and someone already driving the same way, and both of them save.'))+
+  return '<div class="gwrap">'+head('<span class="gtag">'+T('وفّر من جيبتك بكل مشوار','Save money on every trip')+'</span>'+T('خدني بتجمع اللي بدّو ينزل مع اللي نازل بسيارته عنفس الطريق، والاتنين بيوفّروا.','Khedni brings together someone who needs a lift and someone already driving the same way, and both of them save.'))+
     inappHTML()+introHTML()+'<p class="note">'+T('المبلغ مشاركة بكلفة المشوار بس، محسوب سلفاً: لا أكتر ولا أقل. ','The amount is only a share of the trip’s cost, worked out in advance: no more and no less. ')+'<button type="button" class="lnk" id="seeshare">'+T('كيف منحسبها؟','How is it worked out?')+'</button></p>'+
     '<div class="seg" role="group"><button type="button" data-amode="in" aria-pressed="'+(!up)+'">'+T('دخول','Sign in')+'</button><button type="button" data-amode="up" aria-pressed="'+up+'">'+T('حساب جديد','New account')+'</button></div>'+
     '<form id="authform" class="col" novalidate>'+
@@ -844,7 +853,7 @@ function routeCard(r,i,dep,asButton,list,sel,attr){list=list||S.routes;sel=sel==
 function whishHTML(L){var w=S.cfg&&S.cfg.whish;if(!w||(S.me.dstatus!=='active'&&!L.fees))return '';
   return '<div class="'+(L.owed>0?'banner':'okbox')+'">'+(L.owed>0?T('حوّل $'+L.owed+' أو أكتر عبر Whish على الرقم ','Send $'+L.owed+' or more by Whish to '):T('رسم خدني بيندفع عبر Whish على الرقم ','Khedni’s fee is paid by Whish to '))+'<b dir="ltr">'+esc(w)+'</b>'+
    T('، واكتب رقم تلفونك بالملاحظة. فيك تدفع زيادة وتضل رصيد إلك. الإدارة بتسجّلها وبتبيّن هون.','. Put your phone number in the note. You may send more and keep it as credit. The admin records it and it shows here.')+'</div>'}
-function ledgerHTML(){var L=ledger();if(!feeOn())return '<div class="okbox">🎉 <b>'+T('رسم خدني مجاني حالياً','Khedni’s fee is free for now')+'</b> '+T('بفترة الإطلاق. شريك الطريق بيدفعلك مشاركته كاش، وما عليك شي لخدني.','during the launch. The road partner pays you their share in cash, and you owe Khedni nothing.')+'</div>';if(!L.fees&&!L.paid)return whishHTML(L);
+function ledgerHTML(){var L=ledger();if(!feeOn())return '<div class="okbox"><b>'+T('رسم خدني مجاني حالياً','Khedni’s fee is free for now')+'</b> '+T('بفترة الإطلاق. شريك الطريق بيدفعلك مشاركته كاش، وما عليك شي لخدني.','during the launch. The road partner pays you their share in cash, and you owe Khedni nothing.')+'</div>';if(!L.fees&&!L.paid)return whishHTML(L);
   return '<div class="box"><div class="kv"><span>'+T('رسم خدني (10%) لهلق','Khedni’s fee (10%) so far')+'</span>'+money(L.fees)+'</div><div class="kv"><span>'+T('دفعت للإدارة','You paid the admin')+'</span>'+money(L.paid)+'</div>'+
    '<div class="kv"><span>'+(L.owed>=0?T('عليك لخدني','You owe Khedni'):T('إلك رصيد','Your credit'))+'</span>'+money(Math.abs(L.owed))+'</div>'+
    (L.owed>=OWE_LIMIT?'<p class="err">'+T('وصلت لحد الـ$'+OWE_LIMIT+'. ادفع للإدارة لترجع تقبل طلبات.','You reached the $'+OWE_LIMIT+' limit. Pay the admin to accept requests again.')+'</p>':'')+'</div>'+whishHTML(L)}
@@ -866,12 +875,12 @@ function driverHTML(){var st=S.me.dstatus||'none';
     (list.length?list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
       return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
        '<span class="meta"><span>'+dayOf(R.dep)+'</span><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+
-       (pen?'<span class="tag wait">'+pen+' '+T('طلب جديد','new request'+(pen>1?'s':''))+'</span>':'')+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+(function(){var n=0;qs.forEach(function(q){n+=unread(q.id)});return n?'<span class="tag wait">💬 '+n+'</span>':''})()+'</span></button>'}).join(''):
+       (pen?'<span class="tag wait">'+pen+' '+T('طلب جديد','new request'+(pen>1?'s':''))+'</span>':'')+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+(function(){var n=0;qs.forEach(function(q){n+=unread(q.id)});return n?'<span class="tag wait">'+IC('chat',13)+' '+n+'</span>':''})()+'</span></button>'}).join(''):
      '<div class="banner">'+T('ما عندك مشوار منشور. انشر المشوار اللي نازل فيه أصلاً، واللي عطريقك بيشاركوك كلفته.','You have no posted ride. Post the trip you are making anyway, and people on your way share its cost with you.')+'</div>')+
     '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+wantsListHTML(list)+ledgerHTML();
 }
 function wantsListHTML(list){var ws=openWants().slice(0,20);if(!ws.length)return '';
-  return '<h2>'+T('🙋 ناس طالبين مشوار','🙋 People asking for a ride')+'</h2><p class="sub">'+T('إذا حدا منهم عطريقك، انشر مشوارك واعرض عليه يطلع معك.','If one of them is on your way, post your ride and offer them a seat.')+'</p>'+ws.map(function(w){
+  return '<h2>'+T('ناس طالبين مشوار','People asking for a ride')+'</h2><p class="sub">'+T('إذا حدا منهم عطريقك، انشر مشوارك واعرض عليه يطلع معك.','If one of them is on your way, post your ride and offer them a seat.')+'</p>'+ws.map(function(w){
     var fit=null;list.forEach(function(R){if(!fit&&R.seatsLeft>0&&wantFits(R,w))fit=R});
     return '<div class="box col" style="gap:6px"><div class="row">'+face(w.riderId,40)+'<div class="grow"><b>'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><br><span class="sub">'+esc(w.riderName)+' · '+dayOf(w.at)+' · <span dir="ltr">'+hm(w.at)+'</span></span></div></div>'+
      (fit?'<button class="btn pri sm" type="button" data-ride="'+fit.id+'">'+T('عطريق مشوارك ('+hm(fit.dep)+') · افتحه واعرض','On your ride ('+hm(fit.dep)+') · open it and offer')+'</button>':
@@ -928,11 +937,11 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
     '<div class="row" style="flex-wrap:wrap">'+chatBtn(q)+'<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('اسحب الاقتراح','Withdraw')+'</button></div></div>'+chatPanel(q)});
   acc.forEach(function(q){h+='<div class="okbox col" style="gap:8px"><div class="row" style="align-items:flex-start">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+' · '+T('مأكّد','confirmed')+'</b><br>'+T('بتاخده حوالي ','Pick up at about ')+'<b>'+hm(q.puAt)+'</b>'+T(' من ',' at ')+esc(q.puText)+T('، وبينزل بـ','; gets out at ')+esc(q.drText)+T('. مشاركته بالكلفة (كاش) ','. Their share of the cost (cash) is ')+money(dPay(q))+'.</div></div>'+
     (function(){var ri=rlInfo(q);if(!ri)return '';var old=ri.age>90000?T(' · آخر تحديث من ',' · last update ')+Math.round(ri.age/60000)+T(' د',' min ago'):'';
-      return '<div><b>🧍 '+(ri.d<80?T('شريك الطريق واقف عند نقطة الطلعة.','The road partner is at the pick-up point.'):T('شريك الطريق بعيد ','The road partner is ')+mTxt(ri.d)+T(' عن نقطة الطلعة.',' from the pick-up point.'))+'</b>'+old+'</div>'})()+
+      return '<div><b>'+(ri.d<80?T('شريك الطريق واقف عند نقطة الطلعة.','The road partner is at the pick-up point.'):T('شريك الطريق بعيد ','The road partner is ')+mTxt(ri.d)+T(' عن نقطة الطلعة.',' from the pick-up point.'))+'</b>'+old+'</div>'})()+
     '<div class="row" style="flex-wrap:wrap">'+chatBtn(q)+'<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('الغي شريك الطريق هيدا','Cancel this road partner')+'</button></div></div>'+chatPanel(q)});
   rer.forEach(function(q){h+='<div class="banner col" style="gap:8px"><div class="row">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+'</b><br>'+T('غيّرت الطريق: ناطرينه يختار نقطة طلعته عالطريق الجديد.','You changed the route: waiting for them to pick a pick-up point on it.')+'</div></div>'+chatBtn(q)+'</div>'+chatPanel(q)});
   var wf=R.seatsLeft>0?openWants().map(function(w){return {w:w,m:wantFits(R,w)}}).filter(function(x){return x.m}):[];
-  if(wf.length)h+='<h2>'+T('🙋 ناس طالبين مشوار عطريقك','🙋 People asking for a ride on your way')+'</h2>'+wf.map(function(x){var w=x.w,m=x.m;
+  if(wf.length)h+='<h2>'+T('ناس طالبين مشوار عطريقك','People asking for a ride on your way')+'</h2>'+wf.map(function(x){var w=x.w,m=x.m;
     return '<div class="box col" style="gap:6px;border:2px solid var(--sun)"><div class="row">'+face(w.riderId,44)+'<div class="grow"><b>'+esc(w.riderName)+'</b><br><span class="sub">'+esc(w.fromText)+ARROW()+esc(w.toText)+'</span></div></div>'+
      '<div class="kv"><span>'+T('بدّو يطلع حوالي','Wants to leave at about')+'</span><b>'+hm(w.at)+'</b></div><div class="kv"><span>'+T('بتمرق حدّه حوالي','You pass near them at about')+'</span><b>'+hm(m.puAt)+'</b></div>'+
      '<div class="kv"><span>'+T('طريقك بعيد عن نقطته','Your road is this far from their point')+'</span><b>'+mTxt(m.pu.d)+'</b></div><div class="kv"><span>'+T('مشاركته بالكلفة (كاش)','Their share of the cost (cash)')+'</span>'+money(share(m.price,accN(R.id)+1))+'</div>'+
@@ -947,8 +956,8 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
    '<p class="sub">'+T('الكلفة بتتقسّم على كل اللي بالسيارة: إذا صاروا شريكين، كل واحد ','The cost is split between everyone in the car: with two road partners each shares ')+'$'+share(R.price,2)+T('، وإذا تلاتة ',', with three ')+'$'+share(R.price,3)+T(' (لكل الطريق).',' (full route).')+'</p></div>'+ptHTML()+
    '<p class="sub">'+T('اكبس على أي نقطة عالخط الأزرق لتعرف أي ساعة بتمرق فيها.','Tap any point on the blue line to see when you pass it.')+'</p>'+
    '<button class="btn ghost" type="button" id="reroute">'+T('غيّر الطريق','Change the route')+'</button>'+
-   '<button class="btn sun" type="button" id="again">'+T('➕ نفس الطريق، بساعة أو نهار تاني','➕ Same road, another time or day')+'</button>'+
-   '<button class="btn ghost" type="button" id="newride">'+T('➕ مشوار جديد','➕ New ride')+'</button>'+
+   '<button class="btn sun" type="button" id="again">'+IC('plus')+T('نفس الطريق، بساعة أو نهار تاني','Same road, another time or day')+'</button>'+
+   '<button class="btn ghost" type="button" id="newride">'+IC('plus')+T('مشوار جديد','New ride')+'</button>'+
    '<button class="btn warn" type="button" id="cancelride">'+T('الغي هالمشوار','Cancel this ride')+'</button>';
 }
 
@@ -960,7 +969,7 @@ function riderHTML(){
   if(S.rv==='results'&&S.found)return resultsHTML();
   var mine=liveReqs();
   return photoNudge()+(mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
-     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+(unread(q.id)?'<span class="tag wait">💬 '+unread(q.id)+'</span>':'')+'</span></button>'}).join(''):'')+
+     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+(unread(q.id)?'<span class="tag wait">'+IC('chat',13)+' '+unread(q.id)+'</span>':'')+'</span></button>'}).join(''):'')+
    (function(){var ws=myOpenWants();if(!ws.length)return '';return '<h2>'+T('طلباتي المنشورة','My posted requests')+'</h2>'+ws.map(function(w){
      return '<div class="box col" style="gap:8px"><div class="row"><b class="grow">'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><span class="dur" dir="ltr">'+hm(w.at)+'</span></div>'+
       '<div class="row" style="flex-wrap:wrap"><span class="sub">'+dayOf(w.at)+'</span><span class="tag wait">'+T('ناطرين صاحب سيارة يعرض','Waiting for a car owner to offer')+'</span><button class="btn sm ghost" type="button" data-wcancel="'+w.id+'">'+T('شيل الطلب','Remove')+'</button></div></div>'}).join('')})()+
