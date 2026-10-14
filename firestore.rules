@@ -29,7 +29,7 @@ service cloud.firestore {
         && nd().name is string && nd().name.size() >= 2 && nd().name.size() <= 60
         && request.auth.token.email == nd().phone + '@phone.khedni.app'
         && nd().dstatus in ['none', 'pending'];
-      allow update: if adm() || (si() && id == uid() && (ch().hasOnly(['name'])
+      allow update: if adm() || (si() && id == uid() && (ch().hasOnly(['name', 'grp'])
         || (od().dstatus in ['none', 'pending'] && nd().dstatus == 'pending'
           && ch().hasOnly(['name', 'car', 'plate', 'dstatus']))));
     }
@@ -73,6 +73,14 @@ service cloud.firestore {
     match /docs/{id} {
       allow get: if si() && (id == uid() || adm());
       allow create, update: if si() && id == uid() && !drv() && nd().keys().hasOnly(['id', 'lic', 'car', 'at']);
+    }
+    match /ratings/{id} {
+      allow read: if si();
+      allow create: if nd().by == uid() && nd().keys().hasOnly(['by', 'to', 'req', 'stars', 'at'])
+        && nd().stars is int && nd().stars >= 1 && nd().stars <= 5 && id == nd().req + '_' + uid()
+        && req(nd().req).status == 'accepted'
+        && ((req(nd().req).riderId == uid() && nd().to == req(nd().req).driverId)
+          || (req(nd().req).driverId == uid() && nd().to == req(nd().req).riderId));
     }
     match /consents/{id} {
       allow get: if si() && (id == uid() || adm());

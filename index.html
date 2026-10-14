@@ -151,6 +151,8 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .free .kv:has(.mny),.free .cost,.free .mny,.free .ledger{display:none!important}
 .free .adm .kv:has(.mny){display:flex!important}.free .adm .mny{display:inline!important}
 .freeonly{display:none!important}.free .freeonly{display:block!important}
+.star{background:none;border:0;font-size:34px;line-height:1;color:#C9D2CE;padding:2px 4px;min-width:44px;min-height:44px}.star:hover,.star:focus-visible{color:var(--sun)}.stars{display:flex;justify-content:center;gap:2px}
+.chips .chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 </style>
 </head>
 <body>
@@ -213,7 +215,7 @@ var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   myRides:[],inReqs:[],pays:[],
   pendN:0,wants:[],myWants:[],allRides:[],wsel:null,wtime:'08:00',rtime:'',wform:false,wErr:'',rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
   sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
-  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},docs:{},docKind:null,docBusy:null,docErr:'',docOpen:null,chatOpen:null,hereMsg:null,locating:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
+  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},docs:{},rt:{},rated:{},only:[],docKind:null,docBusy:null,docErr:'',docOpen:null,chatOpen:null,hereMsg:null,locating:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
 function T(ar,en){return S.lang==='en'?en:ar}
 
 /* ---------- errors shown on screen, so a screenshot is enough to debug ---------- */
@@ -337,7 +339,7 @@ function boot(){
 }
 function onAuth(u){
   unsubs.forEach(function(fn){try{fn()}catch(e){}});unsubs=[];got={rides:false,reqs:false};
-  unwatchLive();unwatchRL();unwatchChat();unwatchRide();S.chatOpen=null;S.draft={};S.agreed=null;S.offer=null;S.ph={};PHW={};S.docs={};DOCW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.wants=[];S.myWants=[];S.wform=false;S.ad=null;
+  unwatchLive();unwatchRL();unwatchChat();unwatchRide();S.chatOpen=null;S.draft={};S.agreed=null;S.offer=null;S.ph={};PHW={};S.docs={};DOCW={};S.rt={};RTW={};S.rated={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.wants=[];S.myWants=[];S.wform=false;S.ad=null;
   S.view='main';S.dv='home';S.rv='home';S.routes=null;S.confirmed=false;S.found=null;S.pick=null;S.pt=null;
   if(!u){S.gate='auth';showGate();return}
   S.gate='boot';S.bootMsg=T('عم نفتح حسابك…','Opening your account…');showGate();
@@ -357,6 +359,7 @@ function enter(){
   listen(f.query(col('requests'),f.where('riderId','==',uid)),function(s){S.myReqs=rows(s);paint()},T('حجوزاتي','bookings'));
   listen(f.query(col('payments'),f.where('driverId','==',uid)),function(s){S.pays=rows(s);paint()},T('الدفعات','payments'));
   listen(f.query(col('rides'),f.where('status','==','open')),function(s){S.allRides=rows(s).map(hyd);paint()},T('المشاوير','rides'));
+  listen(f.query(col('ratings'),f.where('by','==',uid)),function(s){var r={};rows(s).forEach(function(x){r[x.req]=1});S.rated=r;paint()},T('التقييمات','ratings'));
   listen(f.query(col('wants'),f.where('status','==','open')),function(s){S.wants=rows(s);paint()},T('طلبات المشاوير','trip requests'));
   listen(f.query(col('wants'),f.where('riderId','==',uid)),function(s){S.myWants=rows(s);paint()},T('طلباتي','my trip requests'));
   listen(ref('config','app'),function(s){S.cfg=s.exists()?s.data():{};ensureMap();paint()},T('الإعدادات','settings'));
@@ -391,9 +394,30 @@ function freeNote(){return '<div class="okbox freeonly"><b>'+T('المشاوير
 // trip requests riders post when nobody is going their way yet; car owners see the ones on their road and offer a seat
 function openWants(){var now=Date.now(),uid=S.user&&S.user.uid;return S.wants.filter(function(w){return w.status==='open'&&w.at>now-15*60000&&w.riderId!==uid&&w.from&&w.to&&
   !S.inReqs.some(function(x){return x.wantId===w.id&&(x.status==='pending'||x.status==='offered'||x.status==='accepted')})}).sort(function(a,b){return a.at-b.at})}
-function wantFits(R,w){if(!R||R.status!=='open'||R.path.length<2)return null;var a=nearestOnPath(R,w.from),b=nearestOnPath(R,w.to);
+function wantFits(R,w){if(!R||R.status!=='open'||R.path.length<2||!canRide(R,w.grp||''))return null;var a=nearestOnPath(R,w.from),b=nearestOnPath(R,w.to);
   if(a.d>REACH||b.d>REACH||b.cum-a.cum<300)return null;var at=etaOn(R,R.dep,a.cum);if(Math.abs(at-w.at)>WSLACK)return null;
   return {pu:a,dr:b,puAt:at,drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:segPrice(R,b.cum-a.cum)}}
+/* ---------- who may ride: a group each person says they belong to; a car owner can keep a ride to some groups ---------- */
+var GROUPS=[['lu','الجامعة اللبنانية','Lebanese University'],['usj','اليسوعية (USJ)','USJ'],['aub','الأميركية (AUB)','AUB'],['lau','LAU','LAU'],['bau','العربية (BAU)','BAU'],['ndu','NDU','NDU'],['usek','الكسليك (USEK)','USEK'],['uob','البلمند','Balamand'],['aust','AUST','AUST'],['liu','LIU','LIU']];
+function grpName(c){for(var i=0;i<GROUPS.length;i++)if(GROUPS[i][0]===c)return T(GROUPS[i][1],GROUPS[i][2]);return ''}
+function onlyTxt(o){return o&&o.length?T('بس لـ ','Only for ')+o.map(grpName).join('، '):''}
+function canRide(R,grp){grp=grp===undefined?S.me&&S.me.grp:grp;return !R.only||!R.only.length||(!!grp&&R.only.indexOf(grp)>=0)}
+function grpTag(c){return c?'<span class="tag">'+esc(grpName(c))+'</span>':''}
+function grpChips(attr,sel,multi){return '<div class="chips">'+(multi?'<button type="button" class="chip" '+attr+'="" aria-pressed="'+(!sel.length)+'">'+T('كل الناس','Everyone')+'</button>':'')+
+  GROUPS.map(function(g){return '<button type="button" class="chip" '+attr+'="'+g[0]+'" aria-pressed="'+(sel.indexOf(g[0])>=0)+'">'+T(g[1],g[2])+'</button>'}).join('')+'</div>'}
+/* ---------- ratings: after a confirmed ride each side gives the other 1 to 5 stars ---------- */
+var RTW={};
+function rating(uid){if(!uid)return null;if(S.rt[uid])return S.rt[uid];
+  if(!RTW[uid]){RTW[uid]=1;F.f.getDocs(F.f.query(col('ratings'),F.f.where('to','==',uid))).then(function(s){var t=0,n=0;rows(s).forEach(function(x){if(x.stars>=1&&x.stars<=5){t+=x.stars;n++}});S.rt[uid]={n:n,avg:n?t/n:0};paint()}).catch(function(){S.rt[uid]={n:0,avg:0}})}
+  return null}
+function starsTag(uid){var r=rating(uid);if(!r)return '';return r.n?'<span class="tag ok" dir="ltr">★ '+r.avg.toFixed(1)+' ('+r.n+')</span>':'<span class="tag">'+T('بلا تقييم بعد','No ratings yet')+'</span>'}
+function toRate(){var now=Date.now(),wk=7*86400000,out=[];
+  S.myReqs.forEach(function(q){if(q.status==='accepted'&&q.drAt<now&&q.drAt>now-wk&&!S.rated[q.id])out.push({q:q,to:q.driverId,name:q.driverName})});
+  S.inReqs.forEach(function(q){if(q.status==='accepted'&&q.drAt<now&&q.drAt>now-wk&&!S.rated[q.id])out.push({q:q,to:q.riderId,name:q.riderName})});
+  return out}
+function rateHTML(){return toRate().map(function(x){var b='';for(var n=1;n<=5;n++)b+='<button type="button" class="star" data-rate="'+x.q.id+'" data-stars="'+n+'" aria-label="'+n+' '+T('نجوم','stars')+'">★</button>';
+  return '<div class="box col" style="gap:8px;border:2px solid var(--sun)"><div class="row">'+face(x.to,40)+'<div class="grow"><b>'+T('كيف كان مشوارك مع ','How was your ride with ')+esc(x.name)+'؟</b><br><span class="sub">'+dayOf(x.q.puAt)+' · '+esc(x.q.rideFrom)+ARROW()+esc(x.q.rideTo)+'</span></div></div>'+
+   '<div class="stars" dir="ltr">'+b+'</div></div>'}).join('')}
 // a request's start point is shown only roughly (to about 300 m) on the car owners' map
 function fuzz(p){return {lat:Math.round(p.lat/.003)*.003,lng:Math.round(p.lng/.003)*.003}}
 function areaOf(t){var p=String(t||'').split('،');return p[p.length-1].trim()||t}
@@ -402,7 +426,7 @@ function routeWants(r){if(!r||!r.cum)return [];return openWants().filter(functio
   return !!wantFits({path:r.path,cum:r.cum,dur:r.dur,dist:r.dist,status:'open',dep:depAt(v).getTime(),price:Math.min(S.price||suggestPrice(r.dist),capPrice(r.dist))},w)})}
 // cars on the partner's chosen day whose road passes within NEAR of the start point
 function nearCars(){if(S.rfrom.lat==null)return [];var d0=fromYmd(S.rdate||ymdIn(1)).getTime(),now=Date.now(),uid=S.user&&S.user.uid,want=S.rtime?d0+(+S.rtime.slice(0,2))*3600000+(+S.rtime.slice(3,5))*60000:0;
-  return S.allRides.filter(function(R){return R.status==='open'&&R.dep>now&&R.dep>=d0&&R.dep<d0+86400000&&R.driverId!==uid&&R.seatsLeft>0&&R.path.length>1}).map(function(R){var n=nearestOnPath(R,S.rfrom),at=etaOn(R,R.dep,n.cum);return {R:R,n:n,at:at}})
+  return S.allRides.filter(function(R){return R.status==='open'&&R.dep>now&&R.dep>=d0&&R.dep<d0+86400000&&R.driverId!==uid&&R.seatsLeft>0&&R.path.length>1&&canRide(R)}).map(function(R){var n=nearestOnPath(R,S.rfrom),at=etaOn(R,R.dep,n.cum);return {R:R,n:n,at:at}})
    .filter(function(x){return x.n.d<=NEAR&&(!want||(x.at-want>=-3600000&&x.at-want<=2*3600000))}).sort(function(a,b){return a.at-b.at})}
 function myOpenWants(){var now=Date.now();return S.myWants.filter(function(w){return w.status==='open'&&w.at>now-15*60000}).sort(function(a,b){return a.at-b.at})}
 function wantFormHTML(empty){var mine=myOpenWants().filter(function(w){return ymd(new Date(w.at))===(S.rdate||ymdIn(1))&&hav(w.from,S.rfrom)<800&&hav(w.to,S.rto)<800})[0];
@@ -562,7 +586,7 @@ function search(){
   S.rErr='';S.rbusy=true;S.pick=null;render();
   var f=F.f,uid=S.user.uid,now=Date.now(),d0=fromYmd(S.rdate||ymdIn(1)).getTime(),d1=d0+86400000;
   f.getDocs(f.query(col('rides'),f.where('status','==','open'))).then(function(s){
-    var all=rows(s).filter(function(r){return r.dep>now&&r.dep>=d0&&r.dep<d1&&r.driverId!==uid}).map(hyd).filter(function(r){return r.path.length>1});
+    var all=rows(s).filter(function(r){return r.dep>now&&r.dep>=d0&&r.dep<d1&&r.driverId!==uid&&canRide(r)}).map(hyd).filter(function(r){return r.path.length>1});
     var res=all.map(function(R){return {R:R,m:matchRide(R)}}),want=S.rtime?d0+(+S.rtime.slice(0,2))*3600000+(+S.rtime.slice(3,5))*60000:0,
       inWin=function(x){return !want||(x.m.puAt-want>=-3600000&&x.m.puAt-want<=2*3600000)},good=res.filter(function(x){return x.m.ok});
     S.found={total:all.length,other:good.filter(function(x){return !inWin(x)}).length,ok:good.filter(inWin).sort(function(a,b){return (b.m.near-a.m.near)||(a.m.puAt-b.m.puAt)})};
@@ -931,7 +955,7 @@ function driverHTML(){var st=S.me.dstatus||'none';
   if(S.dv==='reroute'){var RX=myRide(S.rideId);if(RX)return rerouteHTML(RX);S.dv='home'}
   if(S.dv==='ride'){var R=myRide(S.rideId);if(R){S.fresh=null;return rideHTML(R)}if(S.fresh===S.rideId)return '<p class="sub" role="status">'+T('عم ننشر المشوار…','Posting the ride…')+'</p>';S.dv='home'}
   var list=S.myRides.filter(function(r){return r.status==='open'}).sort(function(a,b){return a.dep-b.dep});
-  return photoNudge()+wantSelHTML()+'<h2>'+T('مشاويري','My rides')+'</h2>'+
+  return photoNudge()+rateHTML()+wantSelHTML()+'<h2>'+T('مشاويري','My rides')+'</h2>'+
     (list.length?list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
       return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
        '<span class="meta"><span>'+dayOf(R.dep)+'</span><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+
@@ -972,6 +996,7 @@ function newRideHTML(){
    '<p class="sub cost">'+T('كلفة هالمشوار عالسيارة حوالي $'+r2(tripCost(r.dist))+' (بنزين، صيانة، واستهلاك). شريك الطريق بيشارك بنصها أو أقل، وهيدي مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+'. شريك الطريق بيشارك على قد المسافة اللي بيطلعها معك، الكلفة بتتقسّم على كل اللي بالسيارة: إذا طلع معك شريك واحد بيشارك بـ$'+S.price+'، شريكين كل واحد $'+share(S.price,2)+'، تلاتة كل واحد $'+share(S.price,3)+'. '+(feeOn()?'خدني بتاخد 10% من المشاركة.':'رسم خدني مجاني حالياً.'),'This trip costs the car about $'+r2(tripCost(r.dist))+' (fuel, maintenance and wear). A road partner shares half of that or less; it is not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+'. A road partner shares in proportion to the distance they ride with you. The cost is split between everyone in the car: one partner shares $'+S.price+', two partners $'+share(S.price,2)+' each, three $'+share(S.price,3)+' each. '+(feeOn()?'Khedni takes 10% of the share.':'Khedni’s fee is free for now.'))+'</p>'+
    '<div class="field"><label for="in-time2">'+T('ساعة الطلعة (فيك تغيّرها هون)','Departure time (you can change it here)')+'</label><input type="time" id="in-time2" value="'+esc(S.time)+'"></div>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
+   '<div class="field"><span class="lbl">'+T('مين فيه يطلع معك؟','Who can ride with you?')+'</span>'+grpChips('data-only',S.only,true)+'</div>'+
    freeNote()+'<button class="btn sun" type="button" id="publish"'+(S.busy?' disabled':'')+'>'+T('انشر المشوار','Publish the ride')+'</button>'+
    '<button class="btn ghost" type="button" id="unconfirm">'+T('اختار طريق تاني','Choose another route')+'</button>';
 }
@@ -989,7 +1014,7 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
   if(S.trackErr)h+='<p class="err" role="alert">'+esc(S.trackErr)+'</p>';
   if(stop&&pen.length)h+='<div class="banner">'+T('عليك $'+L.owed+' لخدني. ادفع للإدارة لتقدر تقبل طلبات جديدة.','You owe Khedni $'+L.owed+'. Pay the admin to accept new requests.')+'</div>';
   pen.forEach(function(q){h+='<div class="box" style="border:2px solid var(--route)"><span class="lbl">'+T('طلب جديد','New request')+'</span>'+
-    '<div class="row">'+face(q.riderId,44)+'<b class="grow">'+esc(q.riderName)+'</b></div><div class="kv"><span>'+T('بيطلع من','Gets in at')+'</span><b>'+esc(q.puText)+'</b></div>'+
+    '<div class="row">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+'</b><div class="row" style="gap:6px;flex-wrap:wrap">'+starsTag(q.riderId)+grpTag(q.riderGrp)+'</div></div></div><div class="kv"><span>'+T('بيطلع من','Gets in at')+'</span><b>'+esc(q.puText)+'</b></div>'+
     (q.from?'<div class="kv"><span>'+T('نقطته بعيدة عن طريقك','Their point is off your road by')+'</span><b>'+mTxt(hav(q.from,q.pu))+'</b></div>':'')+'<div class="kv"><span>'+T('بتوصل لعنده','You reach them')+'</span><b>'+hm(q.puAt)+'</b></div>'+
     '<div class="kv"><span>'+T('بينزل بـ','Gets out at')+'</span><b>'+esc(q.drText)+'</b></div><div class="kv"><span>'+T('مشاركته بالكلفة (كاش)','Their share of the cost (cash)')+'</span>'+money(dPay(q))+'</div><div class="kv"><span>'+T('رسم خدني 10% من المشاركة','Khedni’s 10% of that share')+'</span>'+money(r2(dPay(q)*FEE))+'</div>'+
     (S.offer&&S.offer.id===q.id?
@@ -1015,7 +1040,7 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
   if(!pen.length&&!off.length&&!acc.length&&!rer.length&&!wf.length)h+='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. أول ما حدا يطلب مقعد، بيبيّن هون.','Your ride is posted and has no requests yet. A seat request appears here as soon as someone sends one.')+'</div>';
   return backRow(esc(R.fromText)+ARROW()+esc(R.toText),dayOf(R.dep)+' · '+hm(R.dep),'dhome',T('كل مشاويري','All my rides'))+h+
    freeNote()+'<div class="box"><div class="kv"><span>'+T('الطريق','Route')+'</span><b>'+(R.desc?esc(R.desc):'—')+'</b></div><div class="kv"><span>'+T('الوقت بالعجقة','Time with traffic')+'</span><b>'+durTxt(R.dur)+' · '+kmTxt(R.dist)+'</b></div>'+
-   '<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seatsLeft+' / '+R.seats+'</b></div><div class="kv"><span>'+T('شركاء مأكّدين','Confirmed road partners')+'</span><b>'+acc.length+'</b></div>'+
+   (R.only&&R.only.length?'<div class="kv"><span>'+T('مين فيه يطلع','Who can ride')+'</span><b>'+esc(onlyTxt(R.only))+'</b></div>':'')+'<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seatsLeft+' / '+R.seats+'</b></div><div class="kv"><span>'+T('شركاء مأكّدين','Confirmed road partners')+'</span><b>'+acc.length+'</b></div>'+
    (acc.length?'<div class="kv"><span>'+T('مجموع مشاركاتهم (كاش)','Their shares together (cash)')+'</span>'+money(acc.reduce(function(t,q){return t+dPay(q)},0))+'</div>':'')+
    '<div class="kv"><span>'+T('مشاركة شريك واحد بكل الطريق','One road partner’s share, full route')+'</span>'+money(R.price)+'</div>'+
    '<p class="sub cost">'+T('الكلفة بتتقسّم على كل اللي بالسيارة: إذا صاروا شريكين، كل واحد ','The cost is split between everyone in the car: with two road partners each shares ')+'$'+share(R.price,2)+T('، وإذا تلاتة ',', with three ')+'$'+share(R.price,3)+T(' (لكل الطريق).',' (full route).')+'</p></div>'+ptHTML()+
@@ -1033,7 +1058,7 @@ function riderHTML(){
   if(S.rv==='req'){var q=myReq(S.reqId);if(q){S.fresh=null;return reqHTML(q)}if(S.fresh===S.reqId)return '<p class="sub" role="status">'+T('عم نبعت الطلب…','Sending the request…')+'</p>';S.rv='home'}
   if(S.rv==='results'&&S.found)return resultsHTML();
   var mine=liveReqs();
-  return photoNudge()+(mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
+  return photoNudge()+rateHTML()+(mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
      return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+(unread(q.id)?'<span class="tag wait">'+IC('chat',13)+' '+unread(q.id)+'</span>':'')+'</span></button>'}).join(''):'')+
    (function(){var ws=myOpenWants();if(!ws.length)return '';return '<h2>'+T('طلباتي المنشورة','My posted requests')+'</h2>'+ws.map(function(w){
      return '<div class="box col" style="gap:8px"><div class="row"><b class="grow">'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><span class="dur" dir="ltr">'+hm(w.at)+'</span></div>'+
@@ -1056,11 +1081,12 @@ function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(
   if(!f.ok.length)return head+'<div class="banner">'+(f.total?T('في '+f.total+' مشوار بهالنهار، بس ولا واحد بيمرق حدّ نقطتك (ضمن '+(REACH/1000)+' كم) أو بقي فيه مقاعد.','There are '+f.total+' rides that day, but none passes within '+(REACH/1000)+' km of your points with a free seat.'):T('بعد ما حدا ناشر مشوار عطريقك بهالنهار.','Nobody has posted a ride on your way that day yet.'))+'</div>'+wantFormHTML(true);
   var x=f.ok[S.fsel]||f.ok[0],m=x.m,R=x.R,mine=null;
   S.myReqs.forEach(function(q){if(q.rideId===R.id&&(q.status==='pending'||q.status==='offered'||q.status==='accepted'||q.status==='rerouted'))mine=q});
-  return head+f.ok.map(function(y,i){return '<button type="button" class="rcard" data-found="'+i+'" aria-pressed="'+(i===S.fsel)+'"><span class="t"><span class="name">'+esc(y.R.driverName)+' · '+esc(y.R.car)+'</span><span class="dur" dir="ltr">'+hm(y.m.puAt)+'</span></span>'+
+  return head+f.ok.map(function(y,i){return '<button type="button" class="rcard" data-found="'+i+'" aria-pressed="'+(i===S.fsel)+'"><span class="t"><span class="name">'+esc(y.R.driverName)+' · '+esc(y.R.car)+' '+starsTag(y.R.driverId)+'</span><span class="dur" dir="ltr">'+hm(y.m.puAt)+'</span></span>'+
      '<span class="meta">'+(y.m.pu.cum<80?'<span class="tag ok">'+T('طالع من حدّك','starts near you')+'</span>':'')+(y.m.pu.d<=1000?'<span>'+walkTxt(y.m.pu.d)+'</span>':'<span class="tag wait">'+T('طريقه على بعد ','road is ')+mTxt(y.m.pu.d)+T('',' away')+'</span>')+'<span>'+T('بتنزل ','out at ')+hm(y.m.drAt)+'</span><span>'+y.R.seatsLeft+' '+T('مقاعد','seats')+'</span><span class="mny" dir="ltr">$'+share(y.m.price,rN(null,y.R))+'</span></span></button>'}).join('')+
    '<div class="box" style="border:2px solid var(--brand)"><div class="row">'+face(R.driverId,52)+'<span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+(m.near?esc(R.driverName)+T(' بيمرق حدّك (تقريبي)',' passes you (approximate)'):T('بيوصل لأقرب نقطة عطريق ','Reaches the nearest point on the road of ')+esc(R.driverName)+T(' (تقريبي)',' (approximate)'))+'</b><p class="sub">'+(m.pu.d<=1000?walkTxt(m.pu.d)+T(' لنقطة الطلعة',' to the pick-up point'):T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you'))+'</p></div></div>'+
    (m.near?'':'<div class="banner">'+T('صاحب السيارة ما بيمرق حدّك بالضبط: أقرب نقطة عطريقه على بعد '+mTxt(m.pu.d)+' منك. ابعت طلب، وهو بيقبل أو بيقترح نقطة طلعة عطريقه، وفيكم تتّفقوا بالرسائل.','The car owner does not pass right by you: the nearest point on their road is '+mTxt(m.pu.d)+' away. Send a request; they can accept or propose a pick-up point on their way, and you can agree by message.')+'</div>')+
    freeNote()+'<div class="okbox" style="padding:8px 12px">✓ '+T('صاحب السيارة قدّم دفتر سواقته وأوراق سيارته، والإدارة شافتها.','The car owner submitted their driving licence and car papers, and the admin has seen them.')+'<br><span class="sub">'+T('هيدا مش ضمانة إنّ الأوراق صحيحة أو إنّه مأمون: هوّي المسؤول عن أوراقه وسواقته. قرار الطلعة إلك.','This does not guarantee the papers are genuine or that the driver is safe: they are responsible for their papers and driving. Whether to ride is your call.')+'</span></div>'+
+   '<div class="row" style="gap:6px;flex-wrap:wrap">'+starsTag(R.driverId)+grpTag(R.drvGrp)+(R.only&&R.only.length?'<span class="tag wait">'+esc(onlyTxt(R.only))+'</span>':'')+'</div>'+
    '<div class="kv"><span>'+T('مشواره','Their ride')+'</span><b>'+esc(R.fromText)+ARROW()+esc(R.toText)+'</b></div>'+
    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(m.drAt)+'</b></div><div class="kv"><span>'+T('بتطلع معه','You ride')+'</span><b>'+kmTxt(m.m)+'</b></div>'+
    '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش لصاحب السيارة)','Your share of the cost (cash to the car owner)')+'</span>'+money(share(m.price,rN(null,R)))+'</div><div class="kv"><span>'+T('رسم خدني عليك','Khedni’s fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
@@ -1116,6 +1142,7 @@ function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
    (S.phErr?'<p class="err" role="alert">'+esc(S.phErr)+'</p>':'')+'</div>'+
    '<div class="box"><div class="kv"><span>'+T('الاسم','Name')+'</span><b>'+esc(m.name)+'</b></div><div class="kv"><span>'+T('التلفون','Phone')+'</span><b dir="ltr">'+esc(showPhone(m.phone))+'</b></div>'+
    '<div class="kv"><span>'+T('نوع الحساب','Account type')+'</span>'+dTag(m.dstatus||'none')+'</div>'+
+   '<div class="col" style="gap:6px"><span class="lbl">'+T('أنا طالب/ة بـ (اختياري)','I study at (optional)')+'</span>'+grpChips('data-grp',m.grp?[m.grp]:[],false)+'<p class="sub" style="margin:0">'+T('أصحاب السيارات فيهم يخلّوا مشوارهم بس لطلاب جامعة معيّنة.','Car owners can keep a ride to students of certain universities.')+'</p></div>'+
    (m.car?'<div class="kv"><span>'+T('السيارة','Car')+'</span><b>'+esc(m.car)+'</b></div><div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(m.plate)+'</b></div>':'')+'</div>'+
    ledgerHTML()+
    (S.admin?'<button class="btn pri" type="button" id="toadmin">'+T('لوحة الإدارة','Admin panel')+'</button>':'')+
@@ -1204,7 +1231,7 @@ function setReq(q,status,by){var f=F.f,b=f.writeBatch(db),R=myRide(q.rideId);
   return b.commit().catch(fail(T('الطلب','request')))}
 function inReq(id){for(var i=0;i<S.inReqs.length;i++)if(S.inReqs[i].id===id)return S.inReqs[i];return null}
 function switchLang(){S.lang=S.lang==='en'?'ar':'en';sset('kh-lang',S.lang);if(window.google&&google.maps){location.reload()}else if(S.gate)showGate()}
-function resetNew(){S.routes=null;S.confirmed=false;S.pt=null;S.price=null;S.formErr='';S.from=blank();S.to=blank()}
+function resetNew(){S.only=[];S.routes=null;S.confirmed=false;S.pt=null;S.price=null;S.formErr='';S.from=blank();S.to=blank()}
 
 document.addEventListener('submit',function(e){e.preventDefault();
   if(e.target.id==='authform')doAuth();
@@ -1260,7 +1287,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     bk.commit().catch(fail(T('التأكيد','confirmation')));return}
   if(d.woffer){R=myRide(S.rideId);var wo=S.wants.filter(function(w){return w.id===d.woffer})[0],mo=wo&&wantFits(R,wo);if(!R||!mo||R.seatsLeft<1)return;
     var nid='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),bo=f.writeBatch(db);
-    bo.set(ref('requests',nid),{rideId:R.id,driverId:S.user.uid,riderId:wo.riderId,riderName:wo.riderName,driverName:R.driverName,car:R.car||'',plate:R.plate||'',wantId:wo.id,
+    bo.set(ref('requests',nid),{rideId:R.id,driverId:S.user.uid,riderId:wo.riderId,riderName:wo.riderName,riderGrp:wo.grp||'',driverName:R.driverName,car:R.car||'',plate:R.plate||'',wantId:wo.id,
       rideFrom:R.fromText,rideTo:R.toText,dep:R.dep,puText:wo.fromText,drText:wo.toText,from:wo.from,pu:mo.pu.pos,dr:mo.dr.pos,puAt:mo.puAt.getTime(),drAt:mo.drAt.getTime(),km:Math.round(mo.m),
       price:mo.price,fee:r2(mo.price*FEE),status:'offered',by:'driver',createdAt:Date.now(),updatedAt:Date.now()});
     bo.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});bo.commit().catch(fail(T('العرض','offer')));return}
@@ -1268,6 +1295,10 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     S.from={text:wn2.fromText,lat:wn2.from.lat,lng:wn2.from.lng};S.to={text:wn2.toText,lat:wn2.to.lat,lng:wn2.to.lng};S.time=pad(wd2.getHours())+':'+pad(wd2.getMinutes());S.days=[ymd(wd2)];paint();return}
   if(d.wcancel){f.updateDoc(ref('wants',d.wcancel),{status:'cancelled'}).catch(fail(T('الطلب','request')));return}
   if(d.doc){S.docKind=d.doc;var di=$('#docfile');di.value='';di.click();return}
+  if(d.grp!==undefined&&t.closest('#sheet')){var ng=S.me.grp===d.grp?'':d.grp;f.updateDoc(ref('users',S.user.uid),{grp:ng}).catch(fail(T('الجامعة','university')));return}
+  if(d.only!==undefined){if(!d.only)S.only=[];else{var oi=S.only.indexOf(d.only);if(oi>=0)S.only.splice(oi,1);else S.only.push(d.only)}render();return}
+  if(d.rate){var rq=null,rto='';S.myReqs.concat(S.inReqs).forEach(function(x){if(x.id===d.rate)rq=x});if(!rq)return;rto=rq.riderId===S.user.uid?rq.driverId:rq.riderId;
+    S.rated[rq.id]=1;render();f.setDoc(ref('ratings',rq.id+'_'+S.user.uid),{by:S.user.uid,to:rto,req:rq.id,stars:+d.stars,at:Date.now()}).then(function(){delete S.rt[rto];delete RTW[rto];paint()}).catch(function(e){delete S.rated[rq.id];fail(T('التقييم','rating'))(e)});return}
   if(d.docopen){S.docOpen=S.docOpen===d.docopen?null:d.docopen;render();return}
   if(t.id==='addphoto'){var inp=$('#selfie');inp.value='';inp.click();return}
   if(d.rej){q=inReq(d.rej);if(q)setReq(q,'rejected','driver');return}
@@ -1297,7 +1328,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     S.applyErr='';f.updateDoc(ref('users',S.user.uid),{car:S.af.car.trim(),plate:S.af.plate.trim(),dstatus:'pending'}).catch(fail(T('الطلب','request')));return;
    case 'newride':S.dv='new';resetNew();S.days=[ymdIn(1)];paint();useHere('from',true);return;
    case 'again':R=myRide(S.rideId);if(!R||R.path.length<2)return;S.dv='new';resetNew();var e0=R.path[0],e1=R.path[R.path.length-1],dd=new Date(R.dep);
-    S.from={text:R.fromText,lat:e0.lat,lng:e0.lng};S.to={text:R.toText,lat:e1.lat,lng:e1.lng};S.time=pad(dd.getHours())+':'+pad(dd.getMinutes());
+    S.only=(R.only||[]).slice();S.from={text:R.fromText,lat:e0.lat,lng:e0.lng};S.to={text:R.toText,lat:e1.lat,lng:e1.lng};S.time=pad(dd.getHours())+':'+pad(dd.getMinutes());
     S.days=[dd<new Date(dayStart(0))?ymdIn(1):ymd(dd)];S.formErr='';paint();return;
    case 'workweek':S.days=workdays();render();return;
    case 'clrdays':S.days=[];render();return;
@@ -1322,7 +1353,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     S.busy=true;render();
     // one ride per chosen day, same road and time; the traffic estimate comes from the first day
     var base={driverId:S.user.uid,driverName:S.me.name,car:S.me.car||'',plate:S.me.plate||'',fromText:S.from.text,toText:S.to.text,
-      dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc||'',poly:r.enc,seats:S.seats,seatsLeft:S.seats,price:Math.min(S.price||suggestPrice(r.dist),capPrice(r.dist)),status:'open',createdAt:Date.now()};
+      dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc||'',poly:r.enc,seats:S.seats,seatsLeft:S.seats,price:Math.min(S.price||suggestPrice(r.dist),capPrice(r.dist)),status:'open',createdAt:Date.now(),only:S.only.slice(),drvGrp:S.me.grp||''};
     Promise.all(S.days.map(function(v){var o=Object.assign({},base);o.dep=depAt(v).getTime();return f.addDoc(col('rides'),o)}))
      .then(function(docs){S.busy=false;if(docs.length===1){S.dv='ride';S.rideId=docs[0].id;S.fresh=docs[0].id}else S.dv='home';resetNew();paint()}).catch(fail(T('نشر المشوار','posting the ride')));
     return;
@@ -1349,12 +1380,12 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     var wat=new Date(fromYmd(S.rdate||ymdIn(1)).getTime());wat.setHours(+S.wtime.slice(0,2),+S.wtime.slice(3,5),0,0);
     if(wat<new Date()){S.wErr=T('هالساعة مرقت. اختار ساعة جاية.','That time has passed. Pick a later one.');render();return}
     S.wErr='';S.rbusy=true;render();
-    f.addDoc(col('wants'),{riderId:S.user.uid,riderName:S.me.name,fromText:S.rfrom.text,toText:S.rto.text,from:{lat:S.rfrom.lat,lng:S.rfrom.lng},to:{lat:S.rto.lat,lng:S.rto.lng},at:wat.getTime(),status:'open',createdAt:Date.now()})
+    f.addDoc(col('wants'),{riderId:S.user.uid,riderName:S.me.name,grp:S.me.grp||'',fromText:S.rfrom.text,toText:S.rto.text,from:{lat:S.rfrom.lat,lng:S.rfrom.lng},to:{lat:S.rto.lat,lng:S.rto.lng},at:wat.getTime(),status:'open',createdAt:Date.now()})
      .then(function(){S.rbusy=false;S.wform=false;paint()}).catch(fail(T('نشر الطلب','posting the request')));return;
    case 'redit':S.rv='home';S.found=null;S.wform=false;paint();return;
    case 'rhome':unwatchRide();S.rv=S.found?'results':'home';S.reqId=null;S.reqRide=null;paint();return;
    case 'rreq':var x=S.found.ok[S.fsel],m=x.m;R=x.R;S.rbusy=true;render();
-    f.addDoc(col('requests'),{rideId:R.id,driverId:R.driverId,riderId:S.user.uid,riderName:S.me.name,driverName:R.driverName,car:R.car||'',plate:R.plate||'',
+    f.addDoc(col('requests'),{rideId:R.id,driverId:R.driverId,riderId:S.user.uid,riderName:S.me.name,riderGrp:S.me.grp||'',driverName:R.driverName,car:R.car||'',plate:R.plate||'',
       rideFrom:R.fromText,rideTo:R.toText,dep:R.dep,puText:S.rfrom.text,drText:S.rto.text,from:{lat:S.rfrom.lat,lng:S.rfrom.lng},pu:m.pu.pos,dr:m.dr.pos,puAt:m.puAt.getTime(),drAt:m.drAt.getTime(),km:Math.round(m.m),
       price:m.price,fee:r2(m.price*FEE),status:'pending',by:'rider',createdAt:Date.now(),updatedAt:Date.now()})
      .then(function(doc){S.rbusy=false;S.found=null;S.fresh=doc.id;openReq(doc.id,R.id)}).catch(fail(T('طلب المقعد','the seat request')));
