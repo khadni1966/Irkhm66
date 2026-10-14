@@ -333,7 +333,7 @@ function boot(){
   S.gate='boot';S.bootMsg=T('عم نفتح خدني…','Opening Khedni…');showGate();
   if(!FB_CONFIG){S.bootFail=true;S.bootMsg=T('التطبيق بعد ما انربط بقاعدة البيانات.','The app is not connected to its database yet.');showGate();return}
   Promise.all([import(FB_BASE+'firebase-app.js'),import(FB_BASE+'firebase-auth.js'),import(FB_BASE+'firebase-firestore.js')]).then(function(m){
-    var app=m[0].initializeApp(FB_CONFIG);F={a:m[1],f:m[2]};auth=m[1].getAuth(app);db=m[2].getFirestore(app);
+    var app=m[0].initializeApp(FB_CONFIG);F={a:m[1],f:m[2],app:app};auth=m[1].getAuth(app);db=m[2].getFirestore(app);
     m[1].onAuthStateChanged(auth,onAuth);
   }).catch(function(e){S.bootFail=true;S.bootMsg=T('ما قدرنا نحمّل التطبيق. تأكد من الإنترنت وافتح الصفحة من جديد.','Could not load the app. Check your connection and reopen the page.');showGate();showErr(T('ما قدرنا نحمّل التطبيق','Could not load the app'),String(e&&e.message||e),'')});
 }
@@ -351,7 +351,7 @@ function onAuth(u){
 }
 function enter(){
   var uid=S.user.uid,f=F.f;
-  photo(uid);checkConsent();
+  photo(uid);checkConsent();setTimeout(function(){enablePush(false)},1500);
   if(S.role!=='driver'&&S.role!=='rider')S.role=S.me.dstatus&&S.me.dstatus!=='none'?'driver':'rider';
   f.getDoc(ref('adminping','x')).then(function(){S.admin=true;paint();listen(f.query(col('users'),f.where('dstatus','==','pending')),function(s){S.pendN=rows(s).length;paint()},T('الطلبات','applications'))}).catch(function(){S.admin=false});
   listen(f.query(col('rides'),f.where('driverId','==',uid)),function(s){S.myRides=rows(s).map(hyd);got.rides=true;upkeep();paint()},T('المشاوير','rides'));
@@ -632,7 +632,7 @@ function chatBtn(q){if(S.chatOpen===q.id)markSeen(q.id);var n=unread(q.id),c=(S.
 function chatPanel(q){return S.chatOpen===q.id?chatHTML(q,'driver'):''}
 function sendMsg(id,text){var q=anyReq(id);text=mask(String(text||'').trim()).trim().slice(0,200);if(!q||!text)return;
   S.draft[id]='';
-  F.f.setDoc(ref('chats',id),{driverId:q.driverId,riderId:q.riderId,m:F.f.arrayUnion({f:S.user.uid,t:text,a:Date.now()})},{merge:true}).catch(fail(T('الرسالة','message')));
+  F.f.setDoc(ref('chats',id),{driverId:q.driverId,riderId:q.riderId,m:F.f.arrayUnion({f:S.user.uid,t:text,a:Date.now()})},{merge:true}).then(function(){notify('msg',id)}).catch(fail(T('الرسالة','message')));
   render()}
 
 /* ---------- face photos: one small selfie per account, shown to the person you ride with and to the admin ---------- */
@@ -799,6 +799,19 @@ function introHTML(){var gi=function(ic,t,d){return '<div class="gi"><span class
    gi(IC('user',20),T('بدّك تنزل؟ لاقي حدا رايح','Need a lift? Find someone going'),T('شوف السيارات اللي بتمرق حدّك، أو انشر طلبك وخلّي أصحاب السيارات يلاقوك.','See the cars passing near you, or post your request and let car owners find you.'))+
    '<p class="note" style="margin:0"><b>'+T('مشوار واحد، طريق واحد، ورفقة عالطريق.','One trip, one road, and company along the way.')+'</b></p></div>'}
 // one address for questions, requests and problems
+/* ---------- notifications: phone alerts through Firebase Cloud Messaging; a small server function decides who gets what ---------- */
+var VAPID='BDQ9Jx-nU972ibDID9FIEhYCVbUImZc7LrJ2b_6lefr-NwR_iejH3Q5dSVO_1laVW9rLq_JoG1VH75oTXatXIxk';
+function pushOK(){return 'serviceWorker' in navigator&&'Notification' in window&&'PushManager' in window&&location.protocol==='https:'}
+function pushState(){return pushOK()?Notification.permission:'no'}
+function enablePush(ask){if(!pushOK()||!S.user)return;var uid=S.user.uid,go=function(){return import(FB_BASE+'firebase-messaging.js').then(function(m){return navigator.serviceWorker.register('sw.js').then(function(reg){return m.getToken(m.getMessaging(F.app),{vapidKey:VAPID,serviceWorkerRegistration:reg})})})
+   .then(function(tok){if(!tok||sget('kh-push-'+uid)===tok)return;return F.f.setDoc(ref('tokens',uid),{t:F.f.arrayUnion(tok),at:Date.now()},{merge:true}).then(function(){sset('kh-push-'+uid,tok)})}).catch(function(e){if(window.console)console.warn('push',e)})};
+  if(Notification.permission==='granted')return go();if(!ask)return;
+  Notification.requestPermission().then(function(p){render();if(p==='granted')go()})}
+function pushHTML(){if(pushState()!=='default'||sget('kh-push-no'))return '';
+  return '<div class="banner col" style="gap:8px"><div><b>'+T('شغّل الإشعارات','Turn on notifications')+'</b> '+T('لتعرف أوّل ما حدا يطلب يطلع معك، أو يقبل طلبك، أو يبعتلك رسالة، حتى لو التطبيق مسكّر.','To know as soon as someone asks to ride with you, accepts your request or messages you, even when the app is closed.')+'</div>'+
+   '<div class="grid2"><button class="btn sm ghost" type="button" id="pushno">'+T('بعدين','Later')+'</button><button class="btn sm sun" type="button" id="pushon">'+T('شغّل','Turn on')+'</button></div></div>'}
+function notify(kind,id){var u=S.cfg&&S.cfg.notifyUrl;if(!u||!S.user||!S.user.getIdToken||!id)return;
+  S.user.getIdToken().then(function(t){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},body:JSON.stringify({kind:kind,id:id})})}).catch(function(){})}
 // "install the app" button, shown when Chrome offers to install Khedni on the phone
 var INST=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();INST=e;if(typeof render==='function'&&!S.gate)render()});
 window.addEventListener('appinstalled',function(){INST=null;if(!S.gate)render()});
@@ -955,7 +968,7 @@ function driverHTML(){var st=S.me.dstatus||'none';
   if(S.dv==='reroute'){var RX=myRide(S.rideId);if(RX)return rerouteHTML(RX);S.dv='home'}
   if(S.dv==='ride'){var R=myRide(S.rideId);if(R){S.fresh=null;return rideHTML(R)}if(S.fresh===S.rideId)return '<p class="sub" role="status">'+T('عم ننشر المشوار…','Posting the ride…')+'</p>';S.dv='home'}
   var list=S.myRides.filter(function(r){return r.status==='open'}).sort(function(a,b){return a.dep-b.dep});
-  return photoNudge()+rateHTML()+wantSelHTML()+'<h2>'+T('مشاويري','My rides')+'</h2>'+
+  return photoNudge()+pushHTML()+rateHTML()+wantSelHTML()+'<h2>'+T('مشاويري','My rides')+'</h2>'+
     (list.length?list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
       return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
        '<span class="meta"><span>'+dayOf(R.dep)+'</span><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+
@@ -1058,7 +1071,7 @@ function riderHTML(){
   if(S.rv==='req'){var q=myReq(S.reqId);if(q){S.fresh=null;return reqHTML(q)}if(S.fresh===S.reqId)return '<p class="sub" role="status">'+T('عم نبعت الطلب…','Sending the request…')+'</p>';S.rv='home'}
   if(S.rv==='results'&&S.found)return resultsHTML();
   var mine=liveReqs();
-  return photoNudge()+rateHTML()+(mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
+  return photoNudge()+pushHTML()+rateHTML()+(mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
      return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+(unread(q.id)?'<span class="tag wait">'+IC('chat',13)+' '+unread(q.id)+'</span>':'')+'</span></button>'}).join(''):'')+
    (function(){var ws=myOpenWants();if(!ws.length)return '';return '<h2>'+T('طلباتي المنشورة','My posted requests')+'</h2>'+ws.map(function(w){
      return '<div class="box col" style="gap:8px"><div class="row"><b class="grow">'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><span class="dur" dir="ltr">'+hm(w.at)+'</span></div>'+
@@ -1149,6 +1162,7 @@ function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
    (!shared&&S.localKey?'<button class="btn ghost" type="button" id="chkey">'+T('غيّر مفتاح الخرائط على هالتلفون','Change the maps key on this phone')+'</button>':'')+
    '<button class="btn ghost cost" type="button" id="viewshare">'+T('كيف منحسب المشاركة بالكلفة','How the cost share is worked out')+'</button>'+
    '<button class="btn ghost" type="button" id="viewterms">'+T('شروط الاستخدام','Terms of use')+'</button>'+
+   (pushState()==='granted'?'<div class="okbox">'+T('الإشعارات شغّالة على هالتلفون.','Notifications are on for this phone.')+'</div>':pushState()==='denied'?'<div class="banner">'+T('الإشعارات مسكّرة. لتشغّلها: كبّس عالقفل حدّ عنوان الموقع ← Permissions ← Notifications ← Allow.','Notifications are blocked. To allow them: tap the lock next to the address ← Permissions ← Notifications ← Allow.')+'</div>':pushState()==='default'?'<button class="btn sun" type="button" id="pushon">'+T('شغّل الإشعارات','Turn on notifications')+'</button>':'')+
    installHTML()+'<div class="box">'+contactHTML()+'</div>'+
    '<button class="btn ghost" type="button" id="signout">'+T('تسجيل خروج','Sign out')+'</button>'+
    '<p class="sub">'+T('رقمك ما بيبيّن لا لصاحب السيارة ولا لشريك الطريق. بتشوفه الإدارة بس.','Your number is not shown to car owners or road partners. Only the admin sees it.')+'</p>';
@@ -1186,6 +1200,9 @@ function adminHTML(){var A=S.ad,head=backRow(T('لوحة الإدارة','Admin 
    '<h3>'+T('رسم خدني','Khedni’s fee')+'</h3>'+
    (feeOn()?'<div class="banner">'+T('الرسم شغّال: أصحاب السيارات بيدفعوا 10% عبر Whish، واللي بيوصل لحد $'+OWE_LIMIT+' ما بيقدر يقبل طلبات جديدة.','The fee is on: car owners pay 10% by Whish, and anyone who reaches $'+OWE_LIMIT+' cannot accept new requests.')+'</div>':'<div class="okbox">'+T('الرسم مجاني حالياً. التطبيق عم يحسبه بس ما عم يطلبه من حدا.','The fee is free for now. The app keeps count but asks no one to pay.')+'</div>')+
    '<button class="btn sm '+(feeOn()?'ghost':'pri')+'" type="button" id="feetoggle">'+(feeOn()?T('رجّع الرسم مجاني','Make the fee free again'):T('شغّل الرسم (10%)','Switch the fee on (10%)'))+'</button>'+
+   '<h3>'+T('الإشعارات','Notifications')+'</h3><p class="sub">'+T('رابط خدمة الإشعارات (Cloud Run). بس تحطّو، الناس بيصيرلن يوصلن إشعارات.','The notification service link (Cloud Run). Once set, people start receiving notifications.')+'</p>'+
+   '<div class="inrow"><input type="text" id="nu-in" class="ltr" data-nu="1" autocomplete="off" value="'+esc(S.nuDraft!=null?S.nuDraft:(S.cfg&&S.cfg.notifyUrl)||'')+'" placeholder="https://…run.app" aria-label="'+T('رابط الإشعارات','Notification link')+'"><button class="btn sm pri" type="button" id="savenotify">'+T('احفظ','Save')+'</button></div>'+
+   (S.cfg&&S.cfg.notifyUrl&&S.nuDraft==null?'<div class="okbox">'+T('الإشعارات مربوطة.','Notifications are connected.')+'</div>':'')+
    '<h3>'+T('Whish لتحصيل رسم الـ10%','Whish for collecting the 10% fee')+'</h3>'+
    '<p class="sub">'+T('أصحاب السيارات بيشوفوا هالرقم ليحوّلوا عليه الرسم. شركاء الطريق بيدفعوا كاش لصاحب السيارة.','Car owners see this number to send the fee to. Road partners pay the car owner in cash.')+'</p>'+
    '<div class="inrow"><input type="text" id="whish-in" class="ltr" data-wh="1" inputmode="tel" autocomplete="off" value="'+esc(S.whDraft!=null?S.whDraft:(S.cfg&&S.cfg.whish)||'')+'" placeholder="70 123 456" aria-label="'+T('رقم Whish','Whish number')+'"><button class="btn sm pri" type="button" id="savewhish">'+T('احفظ','Save')+'</button></div>'+
@@ -1228,7 +1245,7 @@ function fail(what){return function(e){S.busy=false;S.rbusy=false;render();dbErr
 function setReq(q,status,by){var f=F.f,b=f.writeBatch(db),R=myRide(q.rideId);
   b.update(ref('requests',q.id),{status:status,by:by,updatedAt:Date.now()});
   if(by==='driver'&&R){if(status==='accepted')b.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});else if(q.status==='accepted'||q.status==='offered')b.update(ref('rides',R.id),{seatsLeft:Math.min(R.seats,R.seatsLeft+1)})}
-  return b.commit().catch(fail(T('الطلب','request')))}
+  return b.commit().then(function(){notify('status',q.id)}).catch(fail(T('الطلب','request')))}
 function inReq(id){for(var i=0;i<S.inReqs.length;i++)if(S.inReqs[i].id===id)return S.inReqs[i];return null}
 function switchLang(){S.lang=S.lang==='en'?'ar':'en';sset('kh-lang',S.lang);if(window.google&&google.maps){location.reload()}else if(S.gate)showGate()}
 function resetNew(){S.only=[];S.routes=null;S.confirmed=false;S.pt=null;S.price=null;S.formErr='';S.from=blank();S.to=blank()}
@@ -1244,6 +1261,7 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(d.af){S.af[d.af]=e.target.value;return}
   if(d.pay){S.pay[d.pay]=e.target.value;return}
   if(d.wh){S.whDraft=e.target.value;return}
+  if(d.nu){S.nuDraft=e.target.value;return}
   if(d.msg){S.draft[d.msg]=e.target.value;return}
   if(w){if(S.hereMsg&&S.hereMsg.which===w)S.hereMsg=null;S[w]={text:e.target.value,lat:null,lng:null};suggest(w,e.target.value)}
   if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,false);
@@ -1281,16 +1299,16 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(t.id==='offersend'){q=inReq(S.offer&&S.offer.id);R=q&&myRide(q.rideId);if(!q||!R)return;var o=S.offer,bb=f.writeBatch(db);
     bb.update(ref('requests',q.id),{status:'offered',by:'driver',updatedAt:Date.now(),pu:o.pos,puAt:o.at,puText:T('نقطة حدّدها صاحب السيارة عطريقه','Point set by the car owner on their route'),price:o.price,fee:r2(o.price*FEE),km:o.km});
     bb.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});S.offer=null;
-    bb.commit().catch(fail(T('الاقتراح','proposal')));paint();return}
+    bb.commit().then(function(){notify('status',q.id)}).catch(fail(T('الاقتراح','proposal')));paint();return}
   if(d.rok){q=myReq(d.rok);if(!q)return;var bk=f.writeBatch(db);bk.update(ref('requests',q.id),{status:'accepted',by:'rider',updatedAt:Date.now()});
     var wm=q.wantId&&S.myWants.filter(function(w){return w.id===q.wantId&&w.status==='open'})[0];if(wm)bk.update(ref('wants',wm.id),{status:'matched'});
-    bk.commit().catch(fail(T('التأكيد','confirmation')));return}
+    bk.commit().then(function(){notify('status',q.id)}).catch(fail(T('التأكيد','confirmation')));return}
   if(d.woffer){R=myRide(S.rideId);var wo=S.wants.filter(function(w){return w.id===d.woffer})[0],mo=wo&&wantFits(R,wo);if(!R||!mo||R.seatsLeft<1)return;
     var nid='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),bo=f.writeBatch(db);
     bo.set(ref('requests',nid),{rideId:R.id,driverId:S.user.uid,riderId:wo.riderId,riderName:wo.riderName,riderGrp:wo.grp||'',driverName:R.driverName,car:R.car||'',plate:R.plate||'',wantId:wo.id,
       rideFrom:R.fromText,rideTo:R.toText,dep:R.dep,puText:wo.fromText,drText:wo.toText,from:wo.from,pu:mo.pu.pos,dr:mo.dr.pos,puAt:mo.puAt.getTime(),drAt:mo.drAt.getTime(),km:Math.round(mo.m),
       price:mo.price,fee:r2(mo.price*FEE),status:'offered',by:'driver',createdAt:Date.now(),updatedAt:Date.now()});
-    bo.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});bo.commit().catch(fail(T('العرض','offer')));return}
+    bo.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});bo.commit().then(function(){notify('status',nid)}).catch(fail(T('العرض','offer')));return}
   if(d.wnew){var wn2=S.wants.filter(function(w){return w.id===d.wnew})[0];if(!wn2)return;S.dv='new';resetNew();var wd2=new Date(wn2.at-10*60000);
     S.from={text:wn2.fromText,lat:wn2.from.lat,lng:wn2.from.lng};S.to={text:wn2.toText,lat:wn2.to.lat,lng:wn2.to.lng};S.time=pad(wd2.getHours())+':'+pad(wd2.getMinutes());S.days=[ymd(wd2)];paint();return}
   if(d.wcancel){f.updateDoc(ref('wants',d.wcancel),{status:'cancelled'}).catch(fail(T('الطلب','request')));return}
@@ -1309,7 +1327,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.repick){S.pick=S.pick==='repick'?null:'repick';S.rrErr='';paint();if(S.reqRide)fit([S.reqRide.path]);return}
   if(d.reask){q=myReq(d.reask);var rmx=q&&reMatch(q);if(!rmx||!rmx.ok)return;
     f.updateDoc(ref('requests',q.id),{status:'pending',by:'rider',updatedAt:Date.now(),pu:rmx.a.pos,puAt:rmx.at.getTime(),puText:T('نقطة عالطريق الجديد','Point on the new route'),dr:rmx.b.pos,drAt:rmx.drAt.getTime(),price:rmx.price,fee:r2(rmx.price*FEE),km:rmx.km})
-     .then(function(){S.repick=null;paint()}).catch(fail(T('الطلب','request')));return}
+     .then(function(){S.repick=null;notify('req',q.id);paint()}).catch(fail(T('الطلب','request')));return}
   if(d.track){startTrack('live',d.track);return}
   if(d.rtrack){q=myReq(d.rtrack);if(q)startTrack('rlive',q.id,q.driverId);return}
   if(t.id==='untrack'){stopTrack();return}
@@ -1381,14 +1399,14 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     if(wat<new Date()){S.wErr=T('هالساعة مرقت. اختار ساعة جاية.','That time has passed. Pick a later one.');render();return}
     S.wErr='';S.rbusy=true;render();
     f.addDoc(col('wants'),{riderId:S.user.uid,riderName:S.me.name,grp:S.me.grp||'',fromText:S.rfrom.text,toText:S.rto.text,from:{lat:S.rfrom.lat,lng:S.rfrom.lng},to:{lat:S.rto.lat,lng:S.rto.lng},at:wat.getTime(),status:'open',createdAt:Date.now()})
-     .then(function(){S.rbusy=false;S.wform=false;paint()}).catch(fail(T('نشر الطلب','posting the request')));return;
+     .then(function(doc){S.rbusy=false;S.wform=false;if(doc)notify('want',doc.id);paint()}).catch(fail(T('نشر الطلب','posting the request')));return;
    case 'redit':S.rv='home';S.found=null;S.wform=false;paint();return;
    case 'rhome':unwatchRide();S.rv=S.found?'results':'home';S.reqId=null;S.reqRide=null;paint();return;
    case 'rreq':var x=S.found.ok[S.fsel],m=x.m;R=x.R;S.rbusy=true;render();
     f.addDoc(col('requests'),{rideId:R.id,driverId:R.driverId,riderId:S.user.uid,riderName:S.me.name,riderGrp:S.me.grp||'',driverName:R.driverName,car:R.car||'',plate:R.plate||'',
       rideFrom:R.fromText,rideTo:R.toText,dep:R.dep,puText:S.rfrom.text,drText:S.rto.text,from:{lat:S.rfrom.lat,lng:S.rfrom.lng},pu:m.pu.pos,dr:m.dr.pos,puAt:m.puAt.getTime(),drAt:m.drAt.getTime(),km:Math.round(m.m),
       price:m.price,fee:r2(m.price*FEE),status:'pending',by:'rider',createdAt:Date.now(),updatedAt:Date.now()})
-     .then(function(doc){S.rbusy=false;S.found=null;S.fresh=doc.id;openReq(doc.id,R.id)}).catch(fail(T('طلب المقعد','the seat request')));
+     .then(function(doc){S.rbusy=false;S.found=null;S.fresh=doc.id;notify('req',doc.id);openReq(doc.id,R.id)}).catch(fail(T('طلب المقعد','the seat request')));
     return;
    case 'viewshare':S.view='share';render();$('#sheet').scrollTop=0;return;
    case 'viewterms':S.view='terms';render();$('#sheet').scrollTop=0;return;
@@ -1397,6 +1415,10 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
    case 'costtoggle':f.setDoc(ref('config','app'),{costOn:!costOn()},{merge:true}).catch(fail(T('المبالغ','amounts')));return;
    case 'feetoggle':var on=!feeOn();if(on&&!confirm(T('أكيد بدّك تشغّل الرسم؟ أصحاب السيارات رح يصير لازم يدفعوا 10%.','Switch the fee on? Car owners will have to pay 10%.')))return;
     f.setDoc(ref('config','app'),{feeOn:on},{merge:true}).catch(fail(T('رسم خدني','Khedni fee')));return;
+   case 'savenotify':var nu=String(S.nuDraft!=null?S.nuDraft:(S.cfg&&S.cfg.notifyUrl)||'').trim();if(nu&&!/^https:\/\/[\w.-]+\.run\.app(\/[\w-]*)?$|^https:\/\/[\w.-]+\.cloudfunctions\.net\/[\w-]+$/.test(nu)){alert(T('الرابط لازم يبلّش بـ https وينتهي بـ run.app','The link must start with https and end in run.app'));return}
+    f.setDoc(ref('config','app'),{notifyUrl:nu},{merge:true}).then(function(){S.nuDraft=null;render()}).catch(fail(T('الإشعارات','notifications')));return;
+   case 'pushon':enablePush(true);return;
+   case 'pushno':sset('kh-push-no','1');render();return;
    case 'savewhish':var wn=digits(S.whDraft!=null?S.whDraft:(S.cfg&&S.cfg.whish)||'').replace(/[^\d+ ]/g,'').trim();
     f.setDoc(ref('config','app'),{whish:wn},{merge:true}).then(function(){S.whDraft=null;render()}).catch(fail('Whish'));return;
    case 'sharekey':f.setDoc(ref('config','app'),{mapsKey:S.key},{merge:true}).catch(fail(T('المفتاح','key')));return;

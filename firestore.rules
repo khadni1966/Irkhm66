@@ -82,6 +82,9 @@ service cloud.firestore {
         && ((req(nd().req).riderId == uid() && nd().to == req(nd().req).driverId)
           || (req(nd().req).driverId == uid() && nd().to == req(nd().req).riderId));
     }
+    match /tokens/{id} {
+      allow write: if id == uid() && nd().keys().hasOnly(['t', 'at']);
+    }
     match /consents/{id} {
       allow get: if si() && (id == uid() || adm());
       allow create, update: if si() && id == uid() && nd().keys().hasOnly(['v', 'at']) && nd().v is number;
