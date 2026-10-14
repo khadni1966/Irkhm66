@@ -6,6 +6,9 @@
 <title>خدني | Khedni</title>
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="خدني">
 <meta name="theme-color" content="#0B5D4B">
 <meta name="color-scheme" content="only light">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
@@ -766,6 +769,10 @@ function introHTML(){var gi=function(ic,t,d){return '<div class="gi"><span class
    gi(IC('user',20),T('بدّك تنزل؟ بتوفّر','Need a lift? You save'),T('بتشارك بكلفة المشوار بس، وهيك بتخفّ كلفة نقلك.','You only share the cost of the trip, so getting around costs you less.'))+
    '<p class="note" style="margin:0"><b>'+T('مشوار واحد، كلفة مقسومة، والاتنين بيوفّروا.','One trip, the cost shared, and both of you save.')+'</b></p></div>'}
 // one address for questions, requests and problems
+// "install the app" button, shown when Chrome offers to install Khedni on the phone
+var INST=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();INST=e;if(typeof render==='function'&&!S.gate)render()});
+window.addEventListener('appinstalled',function(){INST=null;if(!S.gate)render()});
+function installHTML(){return INST?'<div class="box row between"><span>'+IC('pin')+' '+T('حطّ خدني كتطبيق على شاشة تلفونك','Add Khedni as an app on your phone')+'</span><button class="btn sm sun" type="button" id="install">'+T('ثبّت','Install')+'</button></div>':''}
 function contactHTML(){return '<p class="note contact" style="margin:0">'+IC('mail',15)+' '+T('لأي سؤال أو طلب أو مشكلة، ابعتلنا إيميل على ','For any question, request or problem, email us at ')+'<a href="mailto:info@khedni.app" dir="ltr">info@khedni.app</a></p>'}
 function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png?v=4" alt="خدني Khedni" width="250" height="118"></h1><p>'+sub+'</p></div>'},
   foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
@@ -1108,7 +1115,7 @@ function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
    (!shared&&S.localKey?'<button class="btn ghost" type="button" id="chkey">'+T('غيّر مفتاح الخرائط على هالتلفون','Change the maps key on this phone')+'</button>':'')+
    '<button class="btn ghost" type="button" id="viewshare">'+T('كيف منحسب المشاركة بالكلفة','How the cost share is worked out')+'</button>'+
    '<button class="btn ghost" type="button" id="viewterms">'+T('شروط الاستخدام','Terms of use')+'</button>'+
-   '<div class="box">'+contactHTML()+'</div>'+
+   installHTML()+'<div class="box">'+contactHTML()+'</div>'+
    '<button class="btn ghost" type="button" id="signout">'+T('تسجيل خروج','Sign out')+'</button>'+
    '<p class="sub">'+T('رقمك ما بيبيّن لا لصاحب السيارة ولا لشريك الطريق. بتشوفه الإدارة بس.','Your number is not shown to car owners or road partners. Only the admin sees it.')+'</p>';
 }
@@ -1324,6 +1331,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
    case 'rgo':var rt=$('#in-rtime');if(rt){S.rtime=rt.value||'';if(S.rtime)S.wtime=S.rtime}search();return;
    case 'anytime':S.rtime='';render();return;
    case 'anyall':S.rtime='';search();return;
+   case 'install':if(INST){INST.prompt();INST.userChoice.then(function(){INST=null;render()}).catch(function(){})}return;
    case 'wselx':S.wsel=null;paint();return;
    case 'wfit':var wp=openWants().map(function(w){return fuzz(w.from)});if(wp.length)fit([wp]);return;
    case 'wshow':S.wform=true;S.wErr='';render();return;
@@ -1357,6 +1365,9 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
 
 boot();
 })();
+
+// installable app: the service worker only adds offline opening; updates still come straight from the site
+if('serviceWorker' in navigator&&location.protocol==='https:'&&!/kh\.test$/.test(location.hostname))window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
 </script>
 </body>
 </html>
