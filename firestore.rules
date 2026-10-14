@@ -10,10 +10,11 @@ service cloud.firestore {
     function nd() { return request.resource.data; }
     function od() { return resource.data; }
     function ch() { return nd().diff(od()).affectedKeys(); }
-    function ride(r) { return get(/databases/$(database)/documents/rides/$(r)).data; }
-    function req(r) { return get(/databases/$(database)/documents/requests/$(r)).data; }
-    function wt(w) { return get(/databases/$(database)/documents/wants/$(w)).data; }
-    function drv() { return si() && get(/databases/$(database)/documents/users/$(uid())).data.dstatus == 'active'; }
+    function g(c, i) { return get(/databases/$(database)/documents/$(c)/$(i)).data; }
+    function ride(r) { return g('rides', r); }
+    function req(r) { return g('requests', r); }
+    function wt(w) { return g('wants', w); }
+    function drv() { return si() && g('users', uid()).dstatus == 'active'; }
     function mine() { return od().riderId == uid() || od().driverId == uid(); }
     function pk() { return ['status', 'by', 'updatedAt', 'pu', 'puAt', 'puText', 'price', 'fee', 'km']; }
     function pay() { return nd().price is number && nd().price > 0 && nd().fee is number && nd().fee >= nd().price * 0.09; }
@@ -68,6 +69,10 @@ service cloud.firestore {
       allow create: if si() && nd().riderId == uid() && nd().status == 'open' && nd().at is number;
       allow update: if si() && od().riderId == uid() && ch().hasOnly(['status'])
         && nd().status in ['matched', 'cancelled'];
+    }
+    match /docs/{id} {
+      allow get: if si() && (id == uid() || adm());
+      allow create, update: if si() && id == uid() && !drv() && nd().keys().hasOnly(['id', 'lic', 'at']);
     }
     match /consents/{id} {
       allow get: if si() && (id == uid() || adm());

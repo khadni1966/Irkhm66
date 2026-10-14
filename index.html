@@ -163,6 +163,7 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 </section>
 
 <input type="file" id="selfie" accept="image/*" capture="user" hidden>
+<input type="file" id="docfile" accept="image/*" capture="environment" hidden>
 <div id="errbox" role="alert" hidden></div>
 
 <script>
@@ -180,7 +181,7 @@ var FEE=0.10;     // Khedni's share, taken from the driver's part
 var RATES=[[10,.60],[20,.50],[50,.30],[1e9,0]]; // what a private car costs to run per km: first 10 km, next 10, then up to 50 km; past 50 km the share stops growing
 var MINREV=30; // a place needs this many Google reviews to count as known enough to name a map point after it
 var MINS=2.5; // the smallest share for one road partner, even for a short hop
-var TERMS_V=5;    // bump when the terms text changes: everyone is then asked to agree again
+var TERMS_V=6;    // bump when the terms text changes: everyone is then asked to agree again
 var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer be accepted
 
 var $=function(s){return document.querySelector(s)};
@@ -204,7 +205,7 @@ var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   myRides:[],inReqs:[],pays:[],
   wants:[],myWants:[],wtime:'08:00',rtime:'',wform:false,wErr:'',rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
   sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
-  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},chatOpen:null,hereMsg:null,locating:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
+  ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},docs:{},docKind:null,docBusy:null,docErr:'',docOpen:null,chatOpen:null,hereMsg:null,locating:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
 function T(ar,en){return S.lang==='en'?en:ar}
 
 /* ---------- errors shown on screen, so a screenshot is enough to debug ---------- */
@@ -328,7 +329,7 @@ function boot(){
 }
 function onAuth(u){
   unsubs.forEach(function(fn){try{fn()}catch(e){}});unsubs=[];got={rides:false,reqs:false};
-  unwatchLive();unwatchRL();unwatchChat();unwatchRide();S.chatOpen=null;S.draft={};S.agreed=null;S.offer=null;S.ph={};PHW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.wants=[];S.myWants=[];S.wform=false;S.ad=null;
+  unwatchLive();unwatchRL();unwatchChat();unwatchRide();S.chatOpen=null;S.draft={};S.agreed=null;S.offer=null;S.ph={};PHW={};S.docs={};DOCW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.wants=[];S.myWants=[];S.wform=false;S.ad=null;
   S.view='main';S.dv='home';S.rv='home';S.routes=null;S.confirmed=false;S.found=null;S.pick=null;S.pt=null;
   if(!u){S.gate='auth';showGate();return}
   S.gate='boot';S.bootMsg=T('عم نفتح حسابك…','Opening your account…');showGate();
@@ -601,6 +602,25 @@ function savePhoto(file){if(!file)return;S.phBusy=true;S.phErr='';render();
   img.src=url}
 function photoNudge(){return S.user&&S.ph[S.user.uid]===''?'<div class="banner col" style="gap:8px"><div>'+T('زيد صورة لوجهك، ليتعرّف عليك اللي طالع معك.','Add a photo of your face so the person you ride with can recognise you.')+'</div><button class="btn sm sun" type="button" id="addphoto"'+(S.phBusy?' disabled':'')+'>'+T('صوّر وجهك','Take a photo')+'</button></div>':''}
 
+/* ---------- car owner papers: ID and driving licence, kept on record, seen only by their owner and the admin ---------- */
+var DOCS={id:['الهوية','ID card'],lic:['دفتر السواقة','Driving licence']},DOCW={};
+function docsOf(uid){if(!uid)return null;if(S.docs[uid]!==undefined)return S.docs[uid];
+  if(!DOCW[uid]){DOCW[uid]=1;F.f.getDoc(ref('docs',uid)).then(function(x){S.docs[uid]=x.exists()?x.data():{};paint()}).catch(function(){S.docs[uid]={}})}
+  return null}
+function saveDoc(file){var k=S.docKind;if(!file||!DOCS[k])return;S.docBusy=k;S.docErr='';render();
+  var url=URL.createObjectURL(file),img=new Image(),bad=function(){S.docBusy=null;S.docErr=T('ما قدرنا نقرا الصورة. جرّب مرة تانية.','Could not read the photo. Try again.');render()};
+  img.onload=function(){try{var w=img.naturalWidth,h=img.naturalHeight,sc=Math.min(1,1280/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*sc);c.height=Math.round(h*sc);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);var q=.72,data=c.toDataURL('image/jpeg',q);while(data.length>380000&&q>.3){q-=.1;data=c.toDataURL('image/jpeg',q)}
+      var o={at:Date.now()};o[k]=data;F.f.setDoc(ref('docs',S.user.uid),o,{merge:true}).then(function(){var m=S.docs[S.user.uid]||{};m[k]=data;S.docs[S.user.uid]=m;S.docBusy=null;paint()})
+       .catch(function(e){S.docBusy=null;render();dbErr(T('الأوراق','papers'),e)})}catch(e){bad()}};
+  img.onerror=bad;img.src=url}
+function docsHTML(){photo(S.user.uid);var d=docsOf(S.user.uid)||{},hasFace=!!S.ph[S.user.uid],row=function(ok,label,btn){return '<div class="row between"><span>'+(ok?'<span class="tag ok">✓</span> ':'<span class="tag wait">!</span> ')+label+'</span>'+btn+'</div>'};
+  return '<div class="box col" style="gap:10px"><b>'+T('أوراقك','Your papers')+'</b><p class="sub" style="margin:0">'+T('الإدارة بتقارن صورة وجّك مع الهوية ودفتر السواقة قبل ما توافق. الصور ما حدا بيشوفها غيرك وغير الإدارة.','The admin compares your face photo with your ID and driving licence before approving. Only you and the admin can see these photos.')+'</p>'+
+   row(hasFace,T('صورة وجّك','Your face photo'),'<button class="btn sm ghost" type="button" id="addphoto"'+(S.phBusy?' disabled':'')+'>'+(hasFace?T('غيّر','Change'):T('صوّر','Take'))+'</button>')+
+   Object.keys(DOCS).map(function(k){return row(!!d[k],T(DOCS[k][0],DOCS[k][1]),'<button class="btn sm ghost" type="button" data-doc="'+k+'"'+(S.docBusy?' disabled':'')+'>'+(S.docBusy===k?T('لحظة…','One moment…'):d[k]?T('غيّر','Change'):T('صوّر','Take'))+'</button>')}).join('')+
+   (S.docErr?'<p class="err" role="alert">'+esc(S.docErr)+'</p>':'')+
+   (hasFace&&d.id&&d.lic?'<div class="okbox">'+T('أوراقك كاملة. الإدارة رح تراجعها.','Your papers are complete. The admin will review them.')+'</div>':'')+'</div>'}
+
 /* ---------- live location: the driver shares it, a confirmed rider watches it ---------- */
 // A web page can only read the position while it is open and on screen, so the driver's screen is kept awake.
 var wake=null;
@@ -675,8 +695,8 @@ var TERMS=[
   'Age and true information','You must be 18 or older, and the name, number, photo and car details you give must be your own and true.'],
  ['رسم خدني','خدني بتاخد 10% من حصة صاحب السيارة عن كل شريك مأكّد. شريك الطريق ما بيدفع رسم لخدني. بهالنسخة التجريبية الدفع كاش بين شريك الطريق وصاحب السيارة.',
   'Khedni’s fee','Khedni takes 10% of the car owner’s share for each confirmed road partner. The road partner pays Khedni nothing. In this trial version payment is in cash between road partner and car owner.'],
- ['معلوماتك','منحفظ اسمك، رقمك، صورتك، سيارتك ومشاويرك. رقمك بتشوفه الإدارة بس. صورتك واسمك بيشوفهم اللي طالع معك. موقعك بينبعت بس لما إنت تكبس "شارك موقعي"، وبس للطرف التاني بالمشوار. ممكن نسلّم معلومات للسلطات إذا القانون طلب.',
-  'Your information','We store your name, number, photo, car and rides. Only the admin sees your number. The person you ride with sees your photo and name. Your location is sent only when you tap “share my location”, and only to the other party of that ride. We may hand information to the authorities when the law requires.'],
+ ['معلوماتك','منحفظ اسمك، رقمك، صورتك، سيارتك ومشاويرك. صاحب السيارة بيرفع صورة هويته ودفتر سواقته، ومنحتفظ فيهم كسجلّ، وما حدا بيشوفهم غير صاحبهم والإدارة. رقمك بتشوفه الإدارة بس. صورتك واسمك بيشوفهم اللي طالع معك. موقعك بينبعت بس لما إنت تكبس "شارك موقعي"، وبس للطرف التاني بالمشوار. ممكن نسلّم معلومات للسلطات إذا القانون طلب.',
+  'Your information','We store your name, number, photo, car and rides. A car owner uploads a photo of their ID and driving licence; we keep them on record, and only their owner and the admin can see them. Only the admin sees your number. The person you ride with sees your photo and name. Your location is sent only when you tap “share my location”, and only to the other party of that ride. We may hand information to the authorities when the law requires.'],
  ['الأوقات تقريبية','أوقات الوصول والعجقة جايين من خرائط جوجل وهنّي تقديرات، مش ضمانة.',
   'Times are estimates','Arrival and traffic times come from Google Maps and are estimates, not guarantees.'],
  ['نسخة تجريبية','هيدي نسخة تجريبية. الشروط ممكن تتغيّر، وساعتها منطلب موافقتك من جديد. القانون اللبناني هو المطبّق.',
@@ -865,7 +885,7 @@ function driverHTML(){var st=S.me.dstatus||'none';
     '<div class="field"><label for="ap-car">'+T('نوع السيارة ولونها','Car model and colour')+'</label><input type="text" id="ap-car" data-af="car" value="'+esc(S.af.car)+'" placeholder="'+T('مثلاً: كيا ريو فضّية','e.g. silver Kia Rio')+'"></div>'+
     '<div class="field"><label for="ap-plate">'+T('رقم اللوحة','Plate number')+'</label><input type="text" id="ap-plate" class="ltr" data-af="plate" value="'+esc(S.af.plate)+'" placeholder="B 123456"></div>'+
     (S.applyErr?'<p class="err" role="alert">'+esc(S.applyErr)+'</p>':'')+'<button class="btn sun" type="button" id="apply">'+T('ابعت الطلب','Send the request')+'</button>';
-  if(st==='pending')return '<h2>'+T('طلبك عند الإدارة','Your request is with the admin')+'</h2><div class="banner">'+T('بس توافق الإدارة على حسابك، بتصير تقدر تنشر مشاوير. لبين هيك فيك تطلع كشريك طريق.','Once the admin approves your account you can post rides. Until then you can still ride as a road partner.')+'</div>'+carBox();
+  if(st==='pending')return '<h2>'+T('طلبك عند الإدارة','Your request is with the admin')+'</h2><div class="banner">'+T('بس توافق الإدارة على حسابك، بتصير تقدر تنشر مشاوير. لبين هيك فيك تطلع كشريك طريق.','Once the admin approves your account you can post rides. Until then you can still ride as a road partner.')+'</div>'+docsHTML()+carBox();
   if(st==='blocked')return '<h2>'+T('حساب صاحب السيارة موقوف','Car owner account paused')+'</h2><div class="banner">'+T('الإدارة وقّفت حسابك كصاحب سيارة. احكي معها لتعرف السبب.','The admin paused your car owner account. Contact them to find out why.')+'</div>';
   if(S.dv==='new')return newRideHTML();
   if(S.dv==='reroute'){var RX=myRide(S.rideId);if(RX)return rerouteHTML(RX);S.dv='home'}
@@ -993,6 +1013,7 @@ function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(
      '<span class="meta">'+(y.m.pu.cum<80?'<span class="tag ok">'+T('طالع من حدّك','starts near you')+'</span>':'')+(y.m.pu.d<=1000?'<span>'+walkTxt(y.m.pu.d)+'</span>':'<span class="tag wait">'+T('طريقه على بعد ','road is ')+mTxt(y.m.pu.d)+T('',' away')+'</span>')+'<span>'+T('بتنزل ','out at ')+hm(y.m.drAt)+'</span><span>'+y.R.seatsLeft+' '+T('مقاعد','seats')+'</span><span dir="ltr">$'+share(y.m.price,rN(null,y.R))+'</span></span></button>'}).join('')+
    '<div class="box" style="border:2px solid var(--brand)"><div class="row">'+face(R.driverId,52)+'<span class="big" dir="ltr">'+hm(m.puAt)+'</span><div class="grow"><b>'+(m.near?esc(R.driverName)+T(' بيمرق حدّك (تقريبي)',' passes you (approximate)'):T('بيوصل لأقرب نقطة عطريق ','Reaches the nearest point on the road of ')+esc(R.driverName)+T(' (تقريبي)',' (approximate)'))+'</b><p class="sub">'+(m.pu.d<=1000?walkTxt(m.pu.d)+T(' لنقطة الطلعة',' to the pick-up point'):T('الطريق بعيد عنك ','The road is ')+mTxt(m.pu.d)+T('',' from you'))+'</p></div></div>'+
    (m.near?'':'<div class="banner">'+T('صاحب السيارة ما بيمرق حدّك بالضبط: أقرب نقطة عطريقه على بعد '+mTxt(m.pu.d)+' منك. ابعت طلب، وهو بيقبل أو بيقترح نقطة طلعة عطريقه، وفيكم تتّفقوا بالرسائل.','The car owner does not pass right by you: the nearest point on their road is '+mTxt(m.pu.d)+' away. Send a request; they can accept or propose a pick-up point on their way, and you can agree by message.')+'</div>')+
+   '<div class="okbox" style="padding:8px 12px">✓ '+T('خدني شافت هوية صاحب السيارة ودفتر سواقته','Khedni has checked the car owner’s ID and driving licence')+'</div>'+
    '<div class="kv"><span>'+T('مشواره','Their ride')+'</span><b>'+esc(R.fromText)+ARROW()+esc(R.toText)+'</b></div>'+
    '<div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(m.drAt)+'</b></div><div class="kv"><span>'+T('بتطلع معه','You ride')+'</span><b>'+kmTxt(m.m)+'</b></div>'+
    '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش لصاحب السيارة)','Your share of the cost (cash to the car owner)')+'</span>'+money(share(m.price,rN(null,R)))+'</div><div class="kv"><span>'+T('رسم خدني عليك','Khedni’s fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
@@ -1065,16 +1086,23 @@ function adminHTML(){var A=S.ad,head=backRow(T('لوحة الإدارة','Admin 
   A.reqs.forEach(function(q){var f=r2(share(q.price,per[q.rideId])*FEE);fee[q.driverId]=(fee[q.driverId]||0)+f;tf+=f});
   A.pays.forEach(function(p){paid[p.driverId]=(paid[p.driverId]||0)+(p.amount||0);tp+=p.amount||0});
   var pend=A.users.filter(function(u){return u.dstatus==='pending'}),drv=A.users.filter(function(u){return u.dstatus==='active'||u.dstatus==='blocked'}),shared=S.cfg&&S.cfg.mapsKey;
+  var papers=function(u){var d=docsOf(u.id);if(!d)return '<p class="sub">'+T('عم نجيب الأوراق…','Loading papers…')+'</p>';
+    var im=function(k,label){return '<div class="col" style="gap:4px"><span class="lbl">'+label+'</span>'+(k?'<img src="'+k+'" alt="'+label+'" style="width:100%;border-radius:10px;border:1px solid var(--line)">':'<span class="tag no">'+T('ما رفعها','Not uploaded')+'</span>')+'</div>'};
+    return im(S.ph[u.id]||'',T('صورة الوجّ','Face photo'))+im(d.id||'',T('الهوية','ID card'))+im(d.lic||'',T('دفتر السواقة','Driving licence'))+(d.at?'<p class="sub">'+T('آخر رفع: ','Last upload: ')+dayOf(d.at)+' '+hm(d.at)+'</p>':'')};
+  var full=function(u){var d=docsOf(u.id);return !!(d&&d.id&&d.lic&&S.ph[u.id])};
   var who=function(u){return '<div class="row">'+face(u.id,52)+'<div class="grow kv"><span>'+esc(u.name)+(S.ph[u.id]===''?' · '+T('بلا صورة','no photo'):'')+'</span><b dir="ltr">'+esc(showPhone(u.phone))+'</b></div></div><div class="kv"><span>'+esc(u.car||'—')+'</span><b dir="ltr">'+esc(u.plate||'—')+'</b></div>'};
   return head+
    '<div class="box"><div class="kv"><span>'+T('كل الحسابات','All accounts')+'</span><b>'+A.users.length+'</b></div><div class="kv"><span>'+T('أصحاب سيارات مفعّلين','Active car owners')+'</span><b>'+A.users.filter(function(u){return u.dstatus==='active'}).length+'</b></div>'+
    '<div class="kv"><span>'+T('حجوزات مأكّدة','Confirmed bookings')+'</span><b>'+A.reqs.length+'</b></div><div class="kv"><span>'+(feeOn()?T('رسوم خدني (10%)','Khedni fees (10%)'):T('رسوم خدني (10%)، لو كانت شغّالة','Khedni fees (10%), if switched on'))+'</span>'+money(tf)+'</div>'+
    '<div class="kv"><span>'+T('قبضت منهم','Collected')+'</span>'+money(tp)+'</div><div class="kv"><span>'+T('بعد إلك','Still owed to you')+'</span>'+money(tf-tp)+'</div></div>'+
    '<h3>'+T('أصحاب سيارات ناطرين الموافقة','Car owners awaiting approval')+' ('+pend.length+')</h3>'+
-   (pend.length?pend.map(function(u){return '<div class="box">'+who(u)+'<div class="grid2"><button class="btn ghost" type="button" data-ust="blocked" data-u="'+u.id+'">'+T('ارفض','Reject')+'</button><button class="btn pri" type="button" data-ust="active" data-u="'+u.id+'">'+T('وافق','Approve')+'</button></div></div>'}).join(''):'<p class="sub">'+T('ما في طلبات جديدة.','No new requests.')+'</p>')+
+   (pend.length?pend.map(function(u){var ok=full(u);return '<div class="box">'+who(u)+papers(u)+
+     (ok?'<p class="sub">'+T('قارن الوجّ بالصور، وتأكّد إنّ الاسم نفسه وإنّ الأوراق مش منتهية.','Compare the face with the photos, and check the name matches and the papers have not expired.')+'</p>':'<div class="banner">'+T('ما فيك توافق قبل ما تكون صورة الوجّ والهوية ودفتر السواقة موجودين.','You cannot approve until the face photo, ID and driving licence are all uploaded.')+'</div>')+
+     '<div class="grid2"><button class="btn ghost" type="button" data-ust="blocked" data-u="'+u.id+'">'+T('ارفض','Reject')+'</button><button class="btn pri" type="button" data-ust="active" data-u="'+u.id+'"'+(ok?'':' disabled')+'>'+T('شفت الأوراق · وافق','Papers checked · approve')+'</button></div></div>'}).join(''):'<p class="sub">'+T('ما في طلبات جديدة.','No new requests.')+'</p>')+
    '<h3>'+T('أصحاب السيارات','Car owners')+' ('+drv.length+')</h3>'+
    (drv.length?drv.map(function(u){var owed=r2((fee[u.id]||0)-(paid[u.id]||0));
-     return '<div class="box">'+who(u)+'<div class="kv"><span>'+(owed>=0?T('عليه لخدني','Owes Khedni'):T('إله رصيد','Has credit'))+'</span>'+money(Math.abs(owed))+'</div>'+
+     return '<div class="box">'+who(u)+(u.verAt?'<div class="kv"><span>'+T('الأوراق انشافت','Papers checked')+'</span><b>'+dayOf(u.verAt)+'</b></div>':'')+
+      '<button class="btn sm ghost" type="button" data-docopen="'+u.id+'">'+(S.docOpen===u.id?T('خبّي الأوراق','Hide papers'):T('شوف الأوراق','View papers'))+'</button>'+(S.docOpen===u.id?papers(u):'')+'<div class="kv"><span>'+(owed>=0?T('عليه لخدني','Owes Khedni'):T('إله رصيد','Has credit'))+'</span>'+money(Math.abs(owed))+'</div>'+
       (u.dstatus==='blocked'?'<div class="row between">'+dTag('blocked')+'<button class="btn sm ghost" type="button" data-ust="active" data-u="'+u.id+'">'+T('رجّع فعّله','Reactivate')+'</button></div>':
        '<div class="inrow"><input type="number" id="pay-'+u.id+'" data-pay="'+u.id+'" inputmode="decimal" min="0" step="0.5" value="'+esc(S.pay[u.id]||'')+'" placeholder="$" aria-label="'+T('مبلغ الدفعة بالدولار','Payment amount in dollars')+'"><button class="btn sm pri" type="button" data-paid="'+u.id+'">'+T('سجّل دفعة','Record payment')+'</button></div>'+
        '<button class="btn sm ghost" type="button" data-ust="blocked" data-u="'+u.id+'">'+T('وقّف صاحب السيارة هيدا','Pause this car owner')+'</button>')+'</div>'}).join(''):'<p class="sub">'+T('ما في أصحاب سيارات بعد.','No car owners yet.')+'</p>')+
@@ -1091,7 +1119,7 @@ function adminHTML(){var A=S.ad,head=backRow(T('لوحة الإدارة','Admin 
      '<button class="btn sun" type="button" id="sharekey"'+(S.key?'':' disabled')+'>'+T('شارك المفتاح مع كل المستخدمين','Share the key with all users')+'</button>')+
    (shared?'<button class="btn ghost" type="button" id="unsharekey">'+T('وقّف مشاركة المفتاح','Stop sharing the key')+'</button>':'');
 }
-function loadAdmin(){var f=F.f;S.adBusy=true;S.ph={};PHW={};render();
+function loadAdmin(){var f=F.f;S.adBusy=true;S.ph={};PHW={};S.docs={};DOCW={};render();
   Promise.all([f.getDocs(col('users')),f.getDocs(f.query(col('requests'),f.where('status','==','accepted'))),f.getDocs(col('payments'))])
    .then(function(r){S.ad={users:rows(r[0]).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)}),reqs:rows(r[1]),pays:rows(r[2])};S.adBusy=false;render()})
    .catch(function(e){S.adBusy=false;render();dbErr(T('الإدارة','admin'),e)});
@@ -1144,7 +1172,7 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,false);
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value),rr=S.routes&&S.routes[S.sel];if(v>0)S.price=rr?Math.min(r2(v),capPrice(rr.dist)):r2(v)}});
 document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
-document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value;if(e.target.id==='in-rtime'){S.rtime=e.target.value||'';if(S.rtime)S.wtime=S.rtime;render()}if(e.target.id==='in-wtime'&&e.target.value)S.wtime=e.target.value;if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,true)});
+document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='docfile'){saveDoc(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value;if(e.target.id==='in-rtime'){S.rtime=e.target.value||'';if(S.rtime)S.wtime=S.rtime;render()}if(e.target.id==='in-wtime'&&e.target.value)S.wtime=e.target.value;if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,true)});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
   if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
@@ -1189,6 +1217,8 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.wnew){var wn2=S.wants.filter(function(w){return w.id===d.wnew})[0];if(!wn2)return;S.dv='new';resetNew();var wd2=new Date(wn2.at-10*60000);
     S.from={text:wn2.fromText,lat:wn2.from.lat,lng:wn2.from.lng};S.to={text:wn2.toText,lat:wn2.to.lat,lng:wn2.to.lng};S.time=pad(wd2.getHours())+':'+pad(wd2.getMinutes());S.days=[ymd(wd2)];paint();return}
   if(d.wcancel){f.updateDoc(ref('wants',d.wcancel),{status:'cancelled'}).catch(fail(T('الطلب','request')));return}
+  if(d.doc){S.docKind=d.doc;var di=$('#docfile');di.value='';di.click();return}
+  if(d.docopen){S.docOpen=S.docOpen===d.docopen?null:d.docopen;render();return}
   if(t.id==='addphoto'){var inp=$('#selfie');inp.value='';inp.click();return}
   if(d.rej){q=inReq(d.rej);if(q)setReq(q,'rejected','driver');return}
   if(d.chat){S.chatOpen=S.chatOpen===d.chat?null:d.chat;render();return}
@@ -1208,7 +1238,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.req){openReq(d.req);return}
   if(d.rcancel){q=myReq(d.rcancel);if(q){if(S.track&&S.track.docId===q.id)stopTrack();setReq(q,'cancelled','rider')}return}
   /* admin */
-  if(d.ust){f.updateDoc(ref('users',d.u),{dstatus:d.ust}).then(loadAdmin).catch(fail(T('الحساب','account')));return}
+  if(d.ust){f.updateDoc(ref('users',d.u),d.ust==='active'?{dstatus:'active',verAt:Date.now(),verBy:S.user.uid}:{dstatus:d.ust}).then(loadAdmin).catch(fail(T('الحساب','account')));return}
   if(d.paid){var amt=r2(parseFloat(digits(S.pay[d.paid])));if(!(amt>0))return;
     f.addDoc(col('payments'),{driverId:d.paid,amount:amt,at:Date.now(),by:S.user.uid}).then(function(){S.pay[d.paid]='';loadAdmin()}).catch(fail(T('الدفعة','payment')));return}
   switch(t.id){
