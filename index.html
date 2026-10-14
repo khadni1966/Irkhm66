@@ -175,6 +175,7 @@ var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
 var LIMIT=800;    // within this the ride counts as passing right by the rider
 var WSLACK=90*60000; // a posted trip request fits a ride passing within this much of the wanted time
+var NEAR=1000;     // metres: on the partner's home map, cars whose road passes this close are shown
 var REACH=5000;   // metres: rides up to this far from the rider's points are still shown, and the car owner can propose a pick-up point on the way
 var _L=LIMIT;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
@@ -203,7 +204,7 @@ var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   role:sget('kh-role')||'',view:'main',
   dv:'home',rideId:null,from:blank(),to:blank(),days:[],time:'07:30',busy:false,formErr:'',routes:null,sel:0,dep:null,confirmed:false,pt:null,seats:3,price:null,
   myRides:[],inReqs:[],pays:[],
-  wants:[],myWants:[],wtime:'08:00',rtime:'',wform:false,wErr:'',rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
+  wants:[],myWants:[],allRides:[],wsel:null,wtime:'08:00',rtime:'',wform:false,wErr:'',rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
   sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
   ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},docs:{},docKind:null,docBusy:null,docErr:'',docOpen:null,chatOpen:null,hereMsg:null,locating:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
 function T(ar,en){return S.lang==='en'?en:ar}
@@ -348,6 +349,7 @@ function enter(){
   listen(f.query(col('requests'),f.where('driverId','==',uid)),function(s){S.inReqs=rows(s);got.reqs=true;upkeep();if(S.track&&S.track.col==='live'&&S.track.pos)sendLive(true);paint()},T('الطلبات','requests'));
   listen(f.query(col('requests'),f.where('riderId','==',uid)),function(s){S.myReqs=rows(s);paint()},T('حجوزاتي','bookings'));
   listen(f.query(col('payments'),f.where('driverId','==',uid)),function(s){S.pays=rows(s);paint()},T('الدفعات','payments'));
+  listen(f.query(col('rides'),f.where('status','==','open')),function(s){S.allRides=rows(s).map(hyd);paint()},T('المشاوير','rides'));
   listen(f.query(col('wants'),f.where('status','==','open')),function(s){S.wants=rows(s);paint()},T('طلبات المشاوير','trip requests'));
   listen(f.query(col('wants'),f.where('riderId','==',uid)),function(s){S.myWants=rows(s);paint()},T('طلباتي','my trip requests'));
   listen(ref('config','app'),function(s){S.cfg=s.exists()?s.data():{};ensureMap();paint()},T('الإعدادات','settings'));
@@ -382,6 +384,16 @@ function openWants(){var now=Date.now(),uid=S.user&&S.user.uid;return S.wants.fi
 function wantFits(R,w){if(!R||R.status!=='open'||R.path.length<2)return null;var a=nearestOnPath(R,w.from),b=nearestOnPath(R,w.to);
   if(a.d>REACH||b.d>REACH||b.cum-a.cum<300)return null;var at=etaOn(R,R.dep,a.cum);if(Math.abs(at-w.at)>WSLACK)return null;
   return {pu:a,dr:b,puAt:at,drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:segPrice(R,b.cum-a.cum)}}
+// a request's start point is shown only roughly (to about 300 m) on the car owners' map
+function fuzz(p){return {lat:Math.round(p.lat/.003)*.003,lng:Math.round(p.lng/.003)*.003}}
+function areaOf(t){var p=String(t||'').split('،');return p[p.length-1].trim()||t}
+// open requests that a route being planned would serve, on any of the chosen days
+function routeWants(r){if(!r||!r.cum)return [];return openWants().filter(function(w){var v=ymd(new Date(w.at));if(S.days.indexOf(v)<0)return false;
+  return !!wantFits({path:r.path,cum:r.cum,dur:r.dur,dist:r.dist,status:'open',dep:depAt(v).getTime(),price:Math.min(S.price||suggestPrice(r.dist),capPrice(r.dist))},w)})}
+// cars on the partner's chosen day whose road passes within NEAR of the start point
+function nearCars(){if(S.rfrom.lat==null)return [];var d0=fromYmd(S.rdate||ymdIn(1)).getTime(),now=Date.now(),uid=S.user&&S.user.uid,want=S.rtime?d0+(+S.rtime.slice(0,2))*3600000+(+S.rtime.slice(3,5))*60000:0;
+  return S.allRides.filter(function(R){return R.status==='open'&&R.dep>now&&R.dep>=d0&&R.dep<d0+86400000&&R.driverId!==uid&&R.seatsLeft>0&&R.path.length>1}).map(function(R){var n=nearestOnPath(R,S.rfrom),at=etaOn(R,R.dep,n.cum);return {R:R,n:n,at:at}})
+   .filter(function(x){return x.n.d<=NEAR&&(!want||(x.at-want>=-3600000&&x.at-want<=2*3600000))}).sort(function(a,b){return a.at-b.at})}
 function myOpenWants(){var now=Date.now();return S.myWants.filter(function(w){return w.status==='open'&&w.at>now-15*60000}).sort(function(a,b){return a.at-b.at})}
 function wantFormHTML(empty){var mine=myOpenWants().filter(function(w){return ymd(new Date(w.at))===(S.rdate||ymdIn(1))&&hav(w.from,S.rfrom)<800&&hav(w.to,S.rto)<800})[0];
   if(mine)return '<div class="okbox"><b>'+T('طلبك منشور لهالنهار.','Your trip request for that day is posted.')+'</b> '+T('أول ما صاحب سيارة يعرض ياخدك، بيبيّن عندك بـ«حجوزاتي» وإنت بتأكّد.','As soon as a car owner offers to take you, it shows under “My bookings” and you confirm.')+'</div>';
@@ -421,8 +433,12 @@ function add(o){ov.push(o);return o}
 function line(path,color,w,op,z,onClick){var l=add(new google.maps.Polyline({path:path,map:map,strokeColor:color,strokeWeight:w,strokeOpacity:op,zIndex:z}));l.addListener('click',onClick||tapEvt);return l}
 function pin(pos,label){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}))}
 function dot(pos,fill){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:20,icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:fill,fillOpacity:1,strokeColor:'#0E1F1A',strokeWeight:3}}))}
-function car(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:40,label:{text:'🚗',fontSize:'18px'},icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:'#FFFFFF',fillOpacity:1,strokeColor:'#0B5D4B',strokeWeight:3}}))}
-function person(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:35,label:{text:'🧍',fontSize:'18px'},icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:'#FFFFFF',fillOpacity:1,strokeColor:'#F5B921',strokeWeight:3}}))}
+function mapIcon(name,ring,fill,ink,z){z=z||34;var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+z+'" height="'+z+'" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="'+fill+'" stroke="'+ring+'" stroke-width="2.5"/><g transform="translate(6 6) scale(.92)" fill="none" stroke="'+ink+'" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+ICP[name]+'</g></svg>';
+  return {url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(z,z),anchor:new google.maps.Point(z/2,z/2)}}
+function mk(pos,icon,zi,onClick){var m=add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:zi,icon:icon}));if(onClick&&m.addListener)m.addListener('click',onClick);return m}
+function car(pos,onClick){return mk(pos,mapIcon('car','#0B5D4B','#FFFFFF','#0B5D4B'),40,onClick)}
+function wantMark(pos,on,onClick){return mk(pos,mapIcon('user',on?'#0B5D4B':'#FFFFFF','#F5B921','#0E1F1A',on?40:32),on?45:36,onClick)}
+function person(pos){return mk(pos,mapIcon('user','#F5B921','#FFFFFF','#0E1F1A'),35)}
 function spot(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:18,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:'#F5B921',fillOpacity:1,strokeColor:'#FFFFFF',strokeWeight:2}}))}
 // a start/end pin on the new-ride or search form; drag it to fine-tune the spot
 // a pin that says "From" / "To" (من / إلى) in a coloured tag with a point at the bottom
@@ -448,7 +464,8 @@ function redraw(){
     if(S.dv==='new'&&S.routes){
       S.routes.forEach(function(r,i){var on=i===S.sel;if(S.confirmed&&!on)return;
         line(r.path,on?'#1A6FE0':'#6F7D78',on?7:5,on?1:.7,on?10:1,function(e){if(i!==S.sel&&!S.confirmed){S.sel=i;S.pt=null;paint()}else tapEvt(e)})});
-      ends(S.routes[S.sel]);if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');return}
+      ends(S.routes[S.sel]);routeWants(S.routes[S.sel]).forEach(function(w){wantMark(fuzz(w.from),false)});if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');return}
+    if(S.dv==='home'){openWants().forEach(function(w){wantMark(fuzz(w.from),S.wsel===w.id,function(){S.wsel=S.wsel===w.id?null:w.id;paint();var sh=$('#sheet');if(sh)sh.scrollTop=0})});return}
     if(S.dv==='ride'){var R=myRide(S.rideId);if(!R)return;
       line(R.path,'#1A6FE0',7,1,10);ends(R);if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');if(S.track&&S.track.docId===R.id&&S.track.pos)car(S.track.pos);
       reqsFor(R.id).forEach(function(q){if(q.status==='pending'||q.status==='offered'||q.status==='accepted'){dot(q.pu,'#F5B921');dot(q.dr,'#FFFFFF');if(q.from&&q.status!=='accepted')spot(q.from);var ri=q.status==='accepted'?rlInfo(q):null;if(ri)person(ri.pos)}});
@@ -461,7 +478,7 @@ function redraw(){
     if(S.reqRide&&S.reqRide.id===q.rideId){var RR=S.reqRide,a=nearestOnPath(RR,q.pu),b=nearestOnPath(RR,q.dr);line(RR.path,'#1A6FE0',6,.75,10);if(b.cum>a.cum)line(sub(RR,a.cum,b.cum),'#0B5D4B',9,1,15)}
     if(q.status==='rerouted'){var rm2=reMatch(q);if(q.from)spot(q.from);dot(q.dr,'#FFFFFF');if(rm2)dot(rm2.a.pos,'#1A6FE0');return}
     dot(q.pu,'#F5B921');dot(q.dr,'#FFFFFF');if(q.from&&q.status==='offered')spot(q.from);var li=q.status==='accepted'?liveInfo(q):null;if(li)car(li.pos);if(S.track&&S.track.docId===q.id&&S.track.pos)person(S.track.pos);return}}
-  if(S.rv==='home'){dragPin('rfrom','A');dragPin('rto','B');return}
+  if(S.rv==='home'){nearCars().forEach(function(x){line(x.R.path,'#0B5D4B',4,.35,5);car(x.n.pos,function(){search()})});dragPin('rfrom','A');dragPin('rto','B');return}
   if(S.rfrom.lat!=null)dot(S.rfrom,'#F5B921');
   if(S.rto.lat!=null)dot(S.rto,'#FFFFFF');
 }
@@ -868,7 +885,7 @@ function routeCard(r,i,dep,asButton,list,sel,attr){list=list||S.routes;sel=sel==
   if(list)list.forEach(function(x,k){if(x.dur<list[fastest].dur)fastest=k});
   var inner='<span class="t"><span class="name">'+(r.desc?T('عن طريق ','Via ')+esc(r.desc):T('طريق ','Route ')+(i+1))+'</span><span class="dur">'+durTxt(r.dur)+'</span></span>'+
    '<span class="meta"><span>'+kmTxt(r.dist)+'</span><span>'+T('بلا عجقة ','No traffic ')+durTxt(r.stat)+'</span><span>'+T('بتوصل ','Arrive ')+hm(arr)+'</span></span>'+
-   '<span class="meta">'+(asButton&&i===fastest&&list.length>1?'<span class="tag fast">'+T('الأسرع','Fastest')+'</span>':'')+(extra>=120?'<span class="tag jam">'+T('عجقة +','Traffic +')+durTxt(extra)+'</span>':'')+'</span>';
+   '<span class="meta">'+(asButton&&i===fastest&&list.length>1?'<span class="tag fast">'+T('الأسرع','Fastest')+'</span>':'')+(extra>=120?'<span class="tag jam">'+T('عجقة +','Traffic +')+durTxt(extra)+'</span>':'')+(function(){if(attr!=='data-route'||list!==S.routes)return '';var n=routeWants(r).length;return n?'<span class="tag wait">'+IC('user',13)+' '+(n===1?T('واحد طالب مشوار عهالطريق','1 asking for a ride on this route'):n+' '+T('طالبين مشوار عهالطريق','asking for a ride on this route'))+'</span>':''})()+'</span>';
   return asButton?'<button type="button" class="rcard" '+attr+'="'+i+'" aria-pressed="'+(i===sel)+'">'+inner+'</button>':'<div class="rcard on">'+inner+'</div>'}
 function whishHTML(L){var w=S.cfg&&S.cfg.whish;if(!w||(S.me.dstatus!=='active'&&!L.fees))return '';
   return '<div class="'+(L.owed>0?'banner':'okbox')+'">'+(L.owed>0?T('حوّل $'+L.owed+' أو أكتر عبر Whish على الرقم ','Send $'+L.owed+' or more by Whish to '):T('رسم خدني بيندفع عبر Whish على الرقم ','Khedni’s fee is paid by Whish to '))+'<b dir="ltr">'+esc(w)+'</b>'+
@@ -891,7 +908,7 @@ function driverHTML(){var st=S.me.dstatus||'none';
   if(S.dv==='reroute'){var RX=myRide(S.rideId);if(RX)return rerouteHTML(RX);S.dv='home'}
   if(S.dv==='ride'){var R=myRide(S.rideId);if(R){S.fresh=null;return rideHTML(R)}if(S.fresh===S.rideId)return '<p class="sub" role="status">'+T('عم ننشر المشوار…','Posting the ride…')+'</p>';S.dv='home'}
   var list=S.myRides.filter(function(r){return r.status==='open'}).sort(function(a,b){return a.dep-b.dep});
-  return photoNudge()+'<h2>'+T('مشاويري','My rides')+'</h2>'+
+  return photoNudge()+wantSelHTML()+'<h2>'+T('مشاويري','My rides')+'</h2>'+
     (list.length?list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
       return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
        '<span class="meta"><span>'+dayOf(R.dep)+'</span><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+
@@ -899,8 +916,12 @@ function driverHTML(){var st=S.me.dstatus||'none';
      '<div class="banner">'+T('ما عندك مشوار منشور. انشر المشوار اللي نازل فيه أصلاً، واللي عطريقك بيشاركوك كلفته.','You have no posted ride. Post the trip you are making anyway, and people on your way share its cost with you.')+'</div>')+
     '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+wantsListHTML(list)+ledgerHTML();
 }
+function wantSelHTML(){var w=S.wsel&&openWants().filter(function(x){return x.id===S.wsel})[0];if(!w){S.wsel=null;return ''}
+  return '<div class="box col" style="gap:8px;border:2px solid var(--sun)"><div class="row">'+face(w.riderId,40)+'<div class="grow"><b>'+T('حدا طالب مشوار من ','Someone wants a ride from ')+esc(areaOf(w.fromText))+'</b><br><span class="sub">'+dayOf(w.at)+' · <span dir="ltr">'+hm(w.at)+'</span>'+T(' · لـ ',' · to ')+esc(areaOf(w.toText))+'</span></div></div>'+
+   '<div class="grid2"><button class="btn sm ghost" type="button" id="wselx">'+T('سكّر','Close')+'</button><button class="btn sm pri" type="button" data-wnew="'+w.id+'">'+T('انشر مشوار من هون','Post a ride from here')+'</button></div></div>'}
 function wantsListHTML(list){var ws=openWants().slice(0,20);if(!ws.length)return '';
-  return '<h2>'+T('ناس طالبين مشوار','People asking for a ride')+'</h2><p class="sub">'+T('إذا حدا منهم عطريقك، انشر مشوارك واعرض عليه يطلع معك.','If one of them is on your way, post your ride and offer them a seat.')+'</p>'+ws.map(function(w){
+  return '<h2>'+T('ناس طالبين مشوار','People asking for a ride')+'</h2><p class="sub">'+T('النقاط الصفرا عالخريطة هيي المناطق اللي في ناس طالبين يطلعوا منها. اكبس على نقطة لتعرف أكتر. إذا حدا منهم عطريقك، انشر مشوارك واعرض عليه يطلع معك.','The yellow points on the map are areas where people are asking for a ride. Tap one to learn more. If one of them is on your way, post your ride and offer them a seat.')+'</p>'+
+   '<button class="btn sm ghost" type="button" id="wfit">'+IC('pin')+' '+T('شوف الطلبات عالخريطة','Show requests on the map')+'</button>'+ws.map(function(w){
     var fit=null;list.forEach(function(R){if(!fit&&R.seatsLeft>0&&wantFits(R,w))fit=R});
     return '<div class="box col" style="gap:6px"><div class="row">'+face(w.riderId,40)+'<div class="grow"><b>'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><br><span class="sub">'+esc(w.riderName)+' · '+dayOf(w.at)+' · <span dir="ltr">'+hm(w.at)+'</span></span></div></div>'+
      (fit?'<button class="btn pri sm" type="button" data-ride="'+fit.id+'">'+T('عطريق مشوارك ('+hm(fit.dep)+') · افتحه واعرض','On your ride ('+hm(fit.dep)+') · open it and offer')+'</button>':
@@ -918,6 +939,7 @@ function newRideHTML(){
    '<p class="sub">'+T('الوقت محسوب على العجقة المتوقعة بأول نهار اخترته وبهالساعة، مش عجقة هلق.','Times use the traffic expected on the first day you picked at that hour, not the traffic right now.')+'</p>';
   var head=backRow(esc(S.from.text)+ARROW()+esc(S.to.text),daysLabel()+' · '+hm(S.dep),'edit',T('غيّر','Edit'));
   if(!S.confirmed)return head+S.routes.map(function(r,i){return routeCard(r,i,S.dep,true)}).join('')+ptHTML()+
+   (S.routes.some(function(r){return routeWants(r).length})?'<div class="banner">'+T('النقاط الصفرا عالخريطة هيي ناس طالبين مشوار عالطريق اللي مختارو. اختار الطريق اللي بيمرق حدّ أكتر ناس، وبعد ما تنشر بتعرض عليهم يطلعوا معك.','The yellow points on the map are people asking for a ride on the selected route. Pick the route that passes the most people; after posting you can offer them a seat.')+'</div>':'')+
    '<p class="sub">'+(S.routes.length>1?T('اكبس على الطريق اللي نازل فيه، من اللايحة أو من الخريطة.','Tap the route you will take, in the list or on the map.'):T('جوجل عطت طريق واحد بس لهالمشوار.','Google returned a single route for this trip.'))+'</p>'+
    '<button class="btn sun" type="button" id="confirm">'+T('هيدا طريقي','This is my route')+'</button>';
   var r=S.routes[S.sel];if(S.price==null)S.price=suggestPrice(r.dist);S.price=Math.min(S.price,capPrice(r.dist));
@@ -1000,6 +1022,8 @@ function riderHTML(){
    '<div class="row" style="flex-wrap:wrap;margin-top:6px"><button type="button" class="chip" id="anytime" aria-pressed="'+(!S.rtime)+'">'+T('أي وقت بالنهار','Any time of day')+'</button></div>'+
    '<p class="sub" style="margin:4px 0 0">'+(S.rtime?T('بنبيّنلك المشاوير اللي بتمرق حدّك بين ساعة قبل وساعتين بعد '+S.rtime+'.','We show rides passing you from an hour before to two hours after '+S.rtime+'.'):T('ما حطّيت ساعة، فبنبيّنلك كل مشاوير النهار.','No time set, so we show every ride that day.'))+'</p></div>'+
    (S.rErr?'<p class="err" role="alert">'+esc(S.rErr)+'</p>':'')+
+   (function(){if(S.rfrom.lat==null)return '';var nc=nearCars();return nc.length?'<div class="okbox">'+IC('car')+' <b>'+nc.length+' '+T('سيارة بتمرق ضمن كيلومتر منك بهالنهار','car'+(nc.length>1?'s pass':' passes')+' within a kilometre of you that day')+'</b> · '+nc.slice(0,4).map(function(x){return '<span dir="ltr">'+hm(x.at)+'</span>'}).join('، ')+'<br><span class="sub">'+T('شوفهم عالخريطة، أو كبّس «مين نازل عطريقي؟» لتعرف مين بيوصلك لوين رايح.','See them on the map, or tap “Who is going my way?” to find who goes where you are going.')+'</span></div>':
+     '<p class="sub">'+T('بعد ما في سيارة بتمرق ضمن كيلومتر منك بهالنهار.','No car passes within a kilometre of you that day yet.')+'</p>'})()+
    '<button class="btn sun" type="button" id="rgo"'+(S.rbusy?' disabled':'')+'>'+(S.rbusy?T('عم نفتّش…','Searching…'):T('مين نازل عطريقي؟','Who is going my way?'))+'</button>'+
    '<p class="sub">'+T('بنفتّش بين أصحاب السيارات اللي نازلين أصلاً بهالنهار، وبنبيّنلك اللي طريقهم بيمرق حدّك. بتشاركهم بكلفة المشوار، وهيك بتخفّ كلفة نقلك.','We look through the car owners already making a trip that day and show the ones whose road passes near you. You share the cost of the trip with them and spend less on getting around.')+'</p>';
 }
@@ -1172,7 +1196,7 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,false);
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value),rr=S.routes&&S.routes[S.sel];if(v>0)S.price=rr?Math.min(r2(v),capPrice(rr.dist)):r2(v)}});
 document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
-document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='docfile'){saveDoc(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value;if(e.target.id==='in-rtime'){S.rtime=e.target.value||'';if(S.rtime)S.wtime=S.rtime;render()}if(e.target.id==='in-wtime'&&e.target.value)S.wtime=e.target.value;if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,true)});
+document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='docfile'){saveDoc(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate'){S.rdate=e.target.value;paint()}if(e.target.id==='in-rtime'){S.rtime=e.target.value||'';if(S.rtime)S.wtime=S.rtime;render()}if(e.target.id==='in-wtime'&&e.target.value)S.wtime=e.target.value;if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,true)});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
   if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
@@ -1291,6 +1315,8 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
    case 'rgo':var rt=$('#in-rtime');if(rt){S.rtime=rt.value||'';if(S.rtime)S.wtime=S.rtime}search();return;
    case 'anytime':S.rtime='';render();return;
    case 'anyall':S.rtime='';search();return;
+   case 'wselx':S.wsel=null;paint();return;
+   case 'wfit':var wp=openWants().map(function(w){return fuzz(w.from)});if(wp.length)fit([wp]);return;
    case 'wshow':S.wform=true;S.wErr='';render();return;
    case 'wpost':var wt=$('#in-wtime');if(wt&&wt.value)S.wtime=wt.value;if(S.rfrom.lat==null||S.rto.lat==null)return;
     var wat=new Date(fromYmd(S.rdate||ymdIn(1)).getTime());wat.setHours(+S.wtime.slice(0,2),+S.wtime.slice(3,5),0,0);
