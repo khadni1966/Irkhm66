@@ -72,7 +72,7 @@ service cloud.firestore {
     }
     match /docs/{id} {
       allow get: if si() && (id == uid() || adm());
-      allow create, update: if si() && id == uid() && !drv() && nd().keys().hasOnly(['id', 'lic', 'at']);
+      allow create, update: if si() && id == uid() && !drv() && nd().keys().hasOnly(['id', 'lic', 'car', 'at']);
     }
     match /consents/{id} {
       allow get: if si() && (id == uid() || adm());
