@@ -12,6 +12,7 @@ service cloud.firestore {
     function ch() { return nd().diff(od()).affectedKeys(); }
     function ride(r) { return get(/databases/$(database)/documents/rides/$(r)).data; }
     function req(r) { return get(/databases/$(database)/documents/requests/$(r)).data; }
+    function wt(w) { return get(/databases/$(database)/documents/wants/$(w)).data; }
     function drv() { return si() && get(/databases/$(database)/documents/users/$(uid())).data.dstatus == 'active'; }
     function mine() { return od().riderId == uid() || od().driverId == uid(); }
     function pk() { return ['status', 'by', 'updatedAt', 'pu', 'puAt', 'puText', 'price', 'fee', 'km']; }
@@ -42,10 +43,12 @@ service cloud.firestore {
     }
     match /requests/{id} {
       allow read: if si() && (mine() || adm());
-      allow create: if si() && nd().riderId == uid() && nd().driverId != uid()
-        && nd().status == 'pending' && pay()
+      allow create: if si() && nd().driverId != nd().riderId && pay()
         && ride(nd().rideId).driverId == nd().driverId
-        && ride(nd().rideId).status == 'open';
+        && ride(nd().rideId).status == 'open'
+        && ((nd().riderId == uid() && nd().status == 'pending')
+          || (nd().driverId == uid() && nd().status == 'offered' && drv()
+            && wt(nd().wantId).riderId == nd().riderId && wt(nd().wantId).status == 'open'));
       allow update: if si() && (
         (od().driverId == uid() && od().status == 'pending' && nd().status == 'offered' && drv() && pay() && ch().hasOnly(pk()))
         || (od().riderId == uid() && od().status == 'rerouted' && nd().status == 'pending' && pay()
@@ -59,6 +62,12 @@ service cloud.firestore {
           || (od().riderId == uid() && (
             (od().status in ['pending', 'offered', 'accepted', 'rerouted'] && nd().status == 'cancelled')
             || (od().status == 'offered' && nd().status == 'accepted'))))));
+    }
+    match /wants/{id} {
+      allow read: if si();
+      allow create: if si() && nd().riderId == uid() && nd().status == 'open' && nd().at is number;
+      allow update: if si() && od().riderId == uid() && ch().hasOnly(['status'])
+        && nd().status in ['matched', 'cancelled'];
     }
     match /consents/{id} {
       allow get: if si() && (id == uid() || adm());

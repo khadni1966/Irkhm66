@@ -172,6 +172,7 @@ var FB_CONFIG={apiKey:'AIzaSyDu_16hGFQWB8YO3G4u5Wtc8UIaZ_RP18U',authDomain:'khed
 var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
 var MAIL='@phone.khedni.app'; // sign-in is phone + password; Firebase needs an email shape, so the phone becomes one. No email is ever sent.
 var LIMIT=800;    // within this the ride counts as passing right by the rider
+var WSLACK=90*60000; // a posted trip request fits a ride passing within this much of the wanted time
 var REACH=5000;   // metres: rides up to this far from the rider's points are still shown, and the car owner can propose a pick-up point on the way
 var _L=LIMIT;    // metres: how far a rider's point may be from the driver's road and still count as "on the way"
 var FEE=0.10;     // Khedni's share, taken from the driver's part
@@ -200,7 +201,7 @@ var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   role:sget('kh-role')||'',view:'main',
   dv:'home',rideId:null,from:blank(),to:blank(),days:[],time:'07:30',busy:false,formErr:'',routes:null,sel:0,dep:null,confirmed:false,pt:null,seats:3,price:null,
   myRides:[],inReqs:[],pays:[],
-  rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
+  wants:[],myWants:[],wtime:'08:00',wform:false,wErr:'',rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
   sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
   ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},chatOpen:null,hereMsg:null,locating:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
 function T(ar,en){return S.lang==='en'?en:ar}
@@ -326,7 +327,7 @@ function boot(){
 }
 function onAuth(u){
   unsubs.forEach(function(fn){try{fn()}catch(e){}});unsubs=[];got={rides:false,reqs:false};
-  unwatchLive();unwatchRL();unwatchChat();unwatchRide();S.chatOpen=null;S.draft={};S.agreed=null;S.offer=null;S.ph={};PHW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.ad=null;
+  unwatchLive();unwatchRL();unwatchChat();unwatchRide();S.chatOpen=null;S.draft={};S.agreed=null;S.offer=null;S.ph={};PHW={};S.track=null;S.trackErr='';S.user=u;S.me=null;S.admin=false;S.cfg=null;S.myRides=[];S.inReqs=[];S.myReqs=[];S.pays=[];S.wants=[];S.myWants=[];S.wform=false;S.ad=null;
   S.view='main';S.dv='home';S.rv='home';S.routes=null;S.confirmed=false;S.found=null;S.pick=null;S.pt=null;
   if(!u){S.gate='auth';showGate();return}
   S.gate='boot';S.bootMsg=T('عم نفتح حسابك…','Opening your account…');showGate();
@@ -345,6 +346,8 @@ function enter(){
   listen(f.query(col('requests'),f.where('driverId','==',uid)),function(s){S.inReqs=rows(s);got.reqs=true;upkeep();if(S.track&&S.track.col==='live'&&S.track.pos)sendLive(true);paint()},T('الطلبات','requests'));
   listen(f.query(col('requests'),f.where('riderId','==',uid)),function(s){S.myReqs=rows(s);paint()},T('حجوزاتي','bookings'));
   listen(f.query(col('payments'),f.where('driverId','==',uid)),function(s){S.pays=rows(s);paint()},T('الدفعات','payments'));
+  listen(f.query(col('wants'),f.where('status','==','open')),function(s){S.wants=rows(s);paint()},T('طلبات المشاوير','trip requests'));
+  listen(f.query(col('wants'),f.where('riderId','==',uid)),function(s){S.myWants=rows(s);paint()},T('طلباتي','my trip requests'));
   listen(ref('config','app'),function(s){S.cfg=s.exists()?s.data():{};ensureMap();paint()},T('الإعدادات','settings'));
 }
 // the driver's own phone keeps each ride tidy: free seats match the accepted riders, and finished rides are closed
@@ -371,6 +374,20 @@ function reMatch(q){var R=S.reqRide;if(!R||R.id!==q.rideId||R.path.length<2)retu
 function rPay(q){return share(q.price,rN(q,S.reqRide&&S.reqRide.id===q.rideId?S.reqRide:null))}
 // the 10% fee is tracked all along but only asked for once the admin switches it on (free during the launch)
 function feeOn(){return !!(S.cfg&&S.cfg.feeOn)}
+// trip requests riders post when nobody is going their way yet; car owners see the ones on their road and offer a seat
+function openWants(){var now=Date.now(),uid=S.user&&S.user.uid;return S.wants.filter(function(w){return w.status==='open'&&w.at>now-15*60000&&w.riderId!==uid&&w.from&&w.to&&
+  !S.inReqs.some(function(x){return x.wantId===w.id&&(x.status==='pending'||x.status==='offered'||x.status==='accepted')})}).sort(function(a,b){return a.at-b.at})}
+function wantFits(R,w){if(!R||R.status!=='open'||R.path.length<2)return null;var a=nearestOnPath(R,w.from),b=nearestOnPath(R,w.to);
+  if(a.d>REACH||b.d>REACH||b.cum-a.cum<300)return null;var at=etaOn(R,R.dep,a.cum);if(Math.abs(at-w.at)>WSLACK)return null;
+  return {pu:a,dr:b,puAt:at,drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:segPrice(R,b.cum-a.cum)}}
+function myOpenWants(){var now=Date.now();return S.myWants.filter(function(w){return w.status==='open'&&w.at>now-15*60000}).sort(function(a,b){return a.at-b.at})}
+function wantFormHTML(empty){var mine=myOpenWants().filter(function(w){return ymd(new Date(w.at))===(S.rdate||ymdIn(1))&&hav(w.from,S.rfrom)<800&&hav(w.to,S.rto)<800})[0];
+  if(mine)return '<div class="okbox"><b>'+T('طلبك منشور لهالنهار.','Your trip request for that day is posted.')+'</b> '+T('أول ما صاحب سيارة يعرض ياخدك، بيبيّن عندك بـ«حجوزاتي» وإنت بتأكّد.','As soon as a car owner offers to take you, it shows under “My bookings” and you confirm.')+'</div>';
+  return '<div class="box col" style="gap:10px;border:2px solid var(--sun)"><b>'+(empty?T('انشر طلبك، وخلّي أصحاب السيارات يلاقوك','Post your trip request and let car owners find you'):T('ما في شي بيناسبك؟ انشر طلبك','Nothing suits you? Post your trip request'))+'</b>'+
+   '<p class="sub" style="margin:0">'+T('طلبك بيبقى معروض. أصحاب السيارات اللي نازلين عطريقك بيشوفوه، وفيهم يعرضوا ياخدوك (حتى لو بيغيّروا طريقهم شوي). إنت بتأكّد قبل ما شي يصير.','Your request stays up. Car owners going your way see it and can offer to take you (even with a small detour). Nothing happens until you confirm.')+'</p>'+
+   '<div class="field" style="margin:0"><label for="in-wtime">'+T('حوالي أي ساعة بدّك تطلع؟','About what time do you want to leave?')+'</label><input type="time" id="in-wtime" value="'+esc(S.wtime)+'"></div>'+
+   (S.wErr?'<p class="err" role="alert">'+esc(S.wErr)+'</p>':'')+
+   '<button class="btn sun" type="button" id="wpost"'+(S.rbusy?' disabled':'')+'>'+T('🙋 انشر طلبي','🙋 Post my request')+'</button></div>'}
 function ledger(){var fees=0,paid=0;S.inReqs.forEach(function(q){if(q.status==='accepted')fees+=r2(dPay(q)*FEE)});S.pays.forEach(function(p){paid+=p.amount||0});return {fees:r2(fees),paid:r2(paid),owed:r2(fees-paid)}}
 
 /* ---------- Google: load, map, places, routes ---------- */
@@ -433,6 +450,7 @@ function redraw(){
     if(S.dv==='ride'){var R=myRide(S.rideId);if(!R)return;
       line(R.path,'#1A6FE0',7,1,10);ends(R);if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');if(S.track&&S.track.docId===R.id&&S.track.pos)car(S.track.pos);
       reqsFor(R.id).forEach(function(q){if(q.status==='pending'||q.status==='offered'||q.status==='accepted'){dot(q.pu,'#F5B921');dot(q.dr,'#FFFFFF');if(q.from&&q.status!=='accepted')spot(q.from);var ri=q.status==='accepted'?rlInfo(q):null;if(ri)person(ri.pos)}});
+      if(R.seatsLeft>0)openWants().forEach(function(w){var m=wantFits(R,w);if(m){spot(w.from);dot(m.pu.pos,'#F5B921')}});
       if(S.offer)dot(S.offer.pos,'#1A6FE0')}
     return}
   if(S.rv==='results'&&S.found&&S.found.ok.length){var x=S.found.ok[S.fsel]||S.found.ok[0];
@@ -849,8 +867,14 @@ function driverHTML(){var st=S.me.dstatus||'none';
        '<span class="meta"><span>'+dayOf(R.dep)+'</span><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+
        (pen?'<span class="tag wait">'+pen+' '+T('طلب جديد','new request'+(pen>1?'s':''))+'</span>':'')+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+(function(){var n=0;qs.forEach(function(q){n+=unread(q.id)});return n?'<span class="tag wait">💬 '+n+'</span>':''})()+'</span></button>'}).join(''):
      '<div class="banner">'+T('ما عندك مشوار منشور. انشر المشوار اللي نازل فيه أصلاً، واللي عطريقك بيشاركوك كلفته.','You have no posted ride. Post the trip you are making anyway, and people on your way share its cost with you.')+'</div>')+
-    '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+ledgerHTML();
+    '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+wantsListHTML(list)+ledgerHTML();
 }
+function wantsListHTML(list){var ws=openWants().slice(0,20);if(!ws.length)return '';
+  return '<h2>'+T('🙋 ناس طالبين مشوار','🙋 People asking for a ride')+'</h2><p class="sub">'+T('إذا حدا منهم عطريقك، انشر مشوارك واعرض عليه يطلع معك.','If one of them is on your way, post your ride and offer them a seat.')+'</p>'+ws.map(function(w){
+    var fit=null;list.forEach(function(R){if(!fit&&R.seatsLeft>0&&wantFits(R,w))fit=R});
+    return '<div class="box col" style="gap:6px"><div class="row">'+face(w.riderId,40)+'<div class="grow"><b>'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><br><span class="sub">'+esc(w.riderName)+' · '+dayOf(w.at)+' · <span dir="ltr">'+hm(w.at)+'</span></span></div></div>'+
+     (fit?'<button class="btn pri sm" type="button" data-ride="'+fit.id+'">'+T('عطريق مشوارك ('+hm(fit.dep)+') · افتحه واعرض','On your ride ('+hm(fit.dep)+') · open it and offer')+'</button>':
+      '<button class="btn ghost sm" type="button" data-wnew="'+w.id+'">'+T('انشر مشوار عهالطريق','Post a ride on this road')+'</button>')+'</div>'}).join('')}
 function newRideHTML(){
   if(!S.routes)return backRow(T('وين نازل؟','Where are you driving?'),'','dhome',T('رجوع','Back'))+
    fieldHTML('from',T('من وين','From'))+fieldHTML('to',T('لوين','To'))+
@@ -906,7 +930,14 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
       return '<div><b>🧍 '+(ri.d<80?T('شريك الطريق واقف عند نقطة الطلعة.','The road partner is at the pick-up point.'):T('شريك الطريق بعيد ','The road partner is ')+mTxt(ri.d)+T(' عن نقطة الطلعة.',' from the pick-up point.'))+'</b>'+old+'</div>'})()+
     '<div class="row" style="flex-wrap:wrap">'+chatBtn(q)+'<button class="btn sm ghost" type="button" data-drop="'+q.id+'">'+T('الغي شريك الطريق هيدا','Cancel this road partner')+'</button></div></div>'+chatPanel(q)});
   rer.forEach(function(q){h+='<div class="banner col" style="gap:8px"><div class="row">'+face(q.riderId,44)+'<div class="grow"><b>'+esc(q.riderName)+'</b><br>'+T('غيّرت الطريق: ناطرينه يختار نقطة طلعته عالطريق الجديد.','You changed the route: waiting for them to pick a pick-up point on it.')+'</div></div>'+chatBtn(q)+'</div>'+chatPanel(q)});
-  if(!pen.length&&!off.length&&!acc.length&&!rer.length)h+='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. أول ما حدا يطلب مقعد، بيبيّن هون.','Your ride is posted and has no requests yet. A seat request appears here as soon as someone sends one.')+'</div>';
+  var wf=R.seatsLeft>0?openWants().map(function(w){return {w:w,m:wantFits(R,w)}}).filter(function(x){return x.m}):[];
+  if(wf.length)h+='<h2>'+T('🙋 ناس طالبين مشوار عطريقك','🙋 People asking for a ride on your way')+'</h2>'+wf.map(function(x){var w=x.w,m=x.m;
+    return '<div class="box col" style="gap:6px;border:2px solid var(--sun)"><div class="row">'+face(w.riderId,44)+'<div class="grow"><b>'+esc(w.riderName)+'</b><br><span class="sub">'+esc(w.fromText)+ARROW()+esc(w.toText)+'</span></div></div>'+
+     '<div class="kv"><span>'+T('بدّو يطلع حوالي','Wants to leave at about')+'</span><b>'+hm(w.at)+'</b></div><div class="kv"><span>'+T('بتمرق حدّه حوالي','You pass near them at about')+'</span><b>'+hm(m.puAt)+'</b></div>'+
+     '<div class="kv"><span>'+T('طريقك بعيد عن نقطته','Your road is this far from their point')+'</span><b>'+mTxt(m.pu.d)+'</b></div><div class="kv"><span>'+T('مشاركته بالكلفة (كاش)','Their share of the cost (cash)')+'</span>'+money(share(m.price,accN(R.id)+1))+'</div>'+
+     '<button class="btn pri" type="button" data-woffer="'+w.id+'"'+(stop?' disabled':'')+'>'+T('اعرض عليه يطلع معك','Offer them a seat')+'</button>'+
+     (m.pu.d>LIMIT?'<p class="sub" style="margin:0">'+T('بتاخده من أقرب نقطة عطريقك. إذا بدّك تمرق لعنده، فيك تغيّر الطريق أو تتّفقوا بالرسائل بعد ما يأكّد.','You pick them up at the nearest point on your road. To go to their door, change the route or agree by message once they confirm.')+'</p>':'')+'</div>'}).join('');
+  if(!pen.length&&!off.length&&!acc.length&&!rer.length&&!wf.length)h+='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. أول ما حدا يطلب مقعد، بيبيّن هون.','Your ride is posted and has no requests yet. A seat request appears here as soon as someone sends one.')+'</div>';
   return backRow(esc(R.fromText)+ARROW()+esc(R.toText),dayOf(R.dep)+' · '+hm(R.dep),'dhome',T('كل مشاويري','All my rides'))+h+
    '<div class="box"><div class="kv"><span>'+T('الطريق','Route')+'</span><b>'+(R.desc?esc(R.desc):'—')+'</b></div><div class="kv"><span>'+T('الوقت بالعجقة','Time with traffic')+'</span><b>'+durTxt(R.dur)+' · '+kmTxt(R.dist)+'</b></div>'+
    '<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seatsLeft+' / '+R.seats+'</b></div><div class="kv"><span>'+T('شركاء مأكّدين','Confirmed road partners')+'</span><b>'+acc.length+'</b></div>'+
@@ -921,7 +952,7 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
 }
 
 /* rider */
-function reqTag(q){return q.status==='rerouted'?'<span class="tag wait">'+T('غيّر طريقه · اختار نقطة','Route changed · pick a point')+'</span>':q.status==='offered'?'<span class="tag wait">'+T('صاحب السيارة اقترح نقطة · أكّد','Car owner proposed a point · confirm')+'</span>':q.status==='pending'?'<span class="tag wait">'+T('ناطر صاحب السيارة','Waiting for the car owner')+'</span>':q.status==='accepted'?'<span class="tag ok">'+T('مأكّد','Confirmed')+'</span>':q.status==='rejected'?'<span class="tag no">'+T('صاحب السيارة ما قبل','Declined')+'</span>':'<span class="tag no">'+(q.by==='driver'?T('صاحب السيارة لغى','Cancelled by the car owner'):T('ملغى','Cancelled'))+'</span>'}
+function reqTag(q){return q.status==='rerouted'?'<span class="tag wait">'+T('غيّر طريقه · اختار نقطة','Route changed · pick a point')+'</span>':q.status==='offered'?'<span class="tag wait">'+(q.wantId?T('صاحب سيارة عرض ياخدك · أكّد','A car owner offers to take you · confirm'):T('صاحب السيارة اقترح نقطة · أكّد','Car owner proposed a point · confirm'))+'</span>':q.status==='pending'?'<span class="tag wait">'+T('ناطر صاحب السيارة','Waiting for the car owner')+'</span>':q.status==='accepted'?'<span class="tag ok">'+T('مأكّد','Confirmed')+'</span>':q.status==='rejected'?'<span class="tag no">'+T('صاحب السيارة ما قبل','Declined')+'</span>':'<span class="tag no">'+(q.by==='driver'?T('صاحب السيارة لغى','Cancelled by the car owner'):T('ملغى','Cancelled'))+'</span>'}
 function liveReqs(){var now=Date.now();return S.myReqs.filter(function(q){return q.drAt>now-3*3600000&&(q.status==='pending'||q.status==='offered'||q.status==='accepted'||q.status==='rerouted'||(q.updatedAt||0)>now-12*3600000)}).sort(function(a,b){return a.puAt-b.puAt})}
 function riderHTML(){
   if(S.rv==='req'){var q=myReq(S.reqId);if(q){S.fresh=null;return reqHTML(q)}if(S.fresh===S.reqId)return '<p class="sub" role="status">'+T('عم نبعت الطلب…','Sending the request…')+'</p>';S.rv='home'}
@@ -929,6 +960,9 @@ function riderHTML(){
   var mine=liveReqs();
   return photoNudge()+(mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
      return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+(unread(q.id)?'<span class="tag wait">💬 '+unread(q.id)+'</span>':'')+'</span></button>'}).join(''):'')+
+   (function(){var ws=myOpenWants();if(!ws.length)return '';return '<h2>'+T('طلباتي المنشورة','My posted requests')+'</h2>'+ws.map(function(w){
+     return '<div class="box col" style="gap:8px"><div class="row"><b class="grow">'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><span class="dur" dir="ltr">'+hm(w.at)+'</span></div>'+
+      '<div class="row" style="flex-wrap:wrap"><span class="sub">'+dayOf(w.at)+'</span><span class="tag wait">'+T('ناطرين صاحب سيارة يعرض','Waiting for a car owner to offer')+'</span><button class="btn sm ghost" type="button" data-wcancel="'+w.id+'">'+T('شيل الطلب','Remove')+'</button></div></div>'}).join('')})()+
    '<h2>'+T('لوين رايح؟','Where are you going?')+'</h2>'+
    fieldHTML('rfrom',T('من وين بتطلع','Where you get in'))+fieldHTML('rto',T('لوين نازل','Where you get out'))+
    '<div class="field"><label for="in-rdate">'+T('أي نهار','Day')+'</label><input type="date" id="in-rdate" min="'+ymdIn(0)+'" max="'+ymdIn(AHEAD-1)+'" value="'+esc(S.rdate||ymdIn(1))+'"></div>'+
@@ -937,7 +971,7 @@ function riderHTML(){
    '<p class="sub">'+T('بنفتّش بين أصحاب السيارات اللي نازلين أصلاً بهالنهار، وبنبيّنلك اللي طريقهم بيمرق حدّك. بتشاركهم بكلفة المشوار، مش أجرة تاكسي.','We look through the car owners already making a trip that day and show the ones whose road passes near you. You share the cost of the trip with them; it is not a taxi fare.')+'</p>';
 }
 function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(S.rto.text),dayOf(fromYmd(S.rdate||ymdIn(1)).getTime()),'redit',T('غيّر','Edit'));
-  if(!f.ok.length)return head+'<div class="banner">'+(f.total?T('في '+f.total+' مشوار بهالنهار، بس ولا واحد بيمرق حدّ نقطتك (ضمن '+(REACH/1000)+' كم) أو بقي فيه مقاعد.','There are '+f.total+' rides that day, but none passes within '+(REACH/1000)+' km of your points with a free seat.'):T('ما حدا ناشر مشوار بهالنهار بعد. جرّب بعدين أو نهار تاني.','Nobody has posted a ride for that day yet. Try later or another day.'))+'</div>';
+  if(!f.ok.length)return head+'<div class="banner">'+(f.total?T('في '+f.total+' مشوار بهالنهار، بس ولا واحد بيمرق حدّ نقطتك (ضمن '+(REACH/1000)+' كم) أو بقي فيه مقاعد.','There are '+f.total+' rides that day, but none passes within '+(REACH/1000)+' km of your points with a free seat.'):T('بعد ما حدا ناشر مشوار عطريقك بهالنهار.','Nobody has posted a ride on your way that day yet.'))+'</div>'+wantFormHTML(true);
   var x=f.ok[S.fsel]||f.ok[0],m=x.m,R=x.R,mine=null;
   S.myReqs.forEach(function(q){if(q.rideId===R.id&&(q.status==='pending'||q.status==='offered'||q.status==='accepted'||q.status==='rerouted'))mine=q});
   return head+f.ok.map(function(y,i){return '<button type="button" class="rcard" data-found="'+i+'" aria-pressed="'+(i===S.fsel)+'"><span class="t"><span class="name">'+esc(y.R.driverName)+' · '+esc(y.R.car)+'</span><span class="dur" dir="ltr">'+hm(y.m.puAt)+'</span></span>'+
@@ -949,7 +983,8 @@ function resultsHTML(){var f=S.found,head=backRow(esc(S.rfrom.text)+ARROW()+esc(
    '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش لصاحب السيارة)','Your share of the cost (cash to the car owner)')+'</span>'+money(share(m.price,rN(null,R)))+'</div><div class="kv"><span>'+T('رسم خدني عليك','Khedni’s fee for you')+'</span><b>'+T('ولا شي','None')+'</b></div>'+
    '<p class="sub">'+(rN(null,R)>1?T('بتصيروا '+rN(null,R)+' شركاء. ','You would be '+rN(null,R)+' partners. '):'')+T('الكلفة بتتقسّم على كل اللي بالسيارة: لحالك $','The cost is split between everyone in the car: alone $')+share(m.price,1)+T('، شريكين $',', two road partners $')+share(m.price,2)+T('، تلاتة $',', three $')+share(m.price,3)+T(' كل واحد.',' each.')+'</p>'+
    (mine?'<div class="banner">'+T('عندك طلب على هالمشوار: ','You already have a request on this ride: ')+reqTag(mine)+'</div><button class="btn ghost" type="button" data-req="'+mine.id+'">'+T('شوف الطلب','View the request')+'</button>':
-     '<button class="btn pri" type="button" id="rreq"'+(S.rbusy?' disabled':'')+'>'+T('اطلب مقعد','Request a seat')+'</button>')+'</div>';
+     '<button class="btn pri" type="button" id="rreq"'+(S.rbusy?' disabled':'')+'>'+T('اطلب مقعد','Request a seat')+'</button>')+'</div>'+
+   (S.wform?wantFormHTML(false):'<button class="btn ghost" type="button" id="wshow">'+T('ما في شي بيناسبني؟ انشر طلبي','Nothing suits me? Post my request')+'</button>');
 }
 function reqHTML(q){var body,trip='<div class="box"><div class="row">'+face(q.driverId,52)+'<div class="grow"><b>'+esc(q.driverName)+'</b><p class="sub">'+T('صاحب السيارة','Car owner')+' · '+esc(q.car||'—')+'</p></div></div>'+
     (q.status==='accepted'?'<div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(q.plate||'—')+'</b></div>':'')+
@@ -969,7 +1004,7 @@ function reqHTML(q){var body,trip='<div class="box"><div class="row">'+face(q.dr
     (S.track&&S.track.docId===q.id?'<div class="okbox col" style="gap:8px"><div><b>'+T('صاحب السيارة عم يشوف وين إنت.','The car owner can see where you are.')+'</b> '+(S.track.pos?T('خلّي هالصفحة مفتوحة لحد ما تطلع بالسيارة.','Keep this page open until you are in the car.'):T('عم نحدّد موقعك…','Finding your position…'))+'</div><button class="btn sm ghost" type="button" id="untrack">'+T('وقّف مشاركة الموقع','Stop sharing')+'</button></div>':
       '<button class="btn sun" type="button" data-rtrack="'+q.id+'">'+T('شارك موقعي مع صاحب السيارة','Share my location with the car owner')+'</button>')+
     (S.trackErr?'<p class="err" role="alert">'+esc(S.trackErr)+'</p>':'')}
-  else if(q.status==='offered')body='<div class="box" style="border:2px solid var(--sun)"><b>'+T('صاحب السيارة موافق، وبيقترح ياخدك من نقطة على طريقه.','The car owner agrees and proposes to pick you up at a point on their route.')+'</b>'+
+  else if(q.status==='offered')body='<div class="box" style="border:2px solid var(--sun)"><b>'+(q.wantId?T('صاحب السيارة شاف طلبك، وعرض ياخدك معه من نقطة على طريقه.','The car owner saw your request and offers to take you from a point on their route.'):T('صاحب السيارة موافق، وبيقترح ياخدك من نقطة على طريقه.','The car owner agrees and proposes to pick you up at a point on their route.'))+'</b>'+
     '<div class="row"><span class="big" dir="ltr">'+hm(q.puAt)+'</span><div class="grow"><b>'+T('بيمرق عالنقطة (تقريبي)','Passes the point (approximate)')+'</b><p class="sub">'+T('النقطة الصفرا الكبيرة عالخريطة','The large yellow point on the map')+(q.from?T(' · بعيدة ',' · ')+mTxt(hav(q.from,q.pu))+T(' عن النقطة اللي اخترتها',' from the point you chose'):'')+'</p></div></div>'+
     '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش لصاحب السيارة)','Your share of the cost (cash to the car owner)')+'</span>'+money(rPay(q))+'</div>'+
     '<div class="grid2"><button class="btn ghost" type="button" data-rcancel="'+q.id+'">'+T('مش مناسب','Not for me')+'</button><button class="btn pri" type="button" data-rok="'+q.id+'">'+T('موافق، أكّد','Agree and confirm')+'</button></div></div>';
@@ -1094,7 +1129,7 @@ document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,false);
   if(e.target.id==='in-price'){var v=parseFloat(e.target.value),rr=S.routes&&S.routes[S.sel];if(v>0)S.price=rr?Math.min(r2(v),capPrice(rr.dist)):r2(v)}});
 document.addEventListener('keydown',function(e){var id=e.target.dataset&&e.target.dataset.msg;if(id&&e.key==='Enter'){e.preventDefault();sendMsg(id,e.target.value)}});
-document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value;if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,true)});
+document.addEventListener('change',function(e){if(e.target.id==='in-price'){if(S.price!=null)e.target.value=S.price;render();return}if(e.target.id==='af-terms'){S.af.terms=e.target.checked;return}if(e.target.id==='selfie'){savePhoto(e.target.files&&e.target.files[0]);return}if(e.target.id==='in-rdate')S.rdate=e.target.value;if(e.target.id==='in-wtime'&&e.target.value)S.wtime=e.target.value;if((e.target.id==='in-time'||e.target.id==='in-time2')&&e.target.value)setTime(e.target.value,true)});
 document.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;var d=t.dataset,f=F&&F.f,q,R;
   if(t.id==='errclose'){$('#errbox').hidden=true;return}
   if(t.id==='g-lang'||t.id==='b-lang'){switchLang();return}
@@ -1127,7 +1162,18 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     bb.update(ref('requests',q.id),{status:'offered',by:'driver',updatedAt:Date.now(),pu:o.pos,puAt:o.at,puText:T('نقطة حدّدها صاحب السيارة عطريقه','Point set by the car owner on their route'),price:o.price,fee:r2(o.price*FEE),km:o.km});
     bb.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});S.offer=null;
     bb.commit().catch(fail(T('الاقتراح','proposal')));paint();return}
-  if(d.rok){q=myReq(d.rok);if(q)f.updateDoc(ref('requests',q.id),{status:'accepted',by:'rider',updatedAt:Date.now()}).catch(fail(T('التأكيد','confirmation')));return}
+  if(d.rok){q=myReq(d.rok);if(!q)return;var bk=f.writeBatch(db);bk.update(ref('requests',q.id),{status:'accepted',by:'rider',updatedAt:Date.now()});
+    var wm=q.wantId&&S.myWants.filter(function(w){return w.id===q.wantId&&w.status==='open'})[0];if(wm)bk.update(ref('wants',wm.id),{status:'matched'});
+    bk.commit().catch(fail(T('التأكيد','confirmation')));return}
+  if(d.woffer){R=myRide(S.rideId);var wo=S.wants.filter(function(w){return w.id===d.woffer})[0],mo=wo&&wantFits(R,wo);if(!R||!mo||R.seatsLeft<1)return;
+    var nid='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),bo=f.writeBatch(db);
+    bo.set(ref('requests',nid),{rideId:R.id,driverId:S.user.uid,riderId:wo.riderId,riderName:wo.riderName,driverName:R.driverName,car:R.car||'',plate:R.plate||'',wantId:wo.id,
+      rideFrom:R.fromText,rideTo:R.toText,dep:R.dep,puText:wo.fromText,drText:wo.toText,from:wo.from,pu:mo.pu.pos,dr:mo.dr.pos,puAt:mo.puAt.getTime(),drAt:mo.drAt.getTime(),km:Math.round(mo.m),
+      price:mo.price,fee:r2(mo.price*FEE),status:'offered',by:'driver',createdAt:Date.now(),updatedAt:Date.now()});
+    bo.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});bo.commit().catch(fail(T('العرض','offer')));return}
+  if(d.wnew){var wn2=S.wants.filter(function(w){return w.id===d.wnew})[0];if(!wn2)return;S.dv='new';resetNew();var wd2=new Date(wn2.at-10*60000);
+    S.from={text:wn2.fromText,lat:wn2.from.lat,lng:wn2.from.lng};S.to={text:wn2.toText,lat:wn2.to.lat,lng:wn2.to.lng};S.time=pad(wd2.getHours())+':'+pad(wd2.getMinutes());S.days=[ymd(wd2)];paint();return}
+  if(d.wcancel){f.updateDoc(ref('wants',d.wcancel),{status:'cancelled'}).catch(fail(T('الطلب','request')));return}
   if(t.id==='addphoto'){var inp=$('#selfie');inp.value='';inp.click();return}
   if(d.rej){q=inReq(d.rej);if(q)setReq(q,'rejected','driver');return}
   if(d.chat){S.chatOpen=S.chatOpen===d.chat?null:d.chat;render();return}
@@ -1198,7 +1244,14 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     reqsFor(R.id).forEach(function(x){if(x.status==='pending')b.update(ref('requests',x.id),{status:'rejected',by:'driver',updatedAt:Date.now()});else if(x.status==='accepted'||x.status==='offered'||x.status==='rerouted')b.update(ref('requests',x.id),{status:'cancelled',by:'driver',updatedAt:Date.now()})});
     b.commit().then(function(){S.dv='home';S.pt=null;paint()}).catch(fail(T('إلغاء المشوار','cancelling the ride')));return;
    case 'rgo':search();return;
-   case 'redit':S.rv='home';S.found=null;paint();return;
+   case 'wshow':S.wform=true;S.wErr='';render();return;
+   case 'wpost':var wt=$('#in-wtime');if(wt&&wt.value)S.wtime=wt.value;if(S.rfrom.lat==null||S.rto.lat==null)return;
+    var wat=new Date(fromYmd(S.rdate||ymdIn(1)).getTime());wat.setHours(+S.wtime.slice(0,2),+S.wtime.slice(3,5),0,0);
+    if(wat<new Date()){S.wErr=T('هالساعة مرقت. اختار ساعة جاية.','That time has passed. Pick a later one.');render();return}
+    S.wErr='';S.rbusy=true;render();
+    f.addDoc(col('wants'),{riderId:S.user.uid,riderName:S.me.name,fromText:S.rfrom.text,toText:S.rto.text,from:{lat:S.rfrom.lat,lng:S.rfrom.lng},to:{lat:S.rto.lat,lng:S.rto.lng},at:wat.getTime(),status:'open',createdAt:Date.now()})
+     .then(function(){S.rbusy=false;S.wform=false;paint()}).catch(fail(T('نشر الطلب','posting the request')));return;
+   case 'redit':S.rv='home';S.found=null;S.wform=false;paint();return;
    case 'rhome':unwatchRide();S.rv=S.found?'results':'home';S.reqId=null;S.reqRide=null;paint();return;
    case 'rreq':var x=S.found.ok[S.fsel],m=x.m;R=x.R;S.rbusy=true;render();
     f.addDoc(col('requests'),{rideId:R.id,driverId:R.driverId,riderId:S.user.uid,riderName:S.me.name,driverName:R.driverName,car:R.car||'',plate:R.plate||'',
