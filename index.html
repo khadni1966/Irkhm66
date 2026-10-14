@@ -79,6 +79,7 @@ h3{font-family:var(--display);font-size:14px;font-weight:600;margin-top:6px}
 #app{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 14px 6px 10px;background:linear-gradient(160deg,#0E6E59,#0B5D4B 55%,#084A3C);border-bottom:0}
 .top .chipbtn{width:56px;height:56px;min-height:56px;padding:0;border-radius:50%;display:inline-flex;flex-direction:column;gap:1px;align-items:center;justify-content:center;line-height:1.1;background:#FFFFFF;border:2px solid #F5B921;color:#0B5D4B;font-weight:700;font-size:12px;box-shadow:0 3px 8px rgba(0,0,0,.25)}
+.top .chipbtn{position:relative}.nbadge{position:absolute;top:-4px;inset-inline-end:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#D93025;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
 .top .chipbtn small{font-size:10px;font-weight:700}
 .top .chipbtn:active{background:#FFF1C7;transform:translateY(1px)}
 .brand{font-family:var(--display);font-size:22px;font-weight:700;color:var(--brand);display:flex;align-items:center}
@@ -204,7 +205,7 @@ var S={lang:sget('kh-lang')==='en'?'en':'ar',key:'',localKey:sget('kh-key')||'',
   role:sget('kh-role')||'',view:'main',
   dv:'home',rideId:null,from:blank(),to:blank(),days:[],time:'07:30',busy:false,formErr:'',routes:null,sel:0,dep:null,confirmed:false,pt:null,seats:3,price:null,
   myRides:[],inReqs:[],pays:[],
-  wants:[],myWants:[],allRides:[],wsel:null,wtime:'08:00',rtime:'',wform:false,wErr:'',rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
+  pendN:0,wants:[],myWants:[],allRides:[],wsel:null,wtime:'08:00',rtime:'',wform:false,wErr:'',rv:'home',rfrom:blank(),rto:blank(),rdate:'',rbusy:false,rErr:'',found:null,fsel:0,myReqs:[],reqId:null,reqRide:null,
   sug:{from:[],to:[],rfrom:[],rto:[]},pick:null,
   ad:null,adBusy:false,pay:{},applyErr:'',fresh:null,track:null,trackErr:'',live:null,rl:{},offer:null,offerFor:null,offerErr:'',chat:{},draft:{},docs:{},docKind:null,docBusy:null,docErr:'',docOpen:null,chatOpen:null,hereMsg:null,locating:null,rr:null,repick:null,whDraft:null,ph:{},phBusy:false,phErr:''};
 function T(ar,en){return S.lang==='en'?en:ar}
@@ -344,7 +345,7 @@ function enter(){
   var uid=S.user.uid,f=F.f;
   photo(uid);checkConsent();
   if(S.role!=='driver'&&S.role!=='rider')S.role=S.me.dstatus&&S.me.dstatus!=='none'?'driver':'rider';
-  f.getDoc(ref('adminping','x')).then(function(){S.admin=true;paint()}).catch(function(){S.admin=false});
+  f.getDoc(ref('adminping','x')).then(function(){S.admin=true;paint();listen(f.query(col('users'),f.where('dstatus','==','pending')),function(s){S.pendN=rows(s).length;paint()},T('الطلبات','applications'))}).catch(function(){S.admin=false});
   listen(f.query(col('rides'),f.where('driverId','==',uid)),function(s){S.myRides=rows(s).map(hyd);got.rides=true;upkeep();paint()},T('المشاوير','rides'));
   listen(f.query(col('requests'),f.where('driverId','==',uid)),function(s){S.inReqs=rows(s);got.reqs=true;upkeep();if(S.track&&S.track.col==='live'&&S.track.pos)sendLive(true);paint()},T('الطلبات','requests'));
   listen(f.query(col('requests'),f.where('riderId','==',uid)),function(s){S.myReqs=rows(s);paint()},T('حجوزاتي','bookings'));
@@ -613,7 +614,7 @@ function savePhoto(file){if(!file)return;S.phBusy=true;S.phErr='';render();
   img.onload=function(){try{var n=320,c=document.createElement('canvas'),side=Math.min(img.naturalWidth,img.naturalHeight);c.width=c.height=n;
       c.getContext('2d').drawImage(img,(img.naturalWidth-side)/2,(img.naturalHeight-side)/2,side,side,0,0,n,n);URL.revokeObjectURL(url);
       var data=c.toDataURL('image/jpeg',.72);
-      F.f.setDoc(ref('photos',S.user.uid),{img:data,at:Date.now()}).then(function(){S.ph[S.user.uid]=data;S.phBusy=false;paint()}).catch(function(e){S.phBusy=false;render();dbErr(T('الصورة','photo'),e)})}
+      F.f.setDoc(ref('photos',S.user.uid),{img:data,at:Date.now()}).then(function(){S.ph[S.user.uid]=data;S.phBusy=false;paint();notifyAdmin()}).catch(function(e){S.phBusy=false;render();dbErr(T('الصورة','photo'),e)})}
     catch(e){S.phBusy=false;S.phErr=T('ما قدرنا نقرا الصورة. جرّب مرة تانية.','Could not read the photo. Try again.');render()}};
   img.onerror=function(){S.phBusy=false;S.phErr=T('ما قدرنا نقرا الصورة. جرّب مرة تانية.','Could not read the photo. Try again.');render()};
   img.src=url}
@@ -628,9 +629,14 @@ function saveDoc(file){var k=S.docKind;if(!file||!DOCS[k])return;S.docBusy=k;S.d
   var url=URL.createObjectURL(file),img=new Image(),bad=function(){S.docBusy=null;S.docErr=T('ما قدرنا نقرا الصورة. جرّب مرة تانية.','Could not read the photo. Try again.');render()};
   img.onload=function(){try{var w=img.naturalWidth,h=img.naturalHeight,sc=Math.min(1,1280/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*sc);c.height=Math.round(h*sc);
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);var q=.72,data=c.toDataURL('image/jpeg',q);while(data.length>380000&&q>.3){q-=.1;data=c.toDataURL('image/jpeg',q)}
-      var o={at:Date.now()};o[k]=data;F.f.setDoc(ref('docs',S.user.uid),o,{merge:true}).then(function(){var m=S.docs[S.user.uid]||{};m[k]=data;S.docs[S.user.uid]=m;S.docBusy=null;paint()})
+      var o={at:Date.now()};o[k]=data;F.f.setDoc(ref('docs',S.user.uid),o,{merge:true}).then(function(){var m=S.docs[S.user.uid]||{};m[k]=data;S.docs[S.user.uid]=m;S.docBusy=null;paint();notifyAdmin()})
        .catch(function(e){S.docBusy=null;render();dbErr(T('الأوراق','papers'),e)})}catch(e){bad()}};
   img.onerror=bad;img.src=url}
+// tells the admin by email (through FormSubmit, to info@) once a car owner's papers are complete; no photos or phone number are sent
+function notifyAdmin(){var u=S.user&&S.user.uid,d=S.docs[u]||{};if(!u||!S.me||S.me.dstatus!=='pending'||!S.ph[u]||!d.lic||!d.car||sget('kh-told-'+u))return;sset('kh-told-'+u,'1');
+  fetch('https://formsubmit.co/ajax/info@khedni.app',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify({_subject:'خدني: صاحب سيارة جديد ناطر الموافقة · '+S.me.name,_template:'table',_captcha:'false','الاسم':S.me.name,'السيارة':S.me.car||'','اللوحة':S.me.plate||'','شو لازم تعمل':'افتح https://khedni.app ← حسابي ← لوحة الإدارة، قارن الصور ووافق أو ارفض.'})})
+   .catch(function(){sdel('kh-told-'+u)})}
 function docsHTML(){photo(S.user.uid);var d=docsOf(S.user.uid)||{},hasFace=!!S.ph[S.user.uid],row=function(ok,label,btn){return '<div class="row between"><span>'+(ok?'<span class="tag ok">✓</span> ':'<span class="tag wait">!</span> ')+label+'</span>'+btn+'</div>'};
   return '<div class="box col" style="gap:10px"><b>'+T('أوراقك','Your papers')+'</b><p class="sub" style="margin:0">'+T('الإدارة بتقارن وجّك مع دفتر السواقة، ورقم اللوحة مع دفتر السيارة. إذا السيارة مش باسمك أو مستأجرة، ما في مشكلة: المهم رقم اللوحة. الصور ما حدا بيشوفها غيرك وغير الإدارة.','The admin compares your face with your driving licence, and the plate with the car papers. If the car is not in your name or is rented, that is fine: the plate is what matters. Only you and the admin can see these photos.')+'</p>'+
    row(hasFace,T('صورة وجّك','Your face photo'),'<button class="btn sm ghost" type="button" id="addphoto"'+(S.phBusy?' disabled':'')+'>'+(hasFace?T('غيّر','Change'):T('صوّر','Take'))+'</button>')+
@@ -1153,7 +1159,7 @@ var PICKTXT={repick:['نقطة طلعتك عالطريق الجديد','your pic
 var lastHTML=null;
 function render(){
   if(S.gate||!S.me)return;
-  var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-light.png?v=4" width="127" height="60" alt="">';bi=$('#brand img')}bi.alt='خدني Khedni';var bl=$('#b-lang'),ba=$('#b-acct');bl.textContent=T('English','عربي');bl.setAttribute('aria-label',T('English','عربي'));bl.title=T('English','عربي');var acc=S.view==='main';ba.innerHTML=acc?'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="currentColor"/></svg><small>'+T('حسابي','Account')+'</small>':'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" transform="'+(S.lang==='ar'?'rotate(180 12 12)':'')+'"/></svg><small>'+T('رجوع','Back')+'</small>';ba.setAttribute('aria-label',acc?T('حسابي','Account'):T('رجوع','Back'));ba.title=ba.getAttribute('aria-label');
+  var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-light.png?v=4" width="127" height="60" alt="">';bi=$('#brand img')}bi.alt='خدني Khedni';var bl=$('#b-lang'),ba=$('#b-acct');bl.textContent=T('English','عربي');bl.setAttribute('aria-label',T('English','عربي'));bl.title=T('English','عربي');var acc=S.view==='main';ba.innerHTML=acc?'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="currentColor"/></svg><small>'+T('حسابي','Account')+'</small>':'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" transform="'+(S.lang==='ar'?'rotate(180 12 12)':'')+'"/></svg><small>'+T('رجوع','Back')+'</small>';if(S.admin&&S.pendN)ba.innerHTML+='<span class="nbadge" aria-hidden="true">'+S.pendN+'</span>';ba.setAttribute('aria-label',(acc?T('حسابي','Account'):T('رجوع','Back'))+(S.admin&&S.pendN?' · '+S.pendN+T(' طلب ناطر',' waiting'):''));ba.title=ba.getAttribute('aria-label');
   var h=$('#hint');
   var fs=formSlots(),nx=fs&&(S[fs[0]].lat==null?fs[0]:S[fs[1]].lat==null?fs[1]:null);
   if(S.pick&&S.view==='main'){h.hidden=false;h.textContent=T('اكبس عالخريطة لتحط ','Tap the map to set ')+T(PICKTXT[S.pick][0],PICKTXT[S.pick][1])}
