@@ -534,9 +534,9 @@ function wantMark(pos,on,onClick){return mk(pos,mapIcon('user',on?'#0B5D4B':'#FF
 function person(pos){return mk(pos,mapIcon('user','#F5B921','#FFFFFF','#0E1F1A'),35)}
 // where a road partner gets in (person icon) and gets out (small white dot)
 var PICKUP=null;
-function pickup(pos){if(!PICKUP){var g='<circle cx="16" cy="9" r="5"/><path d="M6 29c0-6 4.5-10 10-10s10 4 10 10"/>',svg='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#FFFFFF" stroke-width="5.5">'+g+'</g><g stroke="#0E1F1A" stroke-width="2.6">'+g+'</g></svg>';
-  PICKUP={url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(32,32),anchor:new google.maps.Point(16,30)}}
-  return mk(pos,PICKUP,22)}
+function pickup(pos,name){if(!PICKUP){var g='<circle cx="16" cy="9" r="5"/><path d="M6 29c0-6 4.5-10 10-10s10 4 10 10"/>',svg='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#FFFFFF" stroke-width="5.5">'+g+'</g><g stroke="#0E1F1A" stroke-width="2.6">'+g+'</g></svg>';
+  PICKUP={url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(32,32),anchor:new google.maps.Point(16,30),labelOrigin:new google.maps.Point(16,42)}}
+  var m=mk(pos,PICKUP,22);if(name&&m.setLabel)m.setLabel({text:String(name).split(' ')[0].slice(0,14),color:'#0E1F1A',fontSize:'13px',fontWeight:'700'});return m}
 function spot(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,zIndex:18,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:'#F5B921',fillOpacity:1,strokeColor:'#FFFFFF',strokeWeight:2}}))}
 // a start/end pin on the new-ride or search form; drag it to fine-tune the spot
 // a pin that says "From" / "To" (من / إلى) in a coloured tag with a point at the bottom
@@ -565,15 +565,15 @@ function redraw(){
       ends(S.routes[S.sel]);routeWants(S.routes[S.sel]).forEach(function(w){wantMark(fuzz(w.from),false)});if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');return}
     if(S.dv==='home'){openWants().forEach(function(w){wantMark(fuzz(w.from),S.wsel===w.id,function(){S.wsel=S.wsel===w.id?null:w.id;paint();var sh=$('#sheet');if(sh)sh.scrollTop=0})});return}
     if(S.dv==='ride'){var R=myRide(S.rideId);if(!R)return;
-      line(R.path,'#1A6FE0',7,1,10);ends(R);if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');if(S.track&&S.track.docId===R.id&&S.track.pos)car(S.track.pos);
-      reqsFor(R.id).forEach(function(q){if(q.status==='pending'||q.status==='offered'||q.status==='accepted'){pickup(q.pu);dot(q.dr,'#FFFFFF');if(q.from&&q.status!=='accepted')spot(q.from);var ri=q.status==='accepted'?rlInfo(q):null;if(ri)person(ri.pos)}});
-      if(R.seatsLeft>0)openWants().forEach(function(w){var m=wantFits(R,w);if(m){spot(w.from);pickup(m.pu.pos)}});
+      line(R.path,'#1A6FE0',7,1,10);if(R.path.length){if(!(S.track&&S.track.docId===R.id&&S.track.pos))car(R.path[0]);tagPin(R.path[R.path.length-1],false)}if(S.pt&&S.pt.pos)dot(S.pt.pos,'#F5B921');if(S.track&&S.track.docId===R.id&&S.track.pos)car(S.track.pos);
+      reqsFor(R.id).forEach(function(q){if(q.status==='pending'||q.status==='offered'||q.status==='accepted'){pickup(q.pu,q.riderName);dot(q.dr,'#FFFFFF');if(q.from&&q.status!=='accepted')spot(q.from);var ri=q.status==='accepted'?rlInfo(q):null;if(ri)person(ri.pos)}});
+      if(R.seatsLeft>0)openWants().forEach(function(w){var m=wantFits(R,w);if(m){spot(w.from);pickup(m.pu.pos,w.riderName)}});
       if(S.offer)dot(S.offer.pos,'#1A6FE0')}
     return}
   if(S.rv==='results'&&S.found&&S.found.ok.length){var x=S.found.ok[S.fsel]||S.found.ok[0];
     line(x.R.path,'#1A6FE0',6,.75,10);line(sub(x.R,x.m.pu.cum,x.m.dr.cum),'#0B5D4B',9,1,15);if(x.m.pu.pos)pickup(x.m.pu.pos);if(x.m.dr.pos)dot(x.m.dr.pos,'#FFFFFF')}
   if(S.rv==='req'){var q=myReq(S.reqId);if(q){
-    if(S.reqRide&&S.reqRide.id===q.rideId){var RR=S.reqRide,a=nearestOnPath(RR,q.pu),b=nearestOnPath(RR,q.dr);line(RR.path,'#1A6FE0',6,.75,10);if(b.cum>a.cum)line(sub(RR,a.cum,b.cum),'#0B5D4B',9,1,15)}
+    if(S.reqRide&&S.reqRide.id===q.rideId){var RR=S.reqRide,a=nearestOnPath(RR,q.pu),b=nearestOnPath(RR,q.dr);line(RR.path,'#1A6FE0',6,.75,10);if(RR.path.length&&!(q.status==='accepted'&&liveInfo(q)))car(RR.path[0]);if(b.cum>a.cum)line(sub(RR,a.cum,b.cum),'#0B5D4B',9,1,15)}
     if(q.status==='rerouted'){var rm2=reMatch(q);if(q.from)spot(q.from);dot(q.dr,'#FFFFFF');if(rm2)dot(rm2.a.pos,'#1A6FE0');return}
     pickup(q.pu);dot(q.dr,'#FFFFFF');if(q.from&&q.status==='offered')spot(q.from);var li=q.status==='accepted'?liveInfo(q):null;if(li)car(li.pos);if(S.track&&S.track.docId===q.id&&S.track.pos)person(S.track.pos);return}}
   if(S.rv==='home'){nearCars().forEach(function(x){line(x.R.path,'#0B5D4B',4,.35,5);car(x.n.pos,function(){search()})});dragPin('rfrom','A');dragPin('rto','B');return}
