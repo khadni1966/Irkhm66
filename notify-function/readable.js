@@ -11,7 +11,7 @@ const FS = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databas
 const ORIGINS = ['https://khedni.app', 'https://www.khedni.app', 'https://khadni1966.github.io'];
 const REACH = 5000, SLACK = 90 * 60000;
 // each new paste in the phone editor goes above the older ones, so every version registers under a new name
-const ENTRY = 'notify2';
+const ENTRY = 'notify3';
 
 // ---- Google access token for this service (Firestore + FCM) ----
 let tok = { v: '', exp: 0 };
@@ -80,6 +80,35 @@ async function openOf(coll) {
   return (r.j || []).filter(x => x.document).map(x => fields(x.document.fields));
 }
 function openRides() { return openOf('rides'); }
+async function whereEq(coll, field, value) {
+  const r = await api(FS + ':runQuery', { method: 'POST', body: { structuredQuery: { from: [{ collectionId: coll }], where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } } } } });
+  if (!r.ok) throw new Error(coll + ' ' + r.status + ' ' + JSON.stringify(r.j || '').slice(0, 200));
+  return (r.j || []).filter(x => x.document).map(x => Object.assign({ id: x.document.name.split('/').pop() }, fields(x.document.fields)));
+}
+async function setFields(path, o) {
+  const f = {}, mask = Object.keys(o).map(k => 'updateMask.fieldPaths=' + k).join('&');
+  for (const k in o) f[k] = typeof o[k] === 'boolean' ? { booleanValue: o[k] } : { integerValue: String(Math.round(o[k])) };
+  const r = await api(FS + '/' + path + '?' + mask, { method: 'PATCH', body: { fields: f } });
+  if (!r.ok) throw new Error('write ' + path.split('/')[0] + ' ' + r.status);
+}
+function clock(t) { return new Date(t).toLocaleTimeString('en-GB', { timeZone: 'Asia/Beirut', hour: 'numeric', minute: '2-digit' }); }
+// every few minutes (Cloud Scheduler): remind both sides about 10 minutes before each confirmed pick-up
+async function remind() {
+  const now = Date.now(), c = await getDoc('cron/remind');
+  if (c && now - (c.at || 0) < 60000) return 'skip';
+  await setFields('cron/remind', { at: now });
+  let n = 0;
+  for (const q of await whereEq('requests', 'status', 'accepted')) {
+    const t = q.puAt || 0;
+    if (q.rem || t - now > 11 * 60000 || t < now - 3 * 60000) continue;
+    await setFields('requests/' + q.id, { rem: true });
+    const where = q.puText ? ' عند ' + q.puText : '';
+    await send(q.driverId, 'تذكير · خدني', 'بتمرق على ' + (q.riderName || 'شريك الطريق') + ' الساعة ' + clock(t) + where + '.', 'rem' + q.id);
+    await send(q.riderId, 'تذكير · خدني', (q.driverName || 'صاحب السيارة') + ' بيمرق عليك الساعة ' + clock(t) + where + '. كون جاهز.', 'rem' + q.id);
+    n++;
+  }
+  return 'reminded ' + n;
+}
 // does this open ride pass close enough to this request, at about the right time?
 function fits(R, w) {
   if (!(R.seatsLeft > 0)) return false;
@@ -162,6 +191,7 @@ functions.http(ENTRY, async (req, res) => {
   res.set('Access-Control-Allow-Methods', 'POST');
   if (req.method === 'OPTIONS') return res.status(204).send('');
   if (req.method !== 'POST') return res.status(405).send('POST only');
+  if ((req.body || {}).kind === 'remind') { try { return res.send(await remind()); } catch (e) { console.error(e); return res.status(500).send('error ' + String(e && e.message || e).slice(0, 300)); } }
   let me;
   try { me = await verifyIdToken((req.get('authorization') || '').replace(/^Bearer /, '')); }
   catch (e) { return res.status(401).send('sign in'); }
