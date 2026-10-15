@@ -520,8 +520,8 @@ function initMap(){
 // a tap on a place icon on Google's map (shop, restaurant, bank…) carries its id, so the point gets that place's name
 function tapEvt(e){if(e.placeId&&e.stop)e.stop();onMapTap({lat:e.latLng.lat(),lng:e.latLng.lng(),placeId:e.placeId||null})}
 function add(o){ov.push(o);return o}
-function line(path,color,w,op,z,onClick){var r=Math.max(1.6,w*.36),l=add(new google.maps.Polyline({path:path,map:map,strokeColor:color,strokeWeight:w+10,strokeOpacity:0,zIndex:z,
-  icons:[{icon:{path:google.maps.SymbolPath.CIRCLE,scale:r,fillColor:color,fillOpacity:op,strokeColor:'#FFFFFF',strokeOpacity:op,strokeWeight:1},offset:'0',repeat:Math.round(r*3.4)+'px'}]}));l.addListener('click',onClick||tapEvt);return l}
+function line(path,color,w,op,z,onClick){if(color==='#1A6FE0')color='#0B47A8';var r=Math.max(2,w*.44),l=add(new google.maps.Polyline({path:path,map:map,strokeColor:color,strokeWeight:w+10,strokeOpacity:0,zIndex:z,
+  icons:[{icon:{path:google.maps.SymbolPath.CIRCLE,scale:r,fillColor:color,fillOpacity:op,strokeColor:'#FFFFFF',strokeOpacity:op,strokeWeight:1},offset:'0',repeat:Math.round(r*3)+'px'}]}));l.addListener('click',onClick||tapEvt);return l}
 function pin(pos,label){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}))}
 function dot(pos,fill){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,zIndex:20,icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:fill,fillOpacity:1,strokeColor:'#0E1F1A',strokeWeight:3}}))}
 function mapIcon(name,ring,fill,ink,z){z=z||34;var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+z+'" height="'+z+'" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="'+fill+'" stroke="'+ring+'" stroke-width="2.5"/><g transform="translate(6 6) scale(.92)" fill="none" stroke="'+ink+'" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+ICP[name]+'</g></svg>';
@@ -531,7 +531,10 @@ function car(pos,onClick){return mk(pos,mapIcon('car','#0B5D4B','#FFFFFF','#0B5D
 function wantMark(pos,on,onClick){return mk(pos,mapIcon('user',on?'#0B5D4B':'#FFFFFF','#F5B921','#0E1F1A',on?40:32),on?45:36,onClick)}
 function person(pos){return mk(pos,mapIcon('user','#F5B921','#FFFFFF','#0E1F1A'),35)}
 // where a road partner gets in (person icon) and gets out (small white dot)
-function pickup(pos){return mk(pos,mapIcon('user','#0E1F1A','#F5B921','#0E1F1A',30),22)}
+var PICKUP=null;
+function pickup(pos){if(!PICKUP){var g='<circle cx="16" cy="9" r="5"/><path d="M6 29c0-6 4.5-10 10-10s10 4 10 10"/>',svg='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#FFFFFF" stroke-width="5.5">'+g+'</g><g stroke="#0E1F1A" stroke-width="2.6">'+g+'</g></svg>';
+  PICKUP={url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(32,32),anchor:new google.maps.Point(16,30)}}
+  return mk(pos,PICKUP,22)}
 function spot(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,zIndex:18,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:'#F5B921',fillOpacity:1,strokeColor:'#FFFFFF',strokeWeight:2}}))}
 // a start/end pin on the new-ride or search form; drag it to fine-tune the spot
 // a pin that says "From" / "To" (من / إلى) in a coloured tag with a point at the bottom
