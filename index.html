@@ -89,6 +89,10 @@ h3{font-family:var(--display);font-size:14px;font-weight:600;margin-top:6px}
 .brand{font-family:var(--display);font-size:22px;font-weight:700;color:var(--brand);display:flex;align-items:center}
 .brand img{height:60px;width:auto;display:block}
 #gate h1 img{height:96px;width:auto;max-width:100%;display:block;margin-inline-start:-4px}
+#gate .ghead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#gate .ghead h1{min-width:0;flex:0 1 auto}
+#gate .glang{flex:none;width:64px;height:64px;border-radius:50%;background:#fff;border:2px solid var(--sun);color:var(--brand);font-weight:700;font-size:13px;box-shadow:0 3px 8px rgba(0,0,0,.25)}
+#gate .glang:active{background:var(--sun-soft)}
 .chipbtn{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px;font-weight:600}
 .mapwrap{position:relative;flex:1 1 36%;min-height:220px}
 #map{position:absolute;inset:0}
@@ -875,8 +879,8 @@ var INST=null;window.addEventListener('beforeinstallprompt',function(e){e.preven
 window.addEventListener('appinstalled',function(){INST=null;if(!S.gate)render()});
 function installHTML(){return INST?'<div class="box row between"><span>'+IC('pin')+' '+T('حطّ خدني كتطبيق على شاشة تلفونك','Add Khedni as an app on your phone')+'</span><button class="btn sm sun" type="button" id="install">'+T('ثبّت','Install')+'</button></div>':''}
 function contactHTML(){return '<p class="note contact" style="margin:0">'+IC('mail',15)+' '+T('لأي سؤال أو طلب أو مشكلة، ابعتلنا إيميل على ','For any question, request or problem, email us at ')+'<a href="mailto:info@khedni.app" dir="ltr">info@khedni.app</a> · <a href="privacy.html">'+T('سياسة الخصوصية','Privacy policy')+'</a></p>'}
-function gateHTML(){var a=S.af,head=function(sub){return '<div><h1><img src="logo-light.png?v=4" alt="خدني Khedni" width="250" height="118"></h1><p>'+sub+'</p></div>'},
-  foot='<button class="btn ghost" type="button" id="g-lang">'+T('English','عربي')+'</button>'+(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
+function gateHTML(){var a=S.af,head=function(sub){return '<div><div class="ghead"><h1><img src="logo-light.png?v=4" alt="خدني Khedni" width="250" height="118"></h1><button class="glang" type="button" id="g-lang" lang="'+T('en','ar')+'">'+T('English','عربي')+'</button></div><p>'+sub+'</p></div>'},
+  foot=(S.user?'<button class="btn ghost" type="button" id="g-out">'+T('تسجيل خروج','Sign out')+'</button>':''),
   err=a.err?'<div class="gerr" role="alert">'+esc(a.err)+'</div>':'';
   if(S.gate==='share')return '<div class="gwrap">'+head(T('المشاركة بالكلفة','Sharing the cost'))+shareHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
   if(S.gate==='terms')return '<div class="gwrap">'+head(T('شروط الاستخدام','Terms of use'))+termsHTML()+'<button class="btn sun" type="button" id="termsback">'+T('رجوع','Back')+'</button></div>';
