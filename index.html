@@ -128,6 +128,13 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .tag.fast,.tag.ok{background:var(--brand-soft);color:var(--brand-deep)}
 .tag.jam,.tag.wait{background:var(--sun-soft);color:var(--sun-soft-ink)}
+.wantcard .when{display:flex;flex-direction:column;align-items:flex-end;flex:none;line-height:1.2}
+.wantcard .when b{font-size:15px}.wantcard .when .dur{font-family:var(--display);font-size:22px;font-weight:700;color:var(--brand)}
+.wantcard.hasoffer{border:2px solid #F5A800;background:#FFFBEF}
+.offerhead{font-weight:700;font-size:15px}
+.offer{gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.btn.big{min-height:60px;font-size:20px}
+.rcard .meta .day{color:var(--ink);font-size:14px}
 .tag.no{background:var(--danger-soft);color:var(--danger)}
 .banner{padding:10px 12px;border-radius:12px;background:var(--sun-soft);color:var(--sun-soft-ink);font-size:13.5px}
 .okbox{padding:12px;border-radius:12px;background:var(--brand-soft);color:var(--brand-deep);font-size:13.5px}
@@ -1130,15 +1137,26 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
 /* rider */
 function reqTag(q){return q.status==='rerouted'?'<span class="tag wait">'+T('غيّر طريقه · اختار نقطة','Route changed · pick a point')+'</span>':q.status==='offered'?'<span class="tag wait">'+(q.wantId?T('صاحب سيارة عرض ياخدك · أكّد','A car owner offers to take you · confirm'):T('صاحب السيارة اقترح نقطة · أكّد','Car owner proposed a point · confirm'))+'</span>':q.status==='pending'?'<span class="tag wait">'+T('ناطر صاحب السيارة','Waiting for the car owner')+'</span>':q.status==='accepted'?'<span class="tag ok">'+T('مأكّد','Confirmed')+'</span>':q.status==='rejected'?'<span class="tag no">'+T('صاحب السيارة ما قبل','Declined')+'</span>':'<span class="tag no">'+(q.by==='driver'?T('صاحب السيارة لغى','Cancelled by the car owner'):T('ملغى','Cancelled'))+'</span>'}
 function liveReqs(){var now=Date.now();return S.myReqs.filter(function(q){return q.drAt>now-3*3600000&&(q.status==='pending'||q.status==='offered'||q.status==='accepted'||q.status==='rerouted'||(q.updatedAt||0)>now-12*3600000)}).sort(function(a,b){return a.puAt-b.puAt})}
+// one car owner's offer, with a big confirm button
+function offerCard(q){return '<div class="offer col"><div class="row">'+face(q.driverId,48)+'<div class="grow"><b>'+esc(q.driverName)+'</b>'+(q.car?'<br><span class="sub">'+esc(q.car)+'</span>':'')+'</div>'+starsTag(q.driverId)+'</div>'+
+  '<div class="kv"><span>'+T('بياخدك حوالي','Picks you up at about')+'</span><b dir="ltr">'+hm(q.puAt)+'</b></div>'+(q.puText?'<div class="kv"><span>'+T('من','At')+'</span><b>'+esc(q.puText)+'</b></div>':'')+
+  '<button class="btn sun big" type="button" data-rok="'+q.id+'">'+T('أكّد','Confirm')+'</button>'+
+  '<div class="grid2"><button class="btn sm ghost" type="button" data-req="'+q.id+'">'+T('التفاصيل والخريطة','Details and map')+'</button><button class="btn sm ghost" type="button" data-rcancel="'+q.id+'">'+T('مش مناسب','Not for me')+'</button></div></div>'}
 function riderHTML(){
   if(S.rv==='req'){var q=myReq(S.reqId);if(q){S.fresh=null;return reqHTML(q)}if(S.fresh===S.reqId)return '<p class="sub" role="status">'+T('عم نبعت الطلب…','Sending the request…')+'</p>';S.rv='home'}
   if(S.rv==='results'&&S.found)return resultsHTML();
   var mine=liveReqs();
-  return photoNudge()+pushHTML()+rateHTML()+(mine.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+mine.map(function(q){
-     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><span>'+dayOf(q.puAt)+'</span>'+reqTag(q)+(unread(q.id)?'<span class="tag wait">'+IC('chat',13)+' '+unread(q.id)+'</span>':'')+'</span></button>'}).join(''):'')+
-   (function(){var ws=myOpenWants();if(!ws.length)return '';return '<h2>'+T('طلباتي المنشورة','My posted requests')+'</h2>'+ws.map(function(w){
-     return '<div class="box col" style="gap:8px"><div class="row"><b class="grow">'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><span class="dur" dir="ltr">'+hm(w.at)+'</span></div>'+
-      '<div class="row" style="flex-wrap:wrap"><span class="sub">'+dayOf(w.at)+'</span><span class="tag wait">'+T('ناطرين صاحب سيارة يعرض','Waiting for a car owner to offer')+'</span><button class="btn sm ghost" type="button" data-wcancel="'+w.id+'">'+T('شيل الطلب','Remove')+'</button></div></div>'}).join('')})()+
+  var ws=myOpenWants(),wids=ws.map(function(w){return w.id}),offersFor=function(w){return mine.filter(function(q){return q.status==='offered'&&q.wantId===w.id})},
+   books=mine.filter(function(q){return !(q.status==='offered'&&q.wantId&&wids.indexOf(q.wantId)>=0)});
+  return photoNudge()+pushHTML()+rateHTML()+
+   (ws.length?'<h2>'+T('طلباتي المنشورة','My posted requests')+'</h2>'+ws.map(function(w){var of=offersFor(w);
+     return '<div class="box col wantcard'+(of.length?' hasoffer':'')+'" style="gap:10px"><div class="row" style="align-items:flex-start"><b class="grow">'+esc(w.fromText)+ARROW()+esc(w.toText)+'</b><span class="when"><b>'+dayOf(w.at)+'</b><span class="dur" dir="ltr">'+hm(w.at)+'</span></span></div>'+
+      (of.length?'<div class="offerhead">'+(of.length>1?of.length+T(' أصحاب سيارات عرضوا ياخدوك. اختار واحد وأكّد:',' car owners offered to take you. Pick one and confirm:'):T('صاحب سيارة عرض ياخدك. أكّد لتحجز مقعدك:','A car owner offered to take you. Confirm to book your seat:'))+'</div>'+of.map(offerCard).join(''):
+       '<div class="row" style="flex-wrap:wrap"><span class="tag wait">'+T('ناطرين صاحب سيارة يعرض','Waiting for a car owner to offer')+'</span></div>')+
+      '<button class="btn sm ghost" type="button" data-wcancel="'+w.id+'">'+T('شيل الطلب','Remove')+'</button></div>'}).join(''):'')+
+   (books.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+books.map(function(q){
+     if(q.status==='offered')return '<div class="box col wantcard hasoffer" style="gap:10px"><div class="row" style="align-items:flex-start"><b class="grow">'+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</b><span class="when"><b>'+dayOf(q.puAt)+'</b><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span></div><div class="offerhead">'+T('صاحب السيارة اقترح نقطة طلعة. شوفها وأكّد:','The car owner proposed a pick-up point. Check it and confirm:')+'</div>'+offerCard(q)+'</div>';
+     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><b class="day">'+dayOf(q.puAt)+'</b>'+reqTag(q)+(unread(q.id)?'<span class="tag wait">'+IC('chat',13)+' '+unread(q.id)+'</span>':'')+'</span></button>'}).join(''):'')+
    '<h2>'+T('لوين رايح؟','Where are you going?')+'</h2>'+
    fieldHTML('rfrom',T('من وين بتطلع','Where you get in'))+fieldHTML('rto',T('لوين نازل','Where you get out'))+
    '<div class="field"><span class="lbl">'+T('أي نهار','Day')+'</span><input type="hidden" id="in-rdate" value="'+esc(S.rdate||ymdIn(1))+'"><div class="days" role="group" aria-label="'+T('الأيام','Days')+'">'+(function(){var h='',cur=S.rdate||ymdIn(1);for(var n=0;n<AHEAD;n++){var d=new Date(dayStart(n)),v=ymd(d);
