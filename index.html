@@ -96,8 +96,9 @@ h3{font-family:var(--display);font-size:14px;font-weight:600;margin-top:6px}
 #app.full .mapwrap{display:none}
 .mapbtn{position:absolute;left:10px;bottom:28px;z-index:3;min-height:44px;padding:0 14px;border-radius:999px;background:#fff;border:2px solid var(--sun);color:var(--brand);font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 8px rgba(0,0,0,.25)}
 .mapbtn:active{background:var(--sun-soft)}
-#app.bigmap .mapwrap{flex:1 1 80%}
-#app.bigmap .sheet{max-height:26%}
+#app.bigmap .mapwrap,#app.pickmap .mapwrap{flex:1 1 80%}
+#app.bigmap .sheet,#app.pickmap .sheet{max-height:26%}
+#app.pickmap #mapbig{display:none}
 #app.full .sheet{flex:1 1 auto;max-height:none;margin-top:0;border-radius:0;border-top:0}
 .seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--seg)}
 .seg button{flex:1 1 0;min-height:42px;border:0;border-radius:999px;background:transparent;font-size:14px;font-weight:500}
@@ -1265,6 +1266,7 @@ var lastHTML=null;
 function render(){document.body.classList.toggle('free',!costOn());
   if(S.gate||!S.me)return;
   var bi=$('#brand img');if(!bi){$('#brand').innerHTML='<img src="logo-light.png?v=4" width="127" height="60" alt="">';bi=$('#brand img')}bi.alt='خدني Khedni';var bl=$('#b-lang'),ba=$('#b-acct');bl.textContent=T('English','عربي');bl.setAttribute('aria-label',T('English','عربي'));bl.title=T('English','عربي');var acc=S.view==='main';ba.innerHTML=acc?'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="currentColor"/></svg><small>'+T('حسابي','Account')+'</small>':'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" transform="'+(S.lang==='ar'?'rotate(180 12 12)':'')+'"/></svg><small>'+T('رجوع','Back')+'</small>';if(S.admin&&S.pendN)ba.innerHTML+='<span class="nbadge" aria-hidden="true">'+S.pendN+'</span>';ba.setAttribute('aria-label',(acc?T('حسابي','Account'):T('رجوع','Back'))+(S.admin&&S.pendN?' · '+S.pendN+T(' طلب ناطر',' waiting'):''));ba.title=ba.getAttribute('aria-label');
+  var pm=!!(S.pick&&S.view==='main');if($('#app').classList.contains('pickmap')!==pm){var pc=map&&map.getCenter&&map.getCenter();$('#app').classList.toggle('pickmap',pm);if(pc)setTimeout(function(){try{map.setCenter(pc)}catch(x){}},60)}
   var mb=$('#mapbig'),big=$('#app').classList.contains('bigmap');if(mb){mb.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="'+(big?'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5':'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5')+'" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'+(big?T('صغّر الخريطة','Smaller map'):T('كبّر الخريطة','Bigger map'));mb.setAttribute('aria-pressed',big)}
   var h=$('#hint');
   var fs=formSlots(),nx=fs&&(S[fs[0]].lat==null?fs[0]:S[fs[1]].lat==null?fs[1]:null);
