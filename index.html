@@ -510,15 +510,15 @@ function initMap(){
 function tapEvt(e){if(e.placeId&&e.stop)e.stop();onMapTap({lat:e.latLng.lat(),lng:e.latLng.lng(),placeId:e.placeId||null})}
 function add(o){ov.push(o);return o}
 function line(path,color,w,op,z,onClick){var l=add(new google.maps.Polyline({path:path,map:map,strokeColor:color,strokeWeight:w,strokeOpacity:op,zIndex:z}));l.addListener('click',onClick||tapEvt);return l}
-function pin(pos,label){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}))}
-function dot(pos,fill){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:20,icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:fill,fillOpacity:1,strokeColor:'#0E1F1A',strokeWeight:3}}))}
+function pin(pos,label){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,label:{text:label,color:'#FFFFFF',fontWeight:'700'}}))}
+function dot(pos,fill){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,zIndex:20,icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:fill,fillOpacity:1,strokeColor:'#0E1F1A',strokeWeight:3}}))}
 function mapIcon(name,ring,fill,ink,z){z=z||34;var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+z+'" height="'+z+'" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="'+fill+'" stroke="'+ring+'" stroke-width="2.5"/><g transform="translate(6 6) scale(.92)" fill="none" stroke="'+ink+'" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+ICP[name]+'</g></svg>';
   return {url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(z,z),anchor:new google.maps.Point(z/2,z/2)}}
 function mk(pos,icon,zi,onClick){var m=add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:zi,icon:icon}));if(onClick&&m.addListener)m.addListener('click',onClick);return m}
 function car(pos,onClick){return mk(pos,mapIcon('car','#0B5D4B','#FFFFFF','#0B5D4B'),40,onClick)}
 function wantMark(pos,on,onClick){return mk(pos,mapIcon('user',on?'#0B5D4B':'#FFFFFF','#F5B921','#0E1F1A',on?40:32),on?45:36,onClick)}
 function person(pos){return mk(pos,mapIcon('user','#F5B921','#FFFFFF','#0E1F1A'),35)}
-function spot(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:18,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:'#F5B921',fillOpacity:1,strokeColor:'#FFFFFF',strokeWeight:2}}))}
+function spot(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,zIndex:18,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:'#F5B921',fillOpacity:1,strokeColor:'#FFFFFF',strokeWeight:2}}))}
 // a start/end pin on the new-ride or search form; drag it to fine-tune the spot
 // a pin that says "From" / "To" (من / إلى) in a coloured tag with a point at the bottom
 function tagIcon(start){var w=S.lang==='ar'?52:60,c=start?'#0B5D4B':'#D93025',
@@ -530,7 +530,7 @@ function dragPin(which,label){var p=S[which];if(p.lat==null)return;var st=label=
 function formSlots(){if(S.view!=='main'||!S.me)return null;if(S.role==='driver')return S.me.dstatus==='active'&&S.dv==='new'&&!S.routes?['from','to']:null;return S.rv==='home'?['rfrom','rto']:null}
 function setPoint(w,p){S[w]={text:T('نقطة عالخريطة','Point on the map'),lat:p.lat,lng:p.lng};nameIt(w,S[w],p.placeId);if(w==='rfrom'||w==='rto')S.found=null;S.hereMsg=null;paint()}
 function ends(R){if(R.path.length){tagPin(R.path[0],true);tagPin(R.path[R.path.length-1],false)}}
-function tagPin(pos,st){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,zIndex:25,icon:tagIcon(st),label:tagLabel(st)}))}
+function tagPin(pos,st){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,zIndex:25,icon:tagIcon(st),label:tagLabel(st)}))}
 function redraw(){
   if(!map)return;ov.forEach(function(o){o.setMap(null)});ov=[];
   if(S.view!=='main'||!S.me)return;
@@ -1108,7 +1108,7 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
      '<div class="kv"><span>'+T('طريقك بعيد عن نقطته','Your road is this far from their point')+'</span><b>'+mTxt(m.pu.d)+'</b></div><div class="kv"><span>'+T('مشاركته بالكلفة (كاش)','Their share of the cost (cash)')+'</span>'+money(share(m.price,accN(R.id)+1))+'</div>'+
      '<button class="btn pri" type="button" data-woffer="'+w.id+'"'+(stop?' disabled':'')+'>'+T('اعرض عليه يطلع معك','Offer them a seat')+'</button>'+
      (m.pu.d>LIMIT?'<p class="sub" style="margin:0">'+T('بتاخده من أقرب نقطة عطريقك. إذا بدّك تمرق لعنده، فيك تغيّر الطريق أو تتّفقوا بالرسائل بعد ما يأكّد.','You pick them up at the nearest point on your road. To go to their door, change the route or agree by message once they confirm.')+'</p>':'')+'</div>'}).join('');
-  if(!pen.length&&!off.length&&!acc.length&&!rer.length&&!wf.length)h+='<div class="banner">'+T('مشوارك منشور، وما في طلبات بعد. أول ما حدا يطلب مقعد، بيبيّن هون.','Your ride is posted and has no requests yet. A seat request appears here as soon as someone sends one.')+'</div>';
+  if(!pen.length&&!off.length&&!acc.length&&!rer.length&&!wf.length)h+='<div class="okbox col" style="gap:4px"><b style="font-size:16px">'+IC('car')+' '+T('مشوارك منشور','Your ride is posted')+'</b><span>'+T('ما بدّك تعمل شي هلّق. لمّا حدا يطلب يطلع معك، بيوصلك إشعار، وبتفتح هون وبتقبل أو بترفض.','Nothing to do now. When someone asks to ride with you, you get a notification; open this page and accept or decline.')+'</span></div>';
   return backRow(esc(R.fromText)+ARROW()+esc(R.toText),dayOf(R.dep)+' · '+hm(R.dep),'dhome',T('كل مشاويري','All my rides'))+h+
    freeNote()+'<div class="box"><div class="kv"><span>'+T('الطريق','Route')+'</span><b>'+(R.desc?esc(R.desc):'—')+'</b></div><div class="kv"><span>'+T('الوقت بالعجقة','Time with traffic')+'</span><b>'+durTxt(R.dur)+' · '+kmTxt(R.dist)+'</b></div>'+
    (R.only&&R.only.length?'<div class="kv"><span>'+T('مين فيه يطلع','Who can ride')+'</span><b>'+esc(onlyTxt(R.only))+'</b></div>':'')+'<div class="kv"><span>'+T('مقاعد فاضية','Free seats')+'</span><b>'+R.seatsLeft+' / '+R.seats+'</b></div><div class="kv"><span>'+T('شركاء مأكّدين','Confirmed road partners')+'</span><b>'+acc.length+'</b></div>'+
@@ -1116,9 +1116,10 @@ function rideHTML(R){var qs=reqsFor(R.id),L=ledger(),stop=feeOn()&&L.owed>=OWE_L
    '<div class="kv"><span>'+T('مشاركة شريك واحد بكل الطريق','One road partner’s share, full route')+'</span>'+money(R.price)+'</div>'+
    '<p class="sub cost">'+T('الكلفة بتتقسّم على كل اللي بالسيارة: إذا صاروا شريكين، كل واحد ','The cost is split between everyone in the car: with two road partners each shares ')+'$'+share(R.price,2)+T('، وإذا تلاتة ',', with three ')+'$'+share(R.price,3)+T(' (لكل الطريق).',' (full route).')+'</p></div>'+ptHTML()+
    '<p class="sub">'+T('اكبس على أي نقطة عالخط الأزرق لتعرف أي ساعة بتمرق فيها.','Tap any point on the blue line to see when you pass it.')+'</p>'+
-   '<button class="btn ghost" type="button" id="reroute">'+T('غيّر الطريق','Change the route')+'</button>'+
-   '<button class="btn sun" type="button" id="again">'+IC('plus')+T('نفس الطريق، بساعة أو نهار تاني','Same road, another time or day')+'</button>'+
-   '<button class="btn ghost" type="button" id="newride">'+IC('plus')+T('مشوار جديد','New ride')+'</button>'+
+   '<h2>'+T('شغلات تانية فيك تعملها','Other things you can do')+'</h2>'+
+   '<button class="btn ghost" type="button" id="reroute">'+T('غيّر طريق هالمشوار','Change this ride’s route')+'</button>'+
+   '<button class="btn ghost" type="button" id="again">'+IC('plus')+T('انشر نفس الطريق بنهار أو ساعة تانية','Post the same road on another day or time')+'</button>'+
+   '<button class="btn ghost" type="button" id="newride">'+IC('plus')+T('انشر مشوار جديد','Post a new ride')+'</button>'+
    '<button class="btn warn" type="button" id="cancelride">'+T('الغي هالمشوار','Cancel this ride')+'</button>';
 }
 
@@ -1172,7 +1173,7 @@ function reqHTML(q){var body,trip='<div class="box"><div class="row">'+face(q.dr
     '<div class="kv"><span>'+T('بتطلع من','You get in at')+'</span><b>'+esc(q.puText)+'</b></div><div class="kv"><span>'+T('بتنزل حوالي','You get out at about')+'</span><b>'+hm(q.drAt)+' · '+esc(q.drText)+'</b></div>'+
     '<div class="kv"><span>'+T('مشاركتك بالكلفة (كاش لصاحب السيارة)','Your share of the cost (cash to the car owner)')+'</span>'+money(rPay(q))+'</div>'+
     '<p class="sub cost">'+T('هيدي مشاركتك بكلفة المشوار، لا أكتر ولا أقل. محسوبة على '+rN(q,S.reqRide)+' شركاء بالسيارة. لحالك $','This is your share of the trip’s cost, no more and no less. Worked out for '+rN(q,S.reqRide)+' partners in the car. Alone $')+share(q.price,1)+T('، شريكين $',', two road partners $')+share(q.price,2)+T('، تلاتة $',', three $')+share(q.price,3)+T(' كل واحد. المبلغ النهائي حسب عدد شركاء الطريق المأكّدين وقت الطلعة.',' each. The final amount follows the number of confirmed road partners at departure.')+'</p></div>';
-  if(q.status==='pending')body='<div class="banner"><b>'+T('طلبك عند صاحب السيارة.','Your request is with the car owner.')+'</b> '+T('أول ما يقبل أو يرفض، بيتغيّر هون لحاله.','This updates by itself as soon as they accept or decline.')+'</div>';
+  if(q.status==='pending')body='<div class="banner"><b>'+T('طلبك عند صاحب السيارة.','Your request is with the car owner.')+'</b> '+T('ما بدّك تعمل شي هلّق. أول ما يقبل أو يرفض، بيوصلك إشعار وبيتغيّر هون لحاله. وفيك تبعتلو رسالة من تحت.','Nothing to do now. As soon as they accept or decline you get a notification and this page updates by itself. You can message them below.')+'</div>';
   else if(q.status==='accepted'){var li=liveInfo(q),old=li&&li.age>90000?T(' · آخر تحديث من ',' · last update ')+Math.round(li.age/60000)+T(' د',' min ago'):'';
     body='<div class="okbox"><b>'+T('صاحب السيارة قبل. مقعدك مأكّد.','The car owner accepted. Your seat is confirmed.')+'</b></div>'+
     (li?'<div class="box" style="border:2px solid var(--brand)">'+
@@ -1440,7 +1441,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     var base={driverId:S.user.uid,driverName:S.me.name,car:S.me.car||'',plate:S.me.plate||'',fromText:S.from.text,toText:S.to.text,
       dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc||'',poly:r.enc,seats:S.seats,seatsLeft:S.seats,price:Math.min(S.price||suggestPrice(r.dist),capPrice(r.dist)),status:'open',createdAt:Date.now(),only:S.only.slice(),drvGrp:S.me.grp||''};
     Promise.all(S.days.map(function(v){var o=Object.assign({},base);o.dep=depAt(v).getTime();return f.addDoc(col('rides'),o)}))
-     .then(function(docs){S.busy=false;docs.forEach(function(x){notify('ride',x.id)});if(docs.length===1){S.dv='ride';S.rideId=docs[0].id;S.fresh=docs[0].id}else S.dv='home';resetNew();paint()}).catch(fail(T('نشر المشوار','posting the ride')));
+     .then(function(docs){S.busy=false;docs.forEach(function(x){notify('ride',x.id)});if(docs.length===1){S.dv='ride';S.rideId=docs[0].id;S.fresh=docs[0].id}else S.dv='home';resetNew();paint();var sh=$('#sheet');if(sh)sh.scrollTop=0}).catch(fail(T('نشر المشوار','posting the ride')));
     return;
    case 'reroute':R=myRide(S.rideId);if(!R||R.path.length<2)return;S.dv='reroute';S.pt=null;S.rr={busy:true,sel:0};paint();
     computeRoutes({from:R.path[0],to:R.path[R.path.length-1],dep:new Date(Math.max(R.dep,Date.now()+3*60000))}).then(function(res){if(S.dv!=='reroute')return;S.rr={routes:res.routes,sel:0};paint();fit(res.routes.map(function(r){return r.path}))})
