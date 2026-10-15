@@ -137,7 +137,8 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .btn.big{min-height:60px;font-size:20px}
 .rcard .meta .day{color:var(--ink);font-size:14px}
 .alert{display:inline-flex;align-self:flex-start;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;line-height:1.6;max-width:100%}
-.alert.msg{background:var(--brand);color:#fff}.alert.req{background:#F5A800;color:#0E1F1A}
+.alert.amsg{background:var(--brand);color:#fff}.alert.areq{background:#F5A800;color:#0E1F1A}
+.alert b{margin-inline-start:2px}
 .tag.no{background:var(--danger-soft);color:var(--danger)}
 .banner{padding:10px 12px;border-radius:12px;background:var(--sun-soft);color:var(--sun-soft-ink);font-size:13.5px}
 .okbox{padding:12px;border-radius:12px;background:var(--brand-soft);color:var(--brand-deep);font-size:13.5px}
@@ -1051,8 +1052,8 @@ function driverHTML(){var st=S.me.dstatus||'none';
     (list.length?list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
       return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
        '<span class="meta"><b class="day">'+dayOf(R.dep)+'</b><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+'</span>'+
-       qs.filter(function(q){return q.status==='pending'}).map(function(q){return '<span class="alert req">'+IC('user',14)+' '+T('طلب جديد من ','New request from ')+'<b>'+esc(q.riderName||'')+'</b></span>'}).join('')+
-       qs.filter(function(q){return unread(q.id)}).map(function(q){var n=unread(q.id);return '<span class="alert msg">'+IC('chat',14)+' '+(n>1?n+T(' رسائل جديدة من ',' new messages from '):T('رسالة جديدة من ','New message from '))+'<b>'+esc(q.riderName||'')+'</b></span>'}).join('')+'</button>'}).join(''):
+       qs.filter(function(q){return q.status==='pending'}).map(function(q){return '<span class="alert areq">'+IC('user',14)+' '+T('طلب جديد من ','New request from ')+'<b>'+esc(q.riderName||'')+'</b></span>'}).join('')+
+       qs.filter(function(q){return unread(q.id)}).map(function(q){var n=unread(q.id);return '<span class="alert amsg">'+IC('chat',14)+' '+(n>1?n+T(' رسائل جديدة من ',' new messages from '):T('رسالة جديدة من ','New message from '))+'<b>'+esc(q.riderName||'')+'</b></span>'}).join('')+'</button>'}).join(''):
      '<div class="banner">'+T('ما عندك مشوار منشور. انشر المشوار اللي نازل فيه أصلاً، واللي رايحين عطريقك بيطلعوا معك.','You have no posted ride. Post the trip you are making anyway, and people going your way can ride along.')+'</div>')+
     '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+wantsListHTML(list)+ledgerHTML();
 }
@@ -1168,7 +1169,7 @@ function riderHTML(){
       '<button class="btn sm ghost" type="button" data-wcancel="'+w.id+'">'+T('شيل الطلب','Remove')+'</button></div>'}).join(''):'')+
    (books.length?'<h2>'+T('حجوزاتي','My bookings')+'</h2>'+books.map(function(q){
      if(q.status==='offered')return '<div class="box col wantcard hasoffer" style="gap:10px"><div class="row" style="align-items:flex-start"><b class="grow">'+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</b><span class="when"><b>'+dayOf(q.puAt)+'</b><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span></div><div class="offerhead">'+T('صاحب السيارة اقترح نقطة طلعة. شوفها وأكّد:','The car owner proposed a pick-up point. Check it and confirm:')+'</div>'+offerCard(q)+'</div>';
-     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><b class="day">'+dayOf(q.puAt)+'</b>'+reqTag(q)+'</span>'+(unread(q.id)?'<span class="alert msg">'+IC('chat',14)+' '+(unread(q.id)>1?unread(q.id)+T(' رسائل جديدة من ',' new messages from '):T('رسالة جديدة من ','New message from '))+'<b>'+esc(q.driverName||'')+'</b></span>':'')+'</button>'}).join(''):'')+
+     return '<button type="button" class="rcard" data-req="'+q.id+'"><span class="t"><span class="name">'+esc(q.driverName)+' · '+esc(q.rideFrom)+ARROW()+esc(q.rideTo)+'</span><span class="dur" dir="ltr">'+hm(q.puAt)+'</span></span><span class="meta"><b class="day">'+dayOf(q.puAt)+'</b>'+reqTag(q)+'</span>'+(unread(q.id)?'<span class="alert amsg">'+IC('chat',14)+' '+(unread(q.id)>1?unread(q.id)+T(' رسائل جديدة من ',' new messages from '):T('رسالة جديدة من ','New message from '))+'<b>'+esc(q.driverName||'')+'</b></span>':'')+'</button>'}).join(''):'')+
    '<h2>'+T('لوين رايح؟','Where are you going?')+'</h2>'+
    fieldHTML('rfrom',T('من وين بتطلع','Where you get in'))+fieldHTML('rto',T('لوين نازل','Where you get out'))+
    '<div class="field"><span class="lbl">'+T('أي نهار','Day')+'</span><input type="hidden" id="in-rdate" value="'+esc(S.rdate||ymdIn(1))+'"><div class="days" role="group" aria-label="'+T('الأيام','Days')+'">'+(function(){var h='',cur=S.rdate||ymdIn(1);for(var n=0;n<AHEAD;n++){var d=new Date(dayStart(n)),v=ymd(d);
