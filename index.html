@@ -140,6 +140,18 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .days{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .days .chip{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;line-height:1.25;min-height:48px;border-radius:12px}
 .days .chip small{font-size:11px;color:var(--muted)}
+.tw{position:relative;display:flex;justify-content:center;align-items:center;gap:4px;height:168px;border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden;direction:ltr;user-select:none}
+.twcol{height:168px;width:92px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;position:relative;z-index:1;outline:none}
+.twcol::-webkit-scrollbar{display:none}
+.twcol div{height:56px;line-height:56px;text-align:center;font-size:30px;font-weight:700;scroll-snap-align:center;color:var(--muted);font-variant-numeric:tabular-nums;cursor:pointer}
+.twcol div.on{color:var(--ink);font-size:36px}
+.twcol:focus-visible{box-shadow:inset 0 0 0 2px var(--sun)}
+.twsep{font-size:34px;font-weight:700;z-index:1}
+.twband{position:absolute;left:10px;right:10px;top:56px;height:56px;border-radius:12px;background:var(--sun-soft);pointer-events:none}
+.tw::before,.tw::after{content:"";position:absolute;left:0;right:0;height:56px;z-index:2;pointer-events:none}
+.tw::before{top:0;background:linear-gradient(var(--surface),transparent)}.tw::after{bottom:0;background:linear-gradient(transparent,var(--surface))}
+.tw.unset .twcol div{opacity:.4}.tw.unset .twband{background:var(--seg)}
+.twcap{display:flex;justify-content:center;gap:64px;font-size:12px;color:var(--muted);margin-top:4px;direction:ltr}
 .days .chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 .days .chip[aria-pressed="true"] small{color:var(--brand-ink)}
 .chip{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px;font-weight:500}
@@ -264,6 +276,30 @@ function dbErr(what,e){var c=String(e&&e.code||''),m=String(e&&e.message||e),h='
 
 /* ---------- helpers ---------- */
 function pad(n){return ('0'+n).slice(-2)}
+// big 24-hour scroll wheel for picking a time; the value lives in a hidden input with the given id
+var TWH=56;
+function wheelHTML(id,val){var h=val?+val.slice(0,2):8,m=val?Math.min(11,Math.round(+val.slice(3,5)/5)):0,i,hs='<div></div>',ms='<div></div>';
+  for(i=0;i<24;i++)hs+='<div data-twi="'+i+'"'+(i===h?' class="on"':'')+'>'+pad(i)+'</div>';
+  for(i=0;i<12;i++)ms+='<div data-twi="'+i+'"'+(i===m?' class="on"':'')+'>'+pad(i*5)+'</div>';
+  return '<div class="tw'+(val?'':' unset')+'" data-tw="'+id+'" data-h="'+h+'" data-m="'+m+'"><input type="hidden" id="'+id+'" value="'+esc(val||'')+'"><div class="twband" aria-hidden="true"></div>'+
+   '<div class="twcol" data-twc="h" tabindex="0" role="spinbutton" aria-valuemin="0" aria-valuemax="23" aria-valuenow="'+h+'" aria-label="'+T('الساعة','Hour')+'">'+hs+'<div></div></div><span class="twsep" aria-hidden="true">:</span>'+
+   '<div class="twcol" data-twc="m" tabindex="0" role="spinbutton" aria-valuemin="0" aria-valuemax="55" aria-valuenow="'+m*5+'" aria-label="'+T('الدقيقة','Minute')+'">'+ms+'<div></div></div></div>'+
+   '<div class="twcap" aria-hidden="true"><span>'+T('ساعة','hour')+'</span><span>'+T('دقيقة','minute')+'</span></div>'}
+function initWheels(){Array.prototype.forEach.call(document.querySelectorAll('.tw'),function(w){
+  w.querySelector('[data-twc=h]').scrollTop=+w.dataset.h*TWH;w.querySelector('[data-twc=m]').scrollTop=+w.dataset.m*TWH})}
+var twArmed=null,twTimer=0;
+function twCommit(col){var w=col.closest('.tw');if(!w)return;var hc=w.querySelector('[data-twc=h]'),mc=w.querySelector('[data-twc=m]');
+  var h=Math.max(0,Math.min(23,Math.round(hc.scrollTop/TWH))),m=Math.max(0,Math.min(11,Math.round(mc.scrollTop/TWH))),v=pad(h)+':'+pad(m*5),inp=w.querySelector('input');
+  [[hc,h],[mc,m]].forEach(function(x){Array.prototype.forEach.call(x[0].querySelectorAll('[data-twi]'),function(d){d.classList.toggle('on',+d.dataset.twi===x[1])})});
+  hc.setAttribute('aria-valuenow',h);mc.setAttribute('aria-valuenow',m*5);w.dataset.h=h;w.dataset.m=m;
+  if(inp.value===v&&!w.classList.contains('unset'))return;
+  w.classList.remove('unset');inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))}
+['pointerdown','touchstart','wheel'].forEach(function(t){document.addEventListener(t,function(e){var c=e.target.closest&&e.target.closest('.twcol');if(c)twArmed=c},{capture:true,passive:true})});
+document.addEventListener('scroll',function(e){var c=e.target;if(!c.classList||!c.classList.contains('twcol')||twArmed!==c)return;clearTimeout(twTimer);twTimer=setTimeout(function(){twArmed=null;twCommit(c)},140)},true);
+document.addEventListener('click',function(e){var d=e.target.closest&&e.target.closest('.twcol [data-twi]');if(!d)return;var c=d.parentNode,top=+d.dataset.twi*TWH;
+  if(Math.abs(c.scrollTop-top)<2){twCommit(c);return}twArmed=c;c.scrollTo({top:top,behavior:'smooth'})});
+document.addEventListener('keydown',function(e){var c=e.target.classList&&e.target.classList.contains('twcol')&&e.target;if(!c)return;var k=e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0;if(!k)return;e.preventDefault();
+  c.scrollTop=Math.round(c.scrollTop/TWH+k)*TWH;twCommit(c)});
 function hm(d){d=d instanceof Date?d:new Date(d);return d.getHours()+':'+pad(d.getMinutes())}
 function r2(n){return Math.round(n*100)/100}
 function durTxt(sec){var m=Math.max(1,Math.round(sec/60));if(m<60)return m+' '+T('د','min');var h=Math.floor(m/60),r=m%60;return h+' '+T('س','h')+(r?' '+pad(r)+' '+T('د','min'):'')}
@@ -433,7 +469,7 @@ function wantFormHTML(empty){var mine=myOpenWants().filter(function(w){return ym
   if(mine)return '<div class="okbox"><b>'+T('طلبك منشور لهالنهار.','Your trip request for that day is posted.')+'</b> '+T('أول ما صاحب سيارة يعرض ياخدك، بيبيّن عندك بـ«حجوزاتي» وإنت بتأكّد.','As soon as a car owner offers to take you, it shows under “My bookings” and you confirm.')+'</div>';
   return '<div class="box col" style="gap:10px;border:2px solid var(--sun)"><b>'+(empty?T('انشر طلبك، وخلّي أصحاب السيارات يلاقوك','Post your trip request and let car owners find you'):T('ما في شي بيناسبك؟ انشر طلبك','Nothing suits you? Post your trip request'))+'</b>'+
    '<p class="sub" style="margin:0">'+T('طلبك بيبقى معروض. أصحاب السيارات اللي نازلين عطريقك بيشوفوه، وفيهم يعرضوا ياخدوك (حتى لو بيغيّروا طريقهم شوي). إنت بتأكّد قبل ما شي يصير.','Your request stays up. Car owners going your way see it and can offer to take you (even with a small detour). Nothing happens until you confirm.')+'</p>'+
-   '<div class="field" style="margin:0"><label for="in-wtime">'+T('حوالي أي ساعة بدّك تطلع؟','About what time do you want to leave?')+'</label><input type="time" id="in-wtime" value="'+esc(S.wtime)+'"></div>'+
+   '<div class="field" style="margin:0"><span class="lbl">'+T('حوالي أي ساعة بدّك تطلع؟','About what time do you want to leave?')+'</span>'+wheelHTML('in-wtime',S.wtime||S.rtime||'08:00')+'</div>'+
    (S.wErr?'<p class="err" role="alert">'+esc(S.wErr)+'</p>':'')+
    '<button class="btn sun" type="button" id="wpost"'+(S.rbusy?' disabled':'')+'>'+T('انشر طلبي','Post my request')+'</button></div>'}
 function ledger(){var fees=0,paid=0;S.inReqs.forEach(function(q){if(q.status==='accepted')fees+=r2(dPay(q)*FEE)});S.pays.forEach(function(p){paid+=p.amount||0});return {fees:r2(fees),paid:r2(paid),owed:r2(fees-paid)}}
@@ -993,7 +1029,7 @@ function newRideHTML(){
    '<div class="days" role="group" aria-label="'+T('الأيام','Days')+'">'+(function(){var h='';for(var n=0;n<AHEAD;n++){var d=new Date(dayStart(n)),v=ymd(d);
      h+='<button type="button" class="chip" data-dday="'+v+'" aria-pressed="'+(S.days.indexOf(v)>=0)+'">'+(n<2?dayName(n):wd(d))+'<small dir="ltr">'+d.getDate()+'/'+(d.getMonth()+1)+'</small></button>'}return h})()+'</div>'+
    '<div class="row" style="flex-wrap:wrap"><button type="button" class="btn sm ghost" id="workweek">'+T('الـ5 أيام شغل الجايين (إثنين لجمعة)','Next 5 working days (Mon to Fri)')+'</button>'+(S.days.length>1?'<button type="button" class="btn sm ghost" id="clrdays">'+T('امحي الاختيار','Clear')+'</button>':'')+'</div></div>'+
-   '<div class="field"><label for="in-time">'+T('ساعة الطلعة','Departure time')+'</label><input type="time" id="in-time" value="'+esc(S.time)+'"></div>'+
+   '<div class="field"><span class="lbl">'+T('ساعة الطلعة (حرّك الأرقام لفوق ولتحت)','Departure time (scroll the numbers up or down)')+'</span>'+wheelHTML('in-time',S.time)+'</div>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
    '<button class="btn pri" type="button" id="go"'+(S.busy?' disabled':'')+'>'+(S.busy?'<span class="spin" aria-hidden="true"></span>'+T('عم نسأل جوجل…','Asking Google…'):T('شوف الطرقات والعجقة','Show routes and traffic'))+'</button>'+
    '<p class="sub">'+T('الوقت محسوب على العجقة المتوقعة بأول نهار اخترته وبهالساعة، مش عجقة هلق.','Times use the traffic expected on the first day you picked at that hour, not the traffic right now.')+'</p>';
@@ -1007,7 +1043,7 @@ function newRideHTML(){
    '<div class="grid2"><div class="field"><span class="lbl">'+T('مقاعد فاضية','Free seats')+'</span><div class="stepper"><button type="button" data-seat="-1" aria-label="'+T('نقّص مقعد','Remove a seat')+'">−</button><b>'+S.seats+'</b><button type="button" data-seat="1" aria-label="'+T('زيد مقعد','Add a seat')+'">+</button></div></div>'+
    '<div class="field cost"><label for="in-price">'+T('مشاركة شريك واحد بكل الطريق ($)','One road partner’s share, full route ($)')+'</label><input type="number" id="in-price" inputmode="decimal" min="0.5" max="'+capPrice(r.dist)+'" step="0.5" value="'+S.price+'"></div></div>'+
    '<p class="sub cost">'+T('كلفة هالمشوار عالسيارة حوالي $'+r2(tripCost(r.dist))+' (بنزين، صيانة، واستهلاك). شريك الطريق بيشارك بنصها أو أقل، وهيدي مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+'. شريك الطريق بيشارك على قد المسافة اللي بيطلعها معك، الكلفة بتتقسّم على كل اللي بالسيارة: إذا طلع معك شريك واحد بيشارك بـ$'+S.price+'، شريكين كل واحد $'+share(S.price,2)+'، تلاتة كل واحد $'+share(S.price,3)+'. '+(feeOn()?'خدني بتاخد 10% من المشاركة.':'رسم خدني مجاني حالياً.'),'This trip costs the car about $'+r2(tripCost(r.dist))+' (fuel, maintenance and wear). A road partner shares half of that or less; it is not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+'. A road partner shares in proportion to the distance they ride with you. The cost is split between everyone in the car: one partner shares $'+S.price+', two partners $'+share(S.price,2)+' each, three $'+share(S.price,3)+' each. '+(feeOn()?'Khedni takes 10% of the share.':'Khedni’s fee is free for now.'))+'</p>'+
-   '<div class="field"><label for="in-time2">'+T('ساعة الطلعة (فيك تغيّرها هون)','Departure time (you can change it here)')+'</label><input type="time" id="in-time2" value="'+esc(S.time)+'"></div>'+
+   '<div class="field"><span class="lbl">'+T('ساعة الطلعة (فيك تغيّرها هون)','Departure time (you can change it here)')+'</span>'+wheelHTML('in-time2',S.time)+'</div>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
    '<div class="field"><span class="lbl">'+T('مين فيه يطلع معك؟','Who can ride with you?')+'</span>'+grpChips('data-only',S.only,true)+'</div>'+
    freeNote()+'<button class="btn sun" type="button" id="publish"'+(S.busy?' disabled':'')+'>'+T('انشر المشوار','Publish the ride')+'</button>'+
@@ -1078,8 +1114,9 @@ function riderHTML(){
       '<div class="row" style="flex-wrap:wrap"><span class="sub">'+dayOf(w.at)+'</span><span class="tag wait">'+T('ناطرين صاحب سيارة يعرض','Waiting for a car owner to offer')+'</span><button class="btn sm ghost" type="button" data-wcancel="'+w.id+'">'+T('شيل الطلب','Remove')+'</button></div></div>'}).join('')})()+
    '<h2>'+T('لوين رايح؟','Where are you going?')+'</h2>'+
    fieldHTML('rfrom',T('من وين بتطلع','Where you get in'))+fieldHTML('rto',T('لوين نازل','Where you get out'))+
-   '<div class="field"><label for="in-rdate">'+T('أي نهار','Day')+'</label><input type="date" id="in-rdate" min="'+ymdIn(0)+'" max="'+ymdIn(AHEAD-1)+'" value="'+esc(S.rdate||ymdIn(1))+'"></div>'+
-   '<div class="field"><label for="in-rtime">'+T('أي ساعة بدّك تطلع؟','What time do you want to leave?')+'</label><input type="time" id="in-rtime" value="'+esc(S.rtime)+'"'+(S.rtime?'':' placeholder="--:--"')+'>'+
+   '<div class="field"><span class="lbl">'+T('أي نهار','Day')+'</span><input type="hidden" id="in-rdate" value="'+esc(S.rdate||ymdIn(1))+'"><div class="days" role="group" aria-label="'+T('الأيام','Days')+'">'+(function(){var h='',cur=S.rdate||ymdIn(1);for(var n=0;n<AHEAD;n++){var d=new Date(dayStart(n)),v=ymd(d);
+     h+='<button type="button" class="chip" data-rday="'+v+'" aria-pressed="'+(v===cur)+'">'+(n<2?dayName(n):wd(d))+'<small dir="ltr">'+d.getDate()+'/'+(d.getMonth()+1)+'</small></button>'}return h})()+'</div></div>'+
+   '<div class="field"><span class="lbl">'+T('أي ساعة بدّك تطلع؟ (حرّك الأرقام)','What time do you want to leave? (scroll the numbers)')+'</span>'+wheelHTML('in-rtime',S.rtime)+
    '<div class="row" style="flex-wrap:wrap;margin-top:6px"><button type="button" class="chip" id="anytime" aria-pressed="'+(!S.rtime)+'">'+T('أي وقت بالنهار','Any time of day')+'</button></div>'+
    '<p class="sub" style="margin:4px 0 0">'+(S.rtime?T('بنبيّنلك المشاوير اللي بتمرق حدّك بين ساعة قبل وساعتين بعد '+S.rtime+'.','We show rides passing you from an hour before to two hours after '+S.rtime+'.'):T('ما حطّيت ساعة، فبنبيّنلك كل مشاوير النهار.','No time set, so we show every ride that day.'))+'</p></div>'+
    (S.rErr?'<p class="err" role="alert">'+esc(S.rErr)+'</p>':'')+
@@ -1234,6 +1271,7 @@ function render(){document.body.classList.toggle('free',!costOn());
   var el=document.activeElement,active=el&&el.id&&$('#sheet').contains(el)?el.id:null,pos=null;
   if(active){try{pos=el.selectionStart}catch(e){}}
   $('#sheet').innerHTML=html;lastHTML=html;
+  initWheels();
   ['from','to','rfrom','rto'].forEach(paintSug);
   Array.prototype.forEach.call(document.querySelectorAll('.msgs'),function(b){b.scrollTop=b.scrollHeight});
   if(active){el=document.getElementById(active);if(el){el.focus();if(pos!=null){try{el.setSelectionRange(pos,pos)}catch(e){}}}}
@@ -1289,6 +1327,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.here){useHere(d.here,false);return}
   if(d.role){S.role=d.role;sset('kh-role',S.role);S.pick=null;S.pt=null;paint();if(S.role==='rider'&&S.rfrom.lat==null&&!hereAsked.rfrom)useHere('rfrom',true);return}
   /* driver */
+  if(d.rday){S.rdate=d.rday;paint();return}
   if(d.dday){var k=S.days.indexOf(d.dday);if(k>=0)S.days.splice(k,1);else S.days.push(d.dday);S.days.sort();render();return}
   if(d.seat){S.seats=Math.max(1,Math.min(6,S.seats+(+d.seat)));render();return}
   if(d.route&&!S.confirmed){S.sel=+d.route;S.pt=null;paint();return}
