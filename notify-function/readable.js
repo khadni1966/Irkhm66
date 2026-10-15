@@ -10,6 +10,8 @@ const PROJECT = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT |
 const FS = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents';
 const ORIGINS = ['https://khedni.app', 'https://www.khedni.app', 'https://khadni1966.github.io'];
 const REACH = 5000, SLACK = 90 * 60000;
+// each new paste in the phone editor goes above the older ones, so every version registers under a new name
+const ENTRY = 'notify2';
 
 // ---- Google access token for this service (Firestore + FCM) ----
 let tok = { v: '', exp: 0 };
@@ -69,13 +71,26 @@ function fields(f) { const o = {}; for (const k in (f || {})) o[k] = val(f[k]); 
 async function getDoc(path) {
   const r = await api(FS + '/' + path);
   if (r.status === 404) return null;
-  if (!r.ok) throw new Error('read ' + path + ' ' + r.status);
+  if (!r.ok) throw new Error('read ' + path.split('/')[0] + ' ' + r.status + ' ' + JSON.stringify(r.j || '').slice(0, 200));
   return fields(r.j.fields);
 }
-async function openRides() {
-  const r = await api(FS + ':runQuery', { method: 'POST', body: { structuredQuery: { from: [{ collectionId: 'rides' }], where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'open' } } } } } });
-  if (!r.ok) throw new Error('rides ' + r.status);
+async function openOf(coll) {
+  const r = await api(FS + ':runQuery', { method: 'POST', body: { structuredQuery: { from: [{ collectionId: coll }], where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'open' } } } } } });
+  if (!r.ok) throw new Error(coll + ' ' + r.status + ' ' + JSON.stringify(r.j || '').slice(0, 200));
   return (r.j || []).filter(x => x.document).map(x => fields(x.document.fields));
+}
+function openRides() { return openOf('rides'); }
+// does this open ride pass close enough to this request, at about the right time?
+function fits(R, w) {
+  if (!(R.seatsLeft > 0)) return false;
+  if (R.only && R.only.length && !R.only.includes(w.grp || '')) return false;
+  if (Math.abs(R.dep - w.at) > 6 * 3600000) return false;
+  const path = decode(R.poly || '');
+  if (path.length < 2 || !w.from || !w.to) return false;
+  const a = near(path, w.from), b = near(path, w.to);
+  if (a.d > REACH || b.d > REACH || b.c - a.c < 300) return false;
+  const at = R.dep + a.c / a.total * (R.dur || 0) * 1000;
+  return Math.abs(at - w.at) <= SLACK;
 }
 
 // ---- route maths ----
@@ -130,7 +145,7 @@ async function send(uid, title, body, tag) {
     else {
       const e = JSON.stringify(r.j || '');
       if (r.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/.test(e)) bad.push(token);
-      else console.error('fcm', r.status, e);
+      else { console.error('fcm', r.status, e); send.last = 'fcm ' + r.status + ' ' + e.slice(0, 200); }
     }
   }
   if (bad.length) await api(FS.replace(/\/documents$/, '/documents:commit'), { method: 'POST', body: { writes: [{ transform: {
@@ -140,7 +155,7 @@ async function send(uid, title, body, tag) {
   return n;
 }
 
-functions.http('notify', async (req, res) => {
+functions.http(ENTRY, async (req, res) => {
   const o = req.get('origin');
   if (ORIGINS.includes(o)) res.set('Access-Control-Allow-Origin', o);
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -186,24 +201,35 @@ functions.http('notify', async (req, res) => {
       const rides = await openRides();
       const drivers = new Set();
       for (const R of rides) {
-        if (R.driverId === me || drivers.has(R.driverId) || !(R.seatsLeft > 0)) continue;
-        if (R.only && R.only.length && !R.only.includes(w.grp || '')) continue;
-        if (Math.abs(R.dep - w.at) > 6 * 3600000) continue;
-        const path = decode(R.poly || '');
-        if (path.length < 2 || !w.from || !w.to) continue;
-        const a = near(path, w.from), b = near(path, w.to);
-        if (a.d > REACH || b.d > REACH || b.c - a.c < 300) continue;
-        const at = R.dep + a.c / a.total * (R.dur || 0) * 1000;
-        if (Math.abs(at - w.at) > SLACK) continue;
+        if (R.driverId === me || drivers.has(R.driverId) || !fits(R, w)) continue;
         drivers.add(R.driverId);
         if (drivers.size >= 20) break;
       }
       for (const u of drivers) await send(u, 'حدا طالب مشوار عطريقك · خدني', (w.riderName || '') + ' بدّو يطلع من ' + area(w.fromText) + '. افتح خدني واعرض عليه', 'want' + id);
       return res.send('drivers ' + drivers.size);
     }
+    if (kind === 'ride') {
+      const R = await getDoc('rides/' + id);
+      if (!R) return res.status(404).send('no ride');
+      if (R.driverId !== me || R.status !== 'open') return res.status(403).send('not yours');
+      const now = Date.now(), riders = new Set();
+      for (const w of await openOf('wants')) {
+        if (w.riderId === me || riders.has(w.riderId) || !(w.at > now - 15 * 60000) || !fits(R, w)) continue;
+        riders.add(w.riderId);
+        if (riders.size >= 30) break;
+      }
+      for (const u of riders) await send(u, 'في سيارة نازلة عطريقك · خدني', (R.driverName || '') + ' نازل من ' + area(R.fromText) + ' لـ ' + area(R.toText) + '. افتح خدني واحجز', 'ride' + id);
+      return res.send('riders ' + riders.size);
+    }
+
+    if (kind === 'test') {
+      send.last = '';
+      const n = await send(me, 'خدني', 'الإشعارات شغّالة على هالتلفون', 'test');
+      return res.send(n ? 'sent ' + n : (send.last || 'no-device'));
+    }
     return res.status(400).send('unknown kind');
   } catch (e) {
     console.error(e);
-    return res.status(500).send('error');
+    return res.status(500).send('error ' + String(e && e.message || e).slice(0, 300));
   }
 });

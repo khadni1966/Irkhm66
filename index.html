@@ -848,10 +848,23 @@ function introHTML(){var gi=function(ic,t,d){return '<div class="gi"><span class
 var VAPID='BDQ9Jx-nU972ibDID9FIEhYCVbUImZc7LrJ2b_6lefr-NwR_iejH3Q5dSVO_1laVW9rLq_JoG1VH75oTXatXIxk';
 function pushOK(){return 'serviceWorker' in navigator&&'Notification' in window&&'PushManager' in window&&location.protocol==='https:'}
 function pushState(){return pushOK()?Notification.permission:'no'}
-function enablePush(ask){if(!pushOK()||!S.user)return;var uid=S.user.uid,go=function(){return import(FB_BASE+'firebase-messaging.js').then(function(m){return navigator.serviceWorker.register('sw.js').then(function(reg){return m.getToken(m.getMessaging(F.app),{vapidKey:VAPID,serviceWorkerRegistration:reg})})})
-   .then(function(tok){if(!tok||sget('kh-push-'+uid)===tok)return;return F.f.setDoc(ref('tokens',uid),{t:F.f.arrayUnion(tok),at:Date.now()},{merge:true}).then(function(){sset('kh-push-'+uid,tok)})}).catch(function(e){if(window.console)console.warn('push',e)})};
-  if(Notification.permission==='granted')return go();if(!ask)return;
-  Notification.requestPermission().then(function(p){render();if(p==='granted')go()})}
+function enablePush(ask,force){if(!pushOK()||!S.user)return Promise.resolve();var uid=S.user.uid,go=function(){return import(FB_BASE+'firebase-messaging.js').then(function(m){return navigator.serviceWorker.register('sw.js').then(function(reg){return m.getToken(m.getMessaging(F.app),{vapidKey:VAPID,serviceWorkerRegistration:reg})})})
+   .then(function(tok){if(!tok)throw new Error('no-token');if(!force&&sget('kh-push-'+uid)===tok)return;return F.f.setDoc(ref('tokens',uid),{t:F.f.arrayUnion(tok),at:Date.now()},{merge:true}).then(function(){sset('kh-push-'+uid,tok)})}).catch(function(e){S.pushErr=String(e&&(e.code||e.message)||e);if(window.console)console.warn('push',e)})};
+  if(Notification.permission==='granted')return go();if(!ask)return Promise.resolve();
+  return Notification.requestPermission().then(function(p){render();if(p==='granted')return go()})}
+// account: check that this phone really receives notifications
+function pushTestHTML(){var st=pushState();
+  return '<div class="box col" style="gap:8px"><b>'+T('الإشعارات على هالتلفون','Notifications on this phone')+'</b><p class="sub" style="margin:0">'+(st==='granted'?T('مسموحة.','Allowed.'):st==='denied'?T('ممنوعة من إعدادات التلفون. افتح إعدادات المتصفّح أو التطبيق واسمح بالإشعارات لـ khedni.app.','Blocked in the phone settings. Open the browser or app settings and allow notifications for khedni.app.'):st==='no'?T('هالمتصفّح ما بيدعم الإشعارات. نزّل التطبيق عالشاشة وجرّب منّو.','This browser does not support notifications. Install the app on the home screen and try from there.'):T('بعد ما شغّلتها.','Not turned on yet.'))+'</p>'+
+   (st!=='denied'&&st!=='no'?'<button class="btn sm sun" type="button" id="pushtest"'+(S.pushTest===1?' disabled':'')+'>'+(S.pushTest===1?T('عم نجرّب…','Testing…'):T('جرّب إشعار','Send a test notification'))+'</button>':'')+
+   (S.pushTest&&S.pushTest!==1?'<p class="'+(S.pushTest.ok?'sub':'err')+'" role="status" style="margin:0">'+esc(S.pushTest.text)+'</p>':'')+'</div>'}
+function pushTest(){var u=S.cfg&&S.cfg.notifyUrl;if(!u){S.pushTest={ok:false,text:T('رابط الإشعارات مش محطوط بلوحة الإدارة.','The notifications link is not set in the admin panel.')};render();return}
+  S.pushTest=1;S.pushErr='';render();
+  enablePush(true,true).then(function(){if(pushState()!=='granted')throw new Error('perm');if(S.pushErr)throw new Error('tok '+S.pushErr);return S.user.getIdToken()})
+   .then(function(t){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},body:JSON.stringify({kind:'test',id:'me'})})})
+   .then(function(r){return r.text().then(function(x){return {ok:r.ok,x:x}})})
+   .then(function(r){S.pushTest=/^sent/.test(r.x)?{ok:true,text:T('بعتنالك إشعار تجربة. لازم يوصلك خلال ثواني، حتى لو سكّرت التطبيق.','We sent you a test notification. It should arrive within seconds, even if you close the app.')}:
+     r.x==='no-device'?{ok:false,text:T('هالتلفون مش مسجّل بعد. سكّر التطبيق وافتحو، وجرّب مرّة تانية.','This phone is not registered yet. Close and reopen the app, then try again.')}:{ok:false,text:T('الخدمة ردّت: ','The service replied: ')+r.x.slice(0,300)};render()})
+   .catch(function(e){var m=String(e&&e.message||e);S.pushTest={ok:false,text:m==='perm'?T('لازم تسمح بالإشعارات أوّل.','You need to allow notifications first.'):T('ما قدرنا نجرّب: ','Could not test: ')+m};render()})}
 function pushHTML(){if(pushState()!=='default'||sget('kh-push-no'))return '';
   return '<div class="banner col" style="gap:8px"><div><b>'+T('شغّل الإشعارات','Turn on notifications')+'</b> '+T('لتعرف أوّل ما حدا يطلب يطلع معك، أو يقبل طلبك، أو يبعتلك رسالة، حتى لو التطبيق مسكّر.','To know as soon as someone asks to ride with you, accepts your request or messages you, even when the app is closed.')+'</div>'+
    '<div class="grid2"><button class="btn sm ghost" type="button" id="pushno">'+T('بعدين','Later')+'</button><button class="btn sm sun" type="button" id="pushon">'+T('شغّل','Turn on')+'</button></div></div>'}
@@ -1195,7 +1208,7 @@ function reqHTML(q){var body,trip='<div class="box"><div class="row">'+face(q.dr
 function dTag(st){return st==='active'?'<span class="tag ok">'+T('صاحب سيارة مفعّل','Active car owner')+'</span>':st==='pending'?'<span class="tag wait">'+T('ناطر الموافقة','Awaiting approval')+'</span>':st==='blocked'?'<span class="tag no">'+T('موقوف','Paused')+'</span>':'<span class="tag ok">'+T('شريك','Road partner')+'</span>'}
 function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
   var has=S.ph[S.user.uid];photo(S.user.uid);
-  return '<h2>'+T('حسابي','My account')+'</h2>'+
+  return '<h2>'+T('حسابي','My account')+'</h2>'+pushTestHTML()+
    '<div class="box"><div class="row">'+face(S.user.uid,72)+'<div class="grow col" style="gap:6px"><p class="sub">'+T('صورة واضحة لوجهك. بيشوفها صاحب السيارة أو شريك الطريق اللي طالع معك، والإدارة.','A clear photo of your face. The car owner or road partner you travel with sees it, and so does the admin.')+'</p>'+
    '<button class="btn sm '+(has?'ghost':'sun')+'" type="button" id="addphoto"'+(S.phBusy?' disabled':'')+'>'+(S.phBusy?T('لحظة…','One moment…'):has?T('غيّر الصورة','Change the photo'):T('صوّر وجهك','Take a photo'))+'</button></div></div>'+
    (S.phErr?'<p class="err" role="alert">'+esc(S.phErr)+'</p>':'')+'</div>'+
@@ -1341,6 +1354,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.here){useHere(d.here,false);return}
   if(d.role){S.role=d.role;sset('kh-role',S.role);S.pick=null;S.pt=null;paint();if(S.role==='rider'&&S.rfrom.lat==null&&!hereAsked.rfrom)useHere('rfrom',true);return}
   /* driver */
+  if(t.id==='pushtest'){pushTest();return}
   if(d.rday){S.rdate=d.rday;paint();return}
   if(d.dday){var k=S.days.indexOf(d.dday);if(k>=0)S.days.splice(k,1);else S.days.push(d.dday);S.days.sort();render();return}
   if(d.seat){S.seats=Math.max(1,Math.min(6,S.seats+(+d.seat)));render();return}
@@ -1426,7 +1440,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     var base={driverId:S.user.uid,driverName:S.me.name,car:S.me.car||'',plate:S.me.plate||'',fromText:S.from.text,toText:S.to.text,
       dur:r.dur,stat:r.stat,dist:r.dist,desc:r.desc||'',poly:r.enc,seats:S.seats,seatsLeft:S.seats,price:Math.min(S.price||suggestPrice(r.dist),capPrice(r.dist)),status:'open',createdAt:Date.now(),only:S.only.slice(),drvGrp:S.me.grp||''};
     Promise.all(S.days.map(function(v){var o=Object.assign({},base);o.dep=depAt(v).getTime();return f.addDoc(col('rides'),o)}))
-     .then(function(docs){S.busy=false;if(docs.length===1){S.dv='ride';S.rideId=docs[0].id;S.fresh=docs[0].id}else S.dv='home';resetNew();paint()}).catch(fail(T('نشر المشوار','posting the ride')));
+     .then(function(docs){S.busy=false;docs.forEach(function(x){notify('ride',x.id)});if(docs.length===1){S.dv='ride';S.rideId=docs[0].id;S.fresh=docs[0].id}else S.dv='home';resetNew();paint()}).catch(fail(T('نشر المشوار','posting the ride')));
     return;
    case 'reroute':R=myRide(S.rideId);if(!R||R.path.length<2)return;S.dv='reroute';S.pt=null;S.rr={busy:true,sel:0};paint();
     computeRoutes({from:R.path[0],to:R.path[R.path.length-1],dep:new Date(Math.max(R.dep,Date.now()+3*60000))}).then(function(res){if(S.dv!=='reroute')return;S.rr={routes:res.routes,sel:0};paint();fit(res.routes.map(function(r){return r.path}))})
