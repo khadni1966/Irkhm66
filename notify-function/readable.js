@@ -100,7 +100,12 @@ function zoneOf(p) {
   for (const z of ZONES) { const e = (z[0] - p.lat) ** 2 + (z[1] - p.lng) ** 2; if (e < d) { d = e; best = z[2]; } }
   return best;
 }
-function clock(t, p) { return new Date(t).toLocaleTimeString('en-GB', { timeZone: zoneOf(p), hour: 'numeric', minute: '2-digit' }); }
+// newer requests carry the rider's or driver's phone time zone (tz); older ones fall back to the pick-up place
+function clock(t, p, tz) {
+  let z = zoneOf(p);
+  if (typeof tz === 'string' && tz) { try { new Intl.DateTimeFormat('en-GB', { timeZone: tz }); z = tz; } catch (e) {} }
+  return new Date(t).toLocaleTimeString('en-GB', { timeZone: z, hour: 'numeric', minute: '2-digit' });
+}
 // every few minutes (Cloud Scheduler): remind both sides about 10 minutes before each confirmed pick-up
 async function remind() {
   const now = Date.now(), c = await getDoc('cron/remind');
@@ -112,8 +117,8 @@ async function remind() {
     if (q.rem || t - now > 11 * 60000 || t < now - 3 * 60000) continue;
     await setFields('requests/' + q.id, { rem: true });
     const where = q.puText ? ' عند ' + q.puText : '';
-    await send(q.driverId, 'تذكير · خدني', 'بتمرق على ' + (q.riderName || 'شريك الطريق') + ' الساعة ' + clock(t, q.pu) + where + '.', 'rem' + q.id);
-    await send(q.riderId, 'تذكير · خدني', (q.driverName || 'صاحب السيارة') + ' بيمرق عليك الساعة ' + clock(t, q.pu) + where + '. كون جاهز.', 'rem' + q.id);
+    await send(q.driverId, 'تذكير · خدني', 'بتمرق على ' + (q.riderName || 'شريك الطريق') + ' الساعة ' + clock(t, q.pu, q.tz) + where + '.', 'rem' + q.id);
+    await send(q.riderId, 'تذكير · خدني', (q.driverName || 'صاحب السيارة') + ' بيمرق عليك الساعة ' + clock(t, q.pu, q.tz) + where + '. كون جاهز.', 'rem' + q.id);
     n++;
   }
   return 'reminded ' + n;

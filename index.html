@@ -233,7 +233,8 @@ var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer 
 var $=function(s){return document.querySelector(s)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
 function sget(k){try{return localStorage.getItem(k)}catch(e){return null}}
-/* ---------- country: picked from the phone's time zone (or ?cc=SA to try another country); search, map, phone numbers and work days follow it ---------- */
+/* ---------- country: picked from the phone's time zone (or ?cc=SA to try another country); search, map, phone numbers and work days follow it.
+   A country not on the list (XX) still works: search is worldwide, the map starts where the phone is, and numbers start with + ---------- */
 var CTRY={LB:{code:'961',c:[33.86,35.56],en:'Lebanon',ar:'لبنان',ex:'70 123 456',wk:[1,2,3,4,5],tz:['Asia/Beirut']},
   SA:{code:'966',c:[24.71,46.68],en:'Saudi Arabia',ar:'السعودية',ex:'50 123 4567',wk:[0,1,2,3,4],tz:['Asia/Riyadh']},
   AE:{code:'971',c:[25.2,55.27],en:'United Arab Emirates',ar:'الإمارات',ex:'50 123 4567',wk:[1,2,3,4,5],tz:['Asia/Dubai']},
@@ -243,10 +244,13 @@ var CTRY={LB:{code:'961',c:[33.86,35.56],en:'Lebanon',ar:'لبنان',ex:'70 123
   OM:{code:'968',c:[23.59,58.41],en:'Oman',ar:'عُمان',ex:'9123 4567',wk:[0,1,2,3,4],tz:['Asia/Muscat']},
   JO:{code:'962',c:[31.95,35.93],en:'Jordan',ar:'الأردن',ex:'79 123 4567',wk:[0,1,2,3,4],tz:['Asia/Amman']},
   EG:{code:'20',c:[30.04,31.24],en:'Egypt',ar:'مصر',ex:'10 1234 5678',wk:[0,1,2,3,4],tz:['Africa/Cairo']},
-  IQ:{code:'964',c:[33.31,44.36],en:'Iraq',ar:'العراق',ex:'770 123 4567',wk:[0,1,2,3,4],tz:['Asia/Baghdad']}};
+  IQ:{code:'964',c:[33.31,44.36],en:'Iraq',ar:'العراق',ex:'770 123 4567',wk:[0,1,2,3,4],tz:['Asia/Baghdad']},
+  US:{code:'1',c:[39.5,-98.35],z:4,en:'USA',ar:'أميركا',ex:'555 123 4567',wk:[1,2,3,4,5],tzp:/^(America\/(New_York|Detroit|Chicago|Denver|Phoenix|Boise|Los_Angeles|Anchorage|Juneau|Indiana|Kentucky|North_Dakota|Menominee|Nome|Sitka|Yakutat|Metlakatla|Adak)|Pacific\/Honolulu)/},
+  XX:{code:'',c:[25,20],z:2,en:'',ar:'',ex:'+44 7700 900123',wk:[1,2,3,4,5]}};
+var TZ='';try{TZ=Intl.DateTimeFormat().resolvedOptions().timeZone||''}catch(e){}
 var CC=(function(){try{var q=(location.search.match(/[?&]cc=([a-z]{2})/i)||[])[1];if(q){q=q.toUpperCase();if(CTRY[q]){try{localStorage.setItem('kh-cc',q)}catch(_){}return q}}}catch(e){}
   var v=sget('kh-cc');if(v&&CTRY[v])return v;
-  try{var z=Intl.DateTimeFormat().resolvedOptions().timeZone;for(var k in CTRY)if(CTRY[k].tz.indexOf(z)>=0)return k}catch(e){}return 'LB'})(),CFG=CTRY[CC];
+  for(var k in CTRY){var o=CTRY[k];if((o.tz&&o.tz.indexOf(TZ)>=0)||(o.tzp&&o.tzp.test(TZ)))return k}return 'XX'})(),CFG=CTRY[CC];
 function sset(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function sdel(k){try{localStorage.removeItem(k)}catch(e){}}
 
@@ -370,12 +374,12 @@ function digits(s){return String(s||'').replace(/[٠-٩]/g,function(c){return St
 // numbers in any spelling (03 123 456, +961 70 123 456, 0096170123456) become country code + number; local numbers use this country's code
 function normPhone(s){var raw=digits(s).trim(),d=raw.replace(/\D/g,''),k,c;
   if(/^\s*(\+|00)/.test(raw)){if(d.indexOf('00')===0)d=d.slice(2);
-    for(k in CTRY){c=CTRY[k].code;if(d.indexOf(c)===0){var r=d.slice(c.length);if(r.charAt(0)==='0')r=r.slice(1);return (c==='961'?/^\d{7,8}$/:/^\d{7,10}$/).test(r)?c+r:null}}
+    for(k in CTRY){c=CTRY[k].code;if(c&&d.indexOf(c)===0){var r=d.slice(c.length);if(r.charAt(0)==='0')r=r.slice(1);return (c==='961'?/^\d{7,8}$/:/^\d{7,10}$/).test(r)?c+r:null}}
     return /^\d{9,15}$/.test(d)?d:null}
-  c=CFG.code;if(d.indexOf('00'+c)===0)d=d.slice(2+c.length);else if(d.indexOf(c)===0&&d.length>c.length+6)d=d.slice(c.length);
+  c=CFG.code;if(!c)return null;if(d.indexOf('00'+c)===0)d=d.slice(2+c.length);else if(d.indexOf(c)===0&&d.length>c.length+6)d=d.slice(c.length);
   if(d.charAt(0)==='0')d=d.slice(1);
   return (c==='961'?/^\d{7,8}$/:/^\d{7,10}$/).test(d)?c+d:null}
-function showPhone(p){p=String(p||'');for(var k in CTRY){var c=CTRY[k].code;if(p.indexOf(c)===0&&p.length>c.length+6)return '+'+c+' '+p.slice(c.length)}return /^\d{9,15}$/.test(p)?'+'+p:p}
+function showPhone(p){p=String(p||'');for(var k in CTRY){var c=CTRY[k].code;if(c&&p.indexOf(c)===0&&p.length>c.length+6)return '+'+c+' '+p.slice(c.length)}return /^\d{9,15}$/.test(p)?'+'+p:p}
 function decode(str){var i=0,lat=0,lng=0,out=[],b,shift,res;
   while(i<str.length){shift=0;res=0;do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);lat+=(res&1)?~(res>>1):(res>>1);
     shift=0;res=0;do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);lng+=(res&1)?~(res>>1):(res>>1);
@@ -542,7 +546,8 @@ function loadMaps(key){return new Promise(function(res,rej){
   s.async=true;s.onerror=function(){rej(new Error('Failed to fetch Google Maps script'))};document.head.appendChild(s)})}
 function initMap(){
   if(map)return;
-  map=new google.maps.Map($('#map'),{center:{lat:CFG.c[0],lng:CFG.c[1]},zoom:11,disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',clickableIcons:true});
+  map=new google.maps.Map($('#map'),{center:{lat:CFG.c[0],lng:CFG.c[1]},zoom:CFG.z||11,disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',clickableIcons:true});
+  if(CFG.z){try{navigator.permissions.query({name:'geolocation'}).then(function(r){if(r.state==='granted')navigator.geolocation.getCurrentPosition(function(p){if(map.setCenter){map.setCenter({lat:p.coords.latitude,lng:p.coords.longitude});map.setZoom(12)}},function(){},{maximumAge:600000,timeout:8000})}).catch(function(){})}catch(e){}}
   map.addListener('click',tapEvt);
   google.maps.importLibrary('places').then(function(lib){places=lib;try{token=new lib.AutocompleteSessionToken()}catch(e){}}).catch(function(){places=null});
 }
@@ -616,7 +621,7 @@ function redraw(){
   if(S.rto.lat!=null)dot(S.rto,'#FFFFFF');
 }
 function fit(paths){if(!map)return;var b=new google.maps.LatLngBounds(),n=0;paths.forEach(function(p){if(!p||!p.length)return;for(var i=0;i<p.length;i+=Math.max(1,Math.floor(p.length/60))){b.extend(p[i]);n++}b.extend(p[p.length-1])});if(n)map.fitBounds(b,40)}
-function waypoint(p){return p.lat!=null?{location:{latLng:{latitude:p.lat,longitude:p.lng}}}:{address:p.text+(p.text.indexOf(CFG.en)>=0||p.text.indexOf(CFG.ar)>=0?'':', '+CFG.en)}}
+function waypoint(p){return p.lat!=null?{location:{latLng:{latitude:p.lat,longitude:p.lng}}}:{address:p.text+(!CFG.en||p.text.indexOf(CFG.en)>=0||p.text.indexOf(CFG.ar)>=0?'':', '+CFG.en)}}
 function computeRoutes(o){o=o||{};
   var dep=o.dep||depDate(),min=new Date(Date.now()+2*60000);
   var body={origin:waypoint(o.from||S.from),destination:waypoint(o.to||S.to),travelMode:'DRIVE',routingPreference:'TRAFFIC_AWARE_OPTIMAL',
@@ -636,7 +641,7 @@ function suggest(which,text){
   clearTimeout(sugTimer);
   if(!places||text.trim().length<2){S.sug[which]=[];paintSug(which);return}
   sugTimer=setTimeout(function(){var seq=++sugSeq;
-    places.AutocompleteSuggestion.fetchAutocompleteSuggestions({input:text,sessionToken:token||undefined,language:S.lang,region:CC.toLowerCase(),includedRegionCodes:[CC.toLowerCase()]})
+    places.AutocompleteSuggestion.fetchAutocompleteSuggestions({input:text,sessionToken:token||undefined,language:S.lang,region:CC==='XX'?undefined:CC.toLowerCase(),includedRegionCodes:CC==='XX'?undefined:[CC.toLowerCase()]})
      .then(function(res){if(seq!==sugSeq)return;S.sug[which]=(res.suggestions||[]).filter(function(s){return s.placePrediction}).slice(0,5);paintSug(which)})
      .catch(function(){S.sug[which]=[];paintSug(which)})},350);
 }
@@ -1026,7 +1031,7 @@ function nameIt(which,slot,placeId){var poi=null,geo=null,left=2;
     var pick=function(types){for(var i=0;i<res.length;i++){var cs=res[i].address_components||[];for(var j=0;j<cs.length;j++)for(var k=0;k<types.length;k++)if(cs[j].types.indexOf(types[k])>=0)return cs[j].long_name}return ''};
     var ok=function(x){return x&&!/^unnamed|^Unnamed|بدون اسم/.test(x)};
     var street=pick(['route']),area=pick(['neighborhood','sublocality_level_1','sublocality','locality','administrative_area_level_3','administrative_area_level_2']);
-    geo={area:ok(area)?area:'',text:[street,area].filter(function(x,i,a){return ok(x)&&a.indexOf(x)===i}).join('، ')||String(res[0].formatted_address||'').replace(new RegExp('[,،]?\\s*('+CFG.en+'|'+CFG.ar+')\\s*$'),'')};done()})}catch(e){done()}}
+    geo={area:ok(area)?area:'',text:[street,area].filter(function(x,i,a){return ok(x)&&a.indexOf(x)===i}).join('، ')||String(res[0].formatted_address||'').replace(CFG.en?new RegExp('[,،]?\\s*('+CFG.en+'|'+CFG.ar+')\\s*$'):/$^/,'')};done()})}catch(e){done()}}
 function useHere(which,quiet){
   var say=function(ok,text){S.hereMsg={which:which,ok:ok,text:text};paint()};
   if(!navigator.geolocation){if(!quiet)say(false,T('هالمتصفح ما بيعطي الموقع. افتح الصفحة بـChrome.','This browser does not give a location. Open the page in Chrome.'));return}
@@ -1442,7 +1447,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
     bk.commit().then(function(){notify('status',q.id)}).catch(fail(T('التأكيد','confirmation')));return}
   if(d.woffer){R=myRide(S.rideId);var wo=S.wants.filter(function(w){return w.id===d.woffer})[0],mo=wo&&wantFits(R,wo);if(!R||!mo||R.seatsLeft<1)return;
     var nid='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),bo=f.writeBatch(db);
-    bo.set(ref('requests',nid),{rideId:R.id,driverId:S.user.uid,riderId:wo.riderId,riderName:wo.riderName,riderGrp:wo.grp||'',driverName:R.driverName,car:R.car||'',plate:R.plate||'',wantId:wo.id,
+    bo.set(ref('requests',nid),{tz:TZ,rideId:R.id,driverId:S.user.uid,riderId:wo.riderId,riderName:wo.riderName,riderGrp:wo.grp||'',driverName:R.driverName,car:R.car||'',plate:R.plate||'',wantId:wo.id,
       rideFrom:R.fromText,rideTo:R.toText,dep:R.dep,puText:wo.fromText,drText:wo.toText,from:wo.from,pu:mo.pu.pos,dr:mo.dr.pos,puAt:mo.puAt.getTime(),drAt:mo.drAt.getTime(),km:Math.round(mo.m),
       price:mo.price,fee:r2(mo.price*FEE),note:wo.note||'',status:'offered',by:'driver',createdAt:Date.now(),updatedAt:Date.now()});
     bo.update(ref('rides',R.id),{seatsLeft:Math.max(0,R.seatsLeft-1)});bo.commit().then(function(){notify('status',nid)}).catch(fail(T('العرض','offer')));return}
@@ -1541,7 +1546,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
    case 'redit':S.rv='home';S.found=null;S.wform=false;paint();return;
    case 'rhome':unwatchRide();S.rv=S.found?'results':'home';S.reqId=null;S.reqRide=null;paint();return;
    case 'rreq':var x=S.found.ok[S.fsel],m=x.m;R=x.R;S.rbusy=true;render();
-    f.addDoc(col('requests'),{rideId:R.id,driverId:R.driverId,riderId:S.user.uid,riderName:S.me.name,riderGrp:S.me.grp||'',driverName:R.driverName,car:R.car||'',plate:R.plate||'',
+    f.addDoc(col('requests'),{tz:TZ,rideId:R.id,driverId:R.driverId,riderId:S.user.uid,riderName:S.me.name,riderGrp:S.me.grp||'',driverName:R.driverName,car:R.car||'',plate:R.plate||'',
       rideFrom:R.fromText,rideTo:R.toText,dep:R.dep,puText:S.rfrom.text,drText:S.rto.text,from:{lat:S.rfrom.lat,lng:S.rfrom.lng},pu:m.pu.pos,dr:m.dr.pos,puAt:m.puAt.getTime(),drAt:m.drAt.getTime(),km:Math.round(m.m),
       price:m.price,fee:r2(m.price*FEE),note:String(S.note||'').trim().slice(0,100),status:'pending',by:'rider',createdAt:Date.now(),updatedAt:Date.now()})
      .then(function(doc){S.rbusy=false;S.found=null;S.note='';S.fresh=doc.id;notify('req',doc.id);openReq(doc.id,R.id)}).catch(fail(T('طلب المقعد','the seat request')));
