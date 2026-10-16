@@ -543,10 +543,10 @@ function pickup(pos,name){if(!PICKUP){var g='<circle cx="16" cy="9" r="5"/><path
 function spot(pos){return add(new google.maps.Marker({position:{lat:pos.lat,lng:pos.lng},map:map,clickable:false,zIndex:18,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:'#F5B921',fillOpacity:1,strokeColor:'#FFFFFF',strokeWeight:2}}))}
 // a start/end pin on the new-ride or search form; drag it to fine-tune the spot
 // a pin that says "From" / "To" (من / إلى) in a coloured tag with a point at the bottom
-function tagIcon(start){var w=S.lang==='ar'?52:60,c=start?'#0B5D4B':'#D93025',
-    svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="40"><path d="M8 1h'+(w-16)+'a7 7 0 0 1 7 7v16a7 7 0 0 1-7 7H'+(w/2+7)+'l-7 8-7-8H8a7 7 0 0 1-7-7V8a7 7 0 0 1 7-7z" fill="'+c+'" stroke="#fff" stroke-width="2"/></svg>';
+function tagIcon(start){var w=S.lang==='ar'?56:64,c=start?'#0B5D4B':'#D93025',
+    svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="40"><path d="M8 1h'+(w-16)+'a7 7 0 0 1 7 7v16a7 7 0 0 1-7 7H'+(w/2+7)+'l-7 8-7-8H8a7 7 0 0 1-7-7V8a7 7 0 0 1 7-7z" fill="#fff" fill-opacity=".18" stroke="#fff" stroke-width="5" stroke-opacity=".9"/><path d="M8 1h'+(w-16)+'a7 7 0 0 1 7 7v16a7 7 0 0 1-7 7H'+(w/2+7)+'l-7 8-7-8H8a7 7 0 0 1-7-7V8a7 7 0 0 1 7-7z" fill="none" stroke="'+c+'" stroke-width="2.5"/></svg>';
   return {url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(w,40),anchor:new google.maps.Point(w/2,40),labelOrigin:new google.maps.Point(w/2,16)}}
-function tagLabel(start){return {text:start?T('من','From'):T('إلى','To'),color:'#FFFFFF',fontWeight:'700',fontSize:'14px'}}
+function tagLabel(start){return {text:start?T('من','From'):T('إلى','To'),color:start?'#0B5D4B':'#D93025',fontWeight:'800',fontSize:'14px'}}
 function dragPin(which,label){var p=S[which];if(p.lat==null)return;var st=label==='A';var m=add(new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map:map,zIndex:30,draggable:true,icon:tagIcon(st),label:tagLabel(st)}));
   if(m.addListener)m.addListener('dragend',function(e){setPoint(which,{lat:e.latLng.lat(),lng:e.latLng.lng()})})}
 function formSlots(){if(S.view!=='main'||!S.me)return null;if(S.role==='driver')return S.me.dstatus==='active'&&S.dv==='new'&&!S.routes?['from','to']:null;return S.rv==='home'?['rfrom','rto']:null}
