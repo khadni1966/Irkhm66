@@ -11,7 +11,7 @@ const FS = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databas
 const ORIGINS = ['https://khedni.app', 'https://www.khedni.app', 'https://khadni1966.github.io'];
 const REACH = 5000, SLACK = 90 * 60000;
 // each new paste in the phone editor goes above the older ones, so every version registers under a new name
-const ENTRY = 'notify3';
+const ENTRY = 'notify4';
 
 // ---- Google access token for this service (Firestore + FCM) ----
 let tok = { v: '', exp: 0 };
@@ -91,7 +91,16 @@ async function setFields(path, o) {
   const r = await api(FS + '/' + path + '?' + mask, { method: 'PATCH', body: { fields: f } });
   if (!r.ok) throw new Error('write ' + path.split('/')[0] + ' ' + r.status);
 }
-function clock(t) { return new Date(t).toLocaleTimeString('en-GB', { timeZone: 'Asia/Beirut', hour: 'numeric', minute: '2-digit' }); }
+// the pick-up place decides the time zone, so a ride in Riyadh shows Riyadh time and a ride in Beirut shows Beirut time
+const ZONES = [[24.71, 46.68, 'Asia/Riyadh'], [25.2, 55.27, 'Asia/Dubai'], [29.37, 47.98, 'Asia/Kuwait'], [25.29, 51.53, 'Asia/Qatar'], [26.22, 50.58, 'Asia/Bahrain'], [23.59, 58.41, 'Asia/Muscat'], [31.95, 35.93, 'Asia/Amman'], [30.04, 31.24, 'Africa/Cairo'], [33.31, 44.36, 'Asia/Baghdad'], [21.49, 39.19, 'Asia/Riyadh'], [26.42, 50.09, 'Asia/Riyadh']];
+function zoneOf(p) {
+  if (!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') return 'Asia/Beirut';
+  if (p.lat > 33.0 && p.lat < 34.75 && p.lng > 35.05 && p.lng < 36.7) return 'Asia/Beirut';
+  let best = 'Asia/Beirut', d = 1e9;
+  for (const z of ZONES) { const e = (z[0] - p.lat) ** 2 + (z[1] - p.lng) ** 2; if (e < d) { d = e; best = z[2]; } }
+  return best;
+}
+function clock(t, p) { return new Date(t).toLocaleTimeString('en-GB', { timeZone: zoneOf(p), hour: 'numeric', minute: '2-digit' }); }
 // every few minutes (Cloud Scheduler): remind both sides about 10 minutes before each confirmed pick-up
 async function remind() {
   const now = Date.now(), c = await getDoc('cron/remind');
@@ -103,8 +112,8 @@ async function remind() {
     if (q.rem || t - now > 11 * 60000 || t < now - 3 * 60000) continue;
     await setFields('requests/' + q.id, { rem: true });
     const where = q.puText ? ' عند ' + q.puText : '';
-    await send(q.driverId, 'تذكير · خدني', 'بتمرق على ' + (q.riderName || 'شريك الطريق') + ' الساعة ' + clock(t) + where + '.', 'rem' + q.id);
-    await send(q.riderId, 'تذكير · خدني', (q.driverName || 'صاحب السيارة') + ' بيمرق عليك الساعة ' + clock(t) + where + '. كون جاهز.', 'rem' + q.id);
+    await send(q.driverId, 'تذكير · خدني', 'بتمرق على ' + (q.riderName || 'شريك الطريق') + ' الساعة ' + clock(t, q.pu) + where + '.', 'rem' + q.id);
+    await send(q.riderId, 'تذكير · خدني', (q.driverName || 'صاحب السيارة') + ' بيمرق عليك الساعة ' + clock(t, q.pu) + where + '. كون جاهز.', 'rem' + q.id);
     n++;
   }
   return 'reminded ' + n;
