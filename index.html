@@ -164,18 +164,18 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .dayshint{font-size:12px;color:var(--muted);margin-top:2px}
 .days .chip{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;line-height:1.25;min-height:54px;border-radius:12px;font-size:14px;font-weight:700}
 .days .chip small{font-size:12px;font-weight:500;color:var(--muted)}
-.tw{position:relative;display:flex;justify-content:center;align-items:center;gap:4px;height:168px;border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden;direction:ltr;user-select:none}
-.twcol{height:168px;width:92px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;position:relative;z-index:1;outline:none}
+.tw{position:relative;display:flex;justify-content:center;align-items:center;gap:4px;height:144px;border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden;direction:ltr;user-select:none}
+.twcol{height:144px;width:92px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;position:relative;z-index:1;outline:none}
 .twcol::-webkit-scrollbar{display:none}
-.twcol div{height:56px;line-height:56px;text-align:center;font-size:30px;font-weight:700;scroll-snap-align:center;color:var(--muted);font-variant-numeric:tabular-nums;cursor:pointer}
-.twcol div.on{color:var(--ink);font-size:36px}
+.twcol div{height:48px;line-height:48px;text-align:center;font-size:26px;font-weight:700;scroll-snap-align:center;color:var(--muted);font-variant-numeric:tabular-nums;cursor:pointer}
+.twcol div.on{color:var(--ink);font-size:32px}
 .twcol:focus-visible{box-shadow:inset 0 0 0 2px var(--sun)}
-.twsep{font-size:34px;font-weight:700;z-index:1}
-.twband{position:absolute;left:10px;right:10px;top:56px;height:56px;border-radius:12px;background:var(--sun-soft);pointer-events:none}
-.tw::before,.tw::after{content:"";position:absolute;left:0;right:0;height:56px;z-index:2;pointer-events:none}
+.twsep{width:20px;text-align:center;font-size:30px;font-weight:700;z-index:1}
+.twband{position:absolute;left:10px;right:10px;top:48px;height:48px;border-radius:12px;background:var(--sun-soft);pointer-events:none}
+.tw::before,.tw::after{content:"";position:absolute;left:0;right:0;height:44px;z-index:2;pointer-events:none}
 .tw::before{top:0;background:linear-gradient(var(--surface),transparent)}.tw::after{bottom:0;background:linear-gradient(transparent,var(--surface))}
 .tw.unset .twcol div{opacity:.4}.tw.unset .twband{background:var(--seg)}
-.twcap{display:flex;justify-content:center;gap:64px;font-size:12px;color:var(--muted);margin-top:4px;direction:ltr}
+.twcap{display:flex;justify-content:center;gap:4px;font-size:17px;font-weight:800;color:var(--ink);margin-top:6px;direction:ltr}.twcap span{width:92px;text-align:center}.twcap i{width:20px}
 .days .chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 .days .chip[aria-pressed="true"] small{color:var(--brand-ink)}
 .chip{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px;font-weight:500}
@@ -301,14 +301,14 @@ function dbErr(what,e){var c=String(e&&e.code||''),m=String(e&&e.message||e),h='
 /* ---------- helpers ---------- */
 function pad(n){return ('0'+n).slice(-2)}
 // big 24-hour scroll wheel for picking a time; the value lives in a hidden input with the given id
-var TWH=56;
+var TWH=48;
 function wheelHTML(id,val){var h=val?+val.slice(0,2):8,m=val?Math.min(11,Math.round(+val.slice(3,5)/5)):0,i,hs='<div></div>',ms='<div></div>';
   for(i=0;i<24;i++)hs+='<div data-twi="'+i+'"'+(i===h?' class="on"':'')+'>'+pad(i)+'</div>';
   for(i=0;i<12;i++)ms+='<div data-twi="'+i+'"'+(i===m?' class="on"':'')+'>'+pad(i*5)+'</div>';
   return '<div class="tw'+(val?'':' unset')+'" data-tw="'+id+'" data-h="'+h+'" data-m="'+m+'"><input type="hidden" id="'+id+'" value="'+esc(val||'')+'"><div class="twband" aria-hidden="true"></div>'+
    '<div class="twcol" data-twc="h" tabindex="0" role="spinbutton" aria-valuemin="0" aria-valuemax="23" aria-valuenow="'+h+'" aria-label="'+T('الساعة','Hour')+'">'+hs+'<div></div></div><span class="twsep" aria-hidden="true">:</span>'+
    '<div class="twcol" data-twc="m" tabindex="0" role="spinbutton" aria-valuemin="0" aria-valuemax="55" aria-valuenow="'+m*5+'" aria-label="'+T('الدقيقة','Minute')+'">'+ms+'<div></div></div></div>'+
-   '<div class="twcap" aria-hidden="true"><span>'+T('ساعة','hour')+'</span><span>'+T('دقيقة','minute')+'</span></div>'}
+   '<div class="twcap" aria-hidden="true"><span>'+T('ساعة','Hour')+'</span><i></i><span>'+T('دقيقة','Minutes')+'</span></div>'}
 function initWheels(){Array.prototype.forEach.call(document.querySelectorAll('.tw'),function(w){
   w.querySelector('[data-twc=h]').scrollTop=+w.dataset.h*TWH;w.querySelector('[data-twc=m]').scrollTop=+w.dataset.m*TWH})}
 var twArmed=null,twTimer=0;
@@ -319,6 +319,11 @@ function twCommit(col){var w=col.closest('.tw');if(!w)return;var hc=w.querySelec
   if(inp.value===v&&!w.classList.contains('unset'))return;
   w.classList.remove('unset');inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))}
 ['pointerdown','touchstart','wheel'].forEach(function(t){document.addEventListener(t,function(e){var c=e.target.closest&&e.target.closest('.twcol');if(c)twArmed=c},{capture:true,passive:true})});
+var twAC=null;function twWake(){try{if(!twAC){var A=window.AudioContext||window.webkitAudioContext;if(A)twAC=new A()}if(twAC&&twAC.state==='suspended')twAC.resume()}catch(_){}}
+function twTick(){try{if(twAC&&twAC.state==='running'){var t=twAC.currentTime,o=twAC.createOscillator(),g=twAC.createGain();o.type='square';o.frequency.setValueAtTime(1900,t);o.frequency.exponentialRampToValueAtTime(700,t+.025);
+  g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.0005,t+.035);o.connect(g);g.connect(twAC.destination);o.start(t);o.stop(t+.04)}if(navigator.vibrate)navigator.vibrate(6)}catch(_){}}
+['pointerdown','touchstart','touchend','keydown'].forEach(function(t){document.addEventListener(t,function(e){if(e.target.closest&&e.target.closest('.tw'))twWake()},{capture:true,passive:true})});
+document.addEventListener('scroll',function(e){var c=e.target;if(c.classList&&c.classList.contains('twcol')){var ix=Math.round(c.scrollTop/TWH);if(c._twix!=null&&c._twix!==ix&&twArmed===c)twTick();c._twix=ix}},true);
 document.addEventListener('scroll',function(e){var c=e.target;if(!c.classList||!c.classList.contains('twcol')||twArmed!==c)return;clearTimeout(twTimer);twTimer=setTimeout(function(){twArmed=null;twCommit(c)},140)},true);
 document.addEventListener('click',function(e){var d=e.target.closest&&e.target.closest('.twcol [data-twi]');if(!d)return;var c=d.parentNode,top=+d.dataset.twi*TWH;
   if(Math.abs(c.scrollTop-top)<2){twCommit(c);return}twArmed=c;c.scrollTo({top:top,behavior:'smooth'})});
