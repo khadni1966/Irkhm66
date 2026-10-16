@@ -136,6 +136,15 @@ button.rcard[aria-pressed="true"],.rcard.on{border:2px solid var(--route);paddin
 .offer{gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
 .btn.big{min-height:60px;font-size:20px}
 .rcard .meta .day{color:var(--ink);font-size:14px}
+.minilist{display:flex;flex-direction:column;gap:6px}
+.rcard.mini{padding:9px 12px;gap:3px;border-radius:12px}
+.rcard.mini .t{align-items:center}
+.rcard.mini .name{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcard.mini .dur{font-size:17px}
+.rcard.mini .meta{font-size:12px;gap:2px 10px;align-items:center}
+.rcard.mini .meta .day{font-size:12.5px}
+.rcard.mini .tag{padding:1px 8px;font-size:11.5px}
+.rcard.mini .alert{padding:3px 8px;font-size:12px}
 .alert{display:inline-flex;align-self:flex-start;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;line-height:1.6;max-width:100%}
 .alert.amsg{background:var(--brand);color:#fff}.alert.areq{background:#F5A800;color:#0E1F1A}
 .alert b{margin-inline-start:2px}
@@ -347,6 +356,7 @@ document.addEventListener('click',function(e){var d=e.target.closest&&e.target.c
   if(Math.abs(c.scrollTop-top)<2){twCommit(c);return}twArmed=c;c.scrollTo({top:top,behavior:'smooth'})});
 document.addEventListener('keydown',function(e){var c=e.target.classList&&e.target.classList.contains('twcol')&&e.target;if(!c)return;var k=e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0;if(!k)return;e.preventDefault();
   c.scrollTop=Math.round(c.scrollTop/TWH+k)*TWH;twCommit(c)});
+function shortPlace(t){t=String(t||'').trim();var a=t.split(/\s*[,،]\s*/)[0];return a.length>=3?a:t}
 function hm(d){d=d instanceof Date?d:new Date(d);return d.getHours()+':'+pad(d.getMinutes())}
 function r2(n){return Math.round(n*100)/100}
 function durTxt(sec){var m=Math.max(1,Math.round(sec/60));if(m<60)return m+' '+T('د','min');var h=Math.floor(m/60),r=m%60;return h+' '+T('س','h')+(r?' '+pad(r)+' '+T('د','min'):'')}
@@ -1085,14 +1095,14 @@ function driverHTML(){var st=S.me.dstatus||'none';
   if(S.dv==='reroute'){var RX=myRide(S.rideId);if(RX)return rerouteHTML(RX);S.dv='home'}
   if(S.dv==='ride'){var R=myRide(S.rideId);if(R){S.fresh=null;return rideHTML(R)}if(S.fresh===S.rideId)return '<p class="sub" role="status">'+T('عم ننشر المشوار…','Posting the ride…')+'</p>';S.dv='home'}
   var list=S.myRides.filter(function(r){return r.status==='open'}).sort(function(a,b){return a.dep-b.dep});
-  return photoNudge()+pushHTML()+rateHTML()+wantSelHTML()+'<h2>'+T('مشاويري','My rides')+'</h2>'+
-    (list.length?list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
-      return '<button type="button" class="rcard" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(R.fromText)+ARROW()+esc(R.toText)+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
+  return '<button class="btn sun" type="button" id="newride">'+IC('plus')+T('انشر مشوار جديد','Post a new ride')+'</button>'+photoNudge()+pushHTML()+rateHTML()+wantSelHTML()+'<h2>'+T('مشاويري','My rides')+'</h2>'+
+    (list.length?'<div class="minilist">'+list.map(function(R){var qs=reqsFor(R.id),pen=qs.filter(function(q){return q.status==='pending'}).length,acc=qs.filter(function(q){return q.status==='accepted'}).length;
+      return '<button type="button" class="rcard mini" data-ride="'+R.id+'"><span class="t"><span class="name">'+esc(shortPlace(R.fromText))+ARROW()+esc(shortPlace(R.toText))+'</span><span class="dur" dir="ltr">'+hm(R.dep)+'</span></span>'+
        '<span class="meta"><b class="day">'+dayOf(R.dep)+'</b><span>'+R.seatsLeft+' '+T('مقاعد فاضية','seats free')+'</span>'+(acc?'<span class="tag ok">'+acc+' '+T('مأكّد','confirmed')+'</span>':'')+'</span>'+
        qs.filter(function(q){return q.status==='pending'}).map(function(q){return '<span class="alert areq">'+IC('user',14)+' '+T('طلب جديد من ','New request from ')+'<b>'+esc(q.riderName||'')+'</b></span>'}).join('')+
-       qs.filter(function(q){return unread(q.id)}).map(function(q){var n=unread(q.id);return '<span class="alert amsg">'+IC('chat',14)+' '+(n>1?n+T(' رسائل جديدة من ',' new messages from '):T('رسالة جديدة من ','New message from '))+'<b>'+esc(q.riderName||'')+'</b></span>'}).join('')+'</button>'}).join(''):
+       qs.filter(function(q){return unread(q.id)}).map(function(q){var n=unread(q.id);return '<span class="alert amsg">'+IC('chat',14)+' '+(n>1?n+T(' رسائل جديدة من ',' new messages from '):T('رسالة جديدة من ','New message from '))+'<b>'+esc(q.riderName||'')+'</b></span>'}).join('')+'</button>'}).join('')+'</div>':
      '<div class="banner">'+T('ما عندك مشوار منشور. انشر المشوار اللي نازل فيه أصلاً، واللي رايحين عطريقك بيطلعوا معك.','You have no posted ride. Post the trip you are making anyway, and people going your way can ride along.')+'</div>')+
-    '<button class="btn sun" type="button" id="newride">'+T('انشر مشوار جديد','Post a new ride')+'</button>'+wantsListHTML(list)+ledgerHTML();
+    wantsListHTML(list)+ledgerHTML();
 }
 function wantSelHTML(){var w=S.wsel&&openWants().filter(function(x){return x.id===S.wsel})[0];if(!w){S.wsel=null;return ''}
   return '<div class="box col" style="gap:8px;border:2px solid var(--sun)"><div class="row">'+face(w.riderId,40)+'<div class="grow"><b>'+T('حدا طالب مشوار من ','Someone wants a ride from ')+esc(areaOf(w.fromText))+'</b><br><span class="sub">'+dayOf(w.at)+' · <span dir="ltr">'+hm(w.at)+'</span>'+T(' · لـ ',' · to ')+esc(areaOf(w.toText))+'</span></div></div>'+
