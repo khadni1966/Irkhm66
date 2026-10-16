@@ -233,6 +233,20 @@ var OWE_LIMIT=5;  // dollars a driver may owe before new requests can no longer 
 var $=function(s){return document.querySelector(s)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
 function sget(k){try{return localStorage.getItem(k)}catch(e){return null}}
+/* ---------- country: picked from the phone's time zone (or ?cc=SA to try another country); search, map, phone numbers and work days follow it ---------- */
+var CTRY={LB:{code:'961',c:[33.86,35.56],en:'Lebanon',ar:'لبنان',ex:'70 123 456',wk:[1,2,3,4,5],tz:['Asia/Beirut']},
+  SA:{code:'966',c:[24.71,46.68],en:'Saudi Arabia',ar:'السعودية',ex:'50 123 4567',wk:[0,1,2,3,4],tz:['Asia/Riyadh']},
+  AE:{code:'971',c:[25.2,55.27],en:'United Arab Emirates',ar:'الإمارات',ex:'50 123 4567',wk:[1,2,3,4,5],tz:['Asia/Dubai']},
+  KW:{code:'965',c:[29.37,47.98],en:'Kuwait',ar:'الكويت',ex:'5012 3456',wk:[0,1,2,3,4],tz:['Asia/Kuwait']},
+  QA:{code:'974',c:[25.29,51.53],en:'Qatar',ar:'قطر',ex:'3312 3456',wk:[0,1,2,3,4],tz:['Asia/Qatar']},
+  BH:{code:'973',c:[26.22,50.58],en:'Bahrain',ar:'البحرين',ex:'3612 3456',wk:[0,1,2,3,4],tz:['Asia/Bahrain']},
+  OM:{code:'968',c:[23.59,58.41],en:'Oman',ar:'عُمان',ex:'9123 4567',wk:[0,1,2,3,4],tz:['Asia/Muscat']},
+  JO:{code:'962',c:[31.95,35.93],en:'Jordan',ar:'الأردن',ex:'79 123 4567',wk:[0,1,2,3,4],tz:['Asia/Amman']},
+  EG:{code:'20',c:[30.04,31.24],en:'Egypt',ar:'مصر',ex:'10 1234 5678',wk:[0,1,2,3,4],tz:['Africa/Cairo']},
+  IQ:{code:'964',c:[33.31,44.36],en:'Iraq',ar:'العراق',ex:'770 123 4567',wk:[0,1,2,3,4],tz:['Asia/Baghdad']}};
+var CC=(function(){try{var q=(location.search.match(/[?&]cc=([a-z]{2})/i)||[])[1];if(q){q=q.toUpperCase();if(CTRY[q]){try{localStorage.setItem('kh-cc',q)}catch(_){}return q}}}catch(e){}
+  var v=sget('kh-cc');if(v&&CTRY[v])return v;
+  try{var z=Intl.DateTimeFormat().resolvedOptions().timeZone;for(var k in CTRY)if(CTRY[k].tz.indexOf(z)>=0)return k}catch(e){}return 'LB'})(),CFG=CTRY[CC];
 function sset(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function sdel(k){try{localStorage.removeItem(k)}catch(e){}}
 
@@ -350,15 +364,18 @@ function depDate(){return depAt(S.days[0]||ymdIn(1))}
 // a new departure time: clears the "time has passed" message and, once routes are shown, moves the ride to the new time
 function setTime(v,redraw){S.time=v;if(S.routes)S.dep=depDate();if(S.formErr&&depDate()>=new Date())S.formErr='';if(redraw)render()}
 function daysLabel(){return S.days.length>1?S.days.length+T(' أيام، من ',' days, from ')+dayOf(fromYmd(S.days[0]).getTime()):dayOf(fromYmd(S.days[0]).getTime())}
-// the next five working days (Monday to Friday), starting tomorrow
-function workdays(){var out=[];for(var n=1;n<=AHEAD&&out.length<5;n++){var d=new Date(dayStart(n)),w=d.getDay();if(w>=1&&w<=5)out.push(ymd(d))}return out}
+// the next five working days of this country (Mon-Fri in Lebanon, Sun-Thu in Saudi), starting tomorrow
+function workdays(){var out=[];for(var n=1;n<=AHEAD&&out.length<5;n++){var d=new Date(dayStart(n)),w=d.getDay();if(CFG.wk.indexOf(w)>=0)out.push(ymd(d))}return out}
 function digits(s){return String(s||'').replace(/[٠-٩]/g,function(c){return String(c.charCodeAt(0)-0x660)}).replace(/[۰-۹]/g,function(c){return String(c.charCodeAt(0)-0x6F0)})}
-// Lebanese numbers in any spelling (03 123 456, +961 70 123 456, 0096170123456) become 961XXXXXXXX
-function normPhone(s){var d=digits(s).replace(/\D/g,'');
-  if(d.indexOf('00961')===0)d=d.slice(5);else if(d.indexOf('961')===0&&d.length>8)d=d.slice(3);
+// numbers in any spelling (03 123 456, +961 70 123 456, 0096170123456) become country code + number; local numbers use this country's code
+function normPhone(s){var raw=digits(s).trim(),d=raw.replace(/\D/g,''),k,c;
+  if(/^\s*(\+|00)/.test(raw)){if(d.indexOf('00')===0)d=d.slice(2);
+    for(k in CTRY){c=CTRY[k].code;if(d.indexOf(c)===0){var r=d.slice(c.length);if(r.charAt(0)==='0')r=r.slice(1);return (c==='961'?/^\d{7,8}$/:/^\d{7,10}$/).test(r)?c+r:null}}
+    return /^\d{9,15}$/.test(d)?d:null}
+  c=CFG.code;if(d.indexOf('00'+c)===0)d=d.slice(2+c.length);else if(d.indexOf(c)===0&&d.length>c.length+6)d=d.slice(c.length);
   if(d.charAt(0)==='0')d=d.slice(1);
-  return /^\d{7,8}$/.test(d)?'961'+d:null}
-function showPhone(p){p=String(p||'');return p.indexOf('961')===0?'+961 '+p.slice(3):p}
+  return (c==='961'?/^\d{7,8}$/:/^\d{7,10}$/).test(d)?c+d:null}
+function showPhone(p){p=String(p||'');for(var k in CTRY){var c=CTRY[k].code;if(p.indexOf(c)===0&&p.length>c.length+6)return '+'+c+' '+p.slice(c.length)}return /^\d{9,15}$/.test(p)?'+'+p:p}
 function decode(str){var i=0,lat=0,lng=0,out=[],b,shift,res;
   while(i<str.length){shift=0;res=0;do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);lat+=(res&1)?~(res>>1):(res>>1);
     shift=0;res=0;do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);lng+=(res&1)?~(res>>1):(res>>1);
@@ -463,8 +480,10 @@ function wantFits(R,w){if(!R||R.status!=='open'||R.path.length<2||!canRide(R,w.g
   if(a.d>REACH||b.d>REACH||b.cum-a.cum<300)return null;var at=etaOn(R,R.dep,a.cum);if(Math.abs(at-w.at)>WSLACK)return null;
   return {pu:a,dr:b,puAt:at,drAt:etaOn(R,R.dep,b.cum),m:b.cum-a.cum,price:segPrice(R,b.cum-a.cum)}}
 /* ---------- who may ride: a group each person says they belong to; a car owner can keep a ride to some groups ---------- */
-var GROUPS=[['lu','الجامعة اللبنانية','Lebanese University'],['usj','اليسوعية (USJ)','USJ'],['aub','الأميركية (AUB)','AUB'],['lau','LAU','LAU'],['bau','العربية (BAU)','BAU'],['ndu','NDU','NDU'],['usek','الكسليك (USEK)','USEK'],['uob','البلمند','Balamand'],['aust','AUST','AUST'],['liu','LIU','LIU']];
-function grpName(c){for(var i=0;i<GROUPS.length;i++)if(GROUPS[i][0]===c)return T(GROUPS[i][1],GROUPS[i][2]);return ''}
+var GROUPS_LB=[['lu','الجامعة اللبنانية','Lebanese University'],['usj','اليسوعية (USJ)','USJ'],['aub','الأميركية (AUB)','AUB'],['lau','LAU','LAU'],['bau','العربية (BAU)','BAU'],['ndu','NDU','NDU'],['usek','الكسليك (USEK)','USEK'],['uob','البلمند','Balamand'],['aust','AUST','AUST'],['liu','LIU','LIU']];
+var GROUPS_SA=[['ksu','جامعة الملك سعود','King Saud University'],['kau','جامعة الملك عبدالعزيز','King Abdulaziz University'],['kfupm','جامعة الملك فهد للبترول','KFUPM'],['pnu','جامعة الأميرة نورة','Princess Nourah University'],['imsiu','جامعة الإمام','Imam University'],['iau','جامعة الإمام عبدالرحمن','Imam Abdulrahman University'],['uqu','جامعة أم القرى','Umm Al-Qura University'],['kaust','كاوست','KAUST']];
+var GROUPS=CC==='LB'?GROUPS_LB:CC==='SA'?GROUPS_SA:[],GROUPS_ALL=GROUPS_LB.concat(GROUPS_SA);
+function grpName(c){for(var i=0;i<GROUPS_ALL.length;i++)if(GROUPS_ALL[i][0]===c)return T(GROUPS_ALL[i][1],GROUPS_ALL[i][2]);return ''}
 function onlyTxt(o){return o&&o.length?T('بس لـ ','Only for ')+o.map(grpName).join('، '):''}
 function canRide(R,grp){grp=grp===undefined?S.me&&S.me.grp:grp;return !R.only||!R.only.length||(!!grp&&R.only.indexOf(grp)>=0)}
 function grpTag(c){return c?'<span class="tag">'+esc(grpName(c))+'</span>':''}
@@ -519,11 +538,11 @@ function ensureMap(){
 function loadMaps(key){return new Promise(function(res,rej){
   window.__khReady=function(){res()};
   var s=document.createElement('script');
-  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&v=weekly&loading=async&libraries=places&language='+S.lang+'&region=LB&callback=__khReady';
+  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&v=weekly&loading=async&libraries=places&language='+S.lang+'&region='+CC+'&callback=__khReady';
   s.async=true;s.onerror=function(){rej(new Error('Failed to fetch Google Maps script'))};document.head.appendChild(s)})}
 function initMap(){
   if(map)return;
-  map=new google.maps.Map($('#map'),{center:{lat:33.86,lng:35.56},zoom:11,disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',clickableIcons:true});
+  map=new google.maps.Map($('#map'),{center:{lat:CFG.c[0],lng:CFG.c[1]},zoom:11,disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',clickableIcons:true});
   map.addListener('click',tapEvt);
   google.maps.importLibrary('places').then(function(lib){places=lib;try{token=new lib.AutocompleteSessionToken()}catch(e){}}).catch(function(){places=null});
 }
@@ -597,7 +616,7 @@ function redraw(){
   if(S.rto.lat!=null)dot(S.rto,'#FFFFFF');
 }
 function fit(paths){if(!map)return;var b=new google.maps.LatLngBounds(),n=0;paths.forEach(function(p){if(!p||!p.length)return;for(var i=0;i<p.length;i+=Math.max(1,Math.floor(p.length/60))){b.extend(p[i]);n++}b.extend(p[p.length-1])});if(n)map.fitBounds(b,40)}
-function waypoint(p){return p.lat!=null?{location:{latLng:{latitude:p.lat,longitude:p.lng}}}:{address:p.text+(/lebanon|لبنان/i.test(p.text)?'':', Lebanon')}}
+function waypoint(p){return p.lat!=null?{location:{latLng:{latitude:p.lat,longitude:p.lng}}}:{address:p.text+(p.text.indexOf(CFG.en)>=0||p.text.indexOf(CFG.ar)>=0?'':', '+CFG.en)}}
 function computeRoutes(o){o=o||{};
   var dep=o.dep||depDate(),min=new Date(Date.now()+2*60000);
   var body={origin:waypoint(o.from||S.from),destination:waypoint(o.to||S.to),travelMode:'DRIVE',routingPreference:'TRAFFIC_AWARE_OPTIMAL',
@@ -617,7 +636,7 @@ function suggest(which,text){
   clearTimeout(sugTimer);
   if(!places||text.trim().length<2){S.sug[which]=[];paintSug(which);return}
   sugTimer=setTimeout(function(){var seq=++sugSeq;
-    places.AutocompleteSuggestion.fetchAutocompleteSuggestions({input:text,sessionToken:token||undefined,language:S.lang,region:'lb',includedRegionCodes:['lb']})
+    places.AutocompleteSuggestion.fetchAutocompleteSuggestions({input:text,sessionToken:token||undefined,language:S.lang,region:CC.toLowerCase(),includedRegionCodes:[CC.toLowerCase()]})
      .then(function(res){if(seq!==sugSeq)return;S.sug[which]=(res.suggestions||[]).filter(function(s){return s.placePrediction}).slice(0,5);paintSug(which)})
      .catch(function(){S.sug[which]=[];paintSug(which)})},350);
 }
@@ -932,7 +951,7 @@ function gateHTML(){var a=S.af,head=function(sub){return '<div><div class="ghead
     '<div class="seg" role="group"><button type="button" data-amode="in" aria-pressed="'+(!up)+'">'+T('دخول','Sign in')+'</button><button type="button" data-amode="up" aria-pressed="'+up+'">'+T('حساب جديد','New account')+'</button></div>'+
     '<form id="authform" class="col" novalidate>'+
     (up?gin('name',T('الاسم','Name'),'text',a.name,T('مثلاً: كريم حداد','e.g. Karim Haddad'),'name'):'')+
-    gin('phone',T('رقم التلفون','Phone number'),'tel',a.phone,'70 123 456','tel',true)+
+    gin('phone',T('رقم التلفون','Phone number'),'tel',a.phone,CFG.ex,'tel',true)+
     '<div class="col" style="gap:4px"><label for="af-pw">'+(up?T('كلمة سر (6 أحرف أو أكتر)','Password (6 characters or more)'):T('كلمة السر','Password'))+'</label><div class="pwrow"><input id="af-pw" data-af="pw" class="ltr" type="'+(a.show?'text':'password')+'" value="'+esc(a.pw)+'" autocomplete="'+(up?'new-password':'current-password')+'"><button type="button" id="af-show" aria-pressed="'+a.show+'">'+(a.show?T('خبّي','Hide'):T('بيّن','Show'))+'</button></div></div>'+
     (up?drvPart()+chkTerms():'')+err+
     '<button class="btn sun" type="submit"'+(a.busy?' disabled':'')+'>'+(a.busy?T('لحظة…','One moment…'):up?T('اعمل الحساب','Create the account'):T('ادخل','Sign in'))+'</button></form>'+
@@ -953,7 +972,7 @@ function checkProfile(){var a=S.af;
   if(!a.terms)return T('لازم توافق على شروط الاستخدام لتكمّل. حط علامة الصح تحت.','You need to agree to the terms of use to continue. Tick the box below.');
   return ''}
 function doAuth(){var a=S.af,up=a.mode==='up',ph=normPhone(a.phone);
-  a.err=!ph?T('رقم التلفون مش مظبوط. اكتبه متل: 70 123 456 أو 03 123 456.','That phone number does not look right. Write it like 70 123 456 or 03 123 456.'):a.pw.length<6?T('كلمة السر لازم تكون 6 أحرف أو أكتر.','The password must be 6 characters or more.'):up?checkProfile():'';
+  a.err=!ph?T('رقم التلفون مش مظبوط. اكتبه متل: '+CFG.ex+'. إذا رقمك من بلد تاني، ابدا بـ + ومفتاح البلد.','That phone number does not look right. Write it like '+CFG.ex+'. If your number is from another country, start with + and the country code.'):a.pw.length<6?T('كلمة السر لازم تكون 6 أحرف أو أكتر.','The password must be 6 characters or more.'):up?checkProfile():'';
   if(a.err){showGate();return}
   a.busy=true;showGate();
   var p;
@@ -1007,7 +1026,7 @@ function nameIt(which,slot,placeId){var poi=null,geo=null,left=2;
     var pick=function(types){for(var i=0;i<res.length;i++){var cs=res[i].address_components||[];for(var j=0;j<cs.length;j++)for(var k=0;k<types.length;k++)if(cs[j].types.indexOf(types[k])>=0)return cs[j].long_name}return ''};
     var ok=function(x){return x&&!/^unnamed|^Unnamed|بدون اسم/.test(x)};
     var street=pick(['route']),area=pick(['neighborhood','sublocality_level_1','sublocality','locality','administrative_area_level_3','administrative_area_level_2']);
-    geo={area:ok(area)?area:'',text:[street,area].filter(function(x,i,a){return ok(x)&&a.indexOf(x)===i}).join('، ')||String(res[0].formatted_address||'').replace(/,?\s*(Lebanon|لبنان)\s*$/,'')};done()})}catch(e){done()}}
+    geo={area:ok(area)?area:'',text:[street,area].filter(function(x,i,a){return ok(x)&&a.indexOf(x)===i}).join('، ')||String(res[0].formatted_address||'').replace(new RegExp('[,،]?\\s*('+CFG.en+'|'+CFG.ar+')\\s*$'),'')};done()})}catch(e){done()}}
 function useHere(which,quiet){
   var say=function(ok,text){S.hereMsg={which:which,ok:ok,text:text};paint()};
   if(!navigator.geolocation){if(!quiet)say(false,T('هالمتصفح ما بيعطي الموقع. افتح الصفحة بـChrome.','This browser does not give a location. Open the page in Chrome.'));return}
@@ -1103,7 +1122,7 @@ function newRideHTML(){
    '<p class="sub cost">'+T('كلفة هالمشوار عالسيارة حوالي $'+r2(tripCost(r.dist))+' (بنزين، صيانة، واستهلاك). شريك الطريق بيشارك بنصها أو أقل، وهيدي مش أجرة. فيك تنقّصها، وما فيك تزيدها عن $'+capPrice(r.dist)+'. شريك الطريق بيشارك على قد المسافة اللي بيطلعها معك، الكلفة بتتقسّم على كل اللي بالسيارة: إذا طلع معك شريك واحد بيشارك بـ$'+S.price+'، شريكين كل واحد $'+share(S.price,2)+'، تلاتة كل واحد $'+share(S.price,3)+'. '+(feeOn()?'خدني بتاخد 10% من المشاركة.':'رسم خدني مجاني حالياً.'),'This trip costs the car about $'+r2(tripCost(r.dist))+' (fuel, maintenance and wear). A road partner shares half of that or less; it is not a fare. You may lower it, but not raise it above $'+capPrice(r.dist)+'. A road partner shares in proportion to the distance they ride with you. The cost is split between everyone in the car: one partner shares $'+S.price+', two partners $'+share(S.price,2)+' each, three $'+share(S.price,3)+' each. '+(feeOn()?'Khedni takes 10% of the share.':'Khedni’s fee is free for now.'))+'</p>'+
    '<div class="field"><span class="lbl">'+T('ساعة الطلعة (فيك تغيّرها هون)','Departure time (you can change it here)')+'</span>'+wheelHTML('in-time2',S.time)+'</div>'+
    (S.formErr?'<p class="err" role="alert">'+esc(S.formErr)+'</p>':'')+
-   '<div class="field"><span class="lbl">'+T('مين فيه يطلع معك؟','Who can ride with you?')+'</span>'+grpChips('data-only',S.only,true)+'</div>'+
+   (GROUPS.length?'<div class="field"><span class="lbl">'+T('مين فيه يطلع معك؟','Who can ride with you?')+'</span>'+grpChips('data-only',S.only,true)+'</div>':'')+
    freeNote()+'<button class="btn sun" type="button" id="publish"'+(S.busy?' disabled':'')+'>'+T('انشر المشوار','Publish the ride')+'</button>'+
    '<button class="btn ghost" type="button" id="unconfirm">'+T('اختار طريق تاني','Choose another route')+'</button>';
 }
@@ -1264,7 +1283,7 @@ function accountHTML(){var m=S.me,shared=S.cfg&&S.cfg.mapsKey;
    (S.phErr?'<p class="err" role="alert">'+esc(S.phErr)+'</p>':'')+'</div>'+
    '<div class="box"><div class="kv"><span>'+T('الاسم','Name')+'</span><b>'+esc(m.name)+'</b></div><div class="kv"><span>'+T('التلفون','Phone')+'</span><b dir="ltr">'+esc(showPhone(m.phone))+'</b></div>'+
    '<div class="kv"><span>'+T('نوع الحساب','Account type')+'</span>'+dTag(m.dstatus||'none')+'</div>'+
-   '<div class="col" style="gap:6px"><span class="lbl">'+T('أنا طالب/ة بـ (اختياري)','I study at (optional)')+'</span>'+grpChips('data-grp',m.grp?[m.grp]:[],false)+'<p class="sub" style="margin:0">'+T('أصحاب السيارات فيهم يخلّوا مشوارهم بس لطلاب جامعة معيّنة.','Car owners can keep a ride to students of certain universities.')+'</p></div>'+
+   (GROUPS.length?'<div class="col" style="gap:6px"><span class="lbl">'+T('أنا طالب/ة بـ (اختياري)','I study at (optional)')+'</span>'+grpChips('data-grp',m.grp?[m.grp]:[],false)+'<p class="sub" style="margin:0">'+T('أصحاب السيارات فيهم يخلّوا مشوارهم بس لطلاب جامعة معيّنة.','Car owners can keep a ride to students of certain universities.')+'</p></div>':'')+
    (m.car?'<div class="kv"><span>'+T('السيارة','Car')+'</span><b>'+esc(m.car)+'</b></div><div class="kv"><span>'+T('اللوحة','Plate')+'</span><b dir="ltr">'+esc(m.plate)+'</b></div>':'')+'</div>'+
    ledgerHTML()+
    (S.admin?'<button class="btn pri" type="button" id="toadmin">'+T('لوحة الإدارة','Admin panel')+'</button>':'')+
