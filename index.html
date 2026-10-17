@@ -112,6 +112,7 @@ h3{font-family:var(--display);font-size:14px;font-weight:600;margin-top:6px}
 .field label,.lbl{font-size:14px;font-weight:700;color:var(--ink)}
 .inrow{display:flex;gap:8px}
 .sheet input[type=text],.sheet input[type=time],.sheet input[type=date],.sheet input[type=number],.sheet select{width:100%;min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:14px;font-weight:500}
+.sheet textarea{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;font-size:14px;font-weight:500;color:inherit;resize:vertical;min-height:80px}
 .pinbtn{flex:none;width:48px;height:48px;border:1px solid var(--line);border-radius:12px;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--brand)}
 .pinbtn[aria-pressed="true"]{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
 .sug{list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;flex-direction:column;gap:2px}
@@ -514,7 +515,14 @@ function toRate(){var now=Date.now(),wk=7*86400000,out=[];
   S.myReqs.forEach(function(q){if(q.status==='accepted'&&q.drAt<now&&q.drAt>now-wk&&!S.rated[q.id])out.push({q:q,to:q.driverId,name:q.driverName})});
   S.inReqs.forEach(function(q){if(q.status==='accepted'&&q.drAt<now&&q.drAt>now-wk&&!S.rated[q.id])out.push({q:q,to:q.riderId,name:q.riderName})});
   return out}
-function rateHTML(){return toRate().map(function(x){var b='';for(var n=1;n<=5;n++)b+='<button type="button" class="star" data-rate="'+x.q.id+'" data-stars="'+n+'" aria-label="'+n+' '+T('نجوم','stars')+'">★</button>';
+function fbHTML(){var f=S.fb;if(!f)return '';
+  if(f.done)return '<div class="okbox" role="status">'+T('وصلت ملاحظتك للإدارة. شكراً!','Your note reached the admin. Thank you!')+'</div>';
+  return '<div class="box col" style="gap:8px;border:2px solid var(--sun)"><b>'+T('شكراً! أعطيت ','Thanks! You gave ')+esc(f.name||'')+' <span dir="ltr">'+f.stars+'★</span></b>'+
+   '<label for="fb-text">'+T('بدّك تقول شي للإدارة عن هالمشوار؟ (اختياري)','Anything to tell the admin about this ride? (optional)')+'</label>'+
+   '<textarea id="fb-text" data-fb="1" rows="3" maxlength="600" placeholder="'+T('شي منيح أو شي غلط صار…','Something good, or something that went wrong…')+'">'+esc(f.text||'')+'</textarea>'+
+   '<p class="sub" style="margin:0">'+T('ما حدا بيشوفها غير الإدارة. ','Only the admin sees it. ')+esc(f.name||'')+T(' ما بيعرف شو كتبت.',' will not know what you wrote.')+'</p>'+
+   '<div class="grid2"><button class="btn sun" type="button" id="fbsend">'+T('ابعت للإدارة','Send to the admin')+'</button><button class="btn ghost" type="button" id="fbskip">'+T('لا شكراً','No thanks')+'</button></div></div>'}
+function rateHTML(){return fbHTML()+toRate().map(function(x){var b='';for(var n=1;n<=5;n++)b+='<button type="button" class="star" data-rate="'+x.q.id+'" data-stars="'+n+'" aria-label="'+n+' '+T('نجوم','stars')+'">★</button>';
   return '<div class="box col" style="gap:8px;border:2px solid var(--sun)"><div class="row">'+face(x.to,40)+'<div class="grow"><b>'+T('كيف كان مشوارك مع ','How was your ride with ')+esc(x.name)+'؟</b><br><span class="sub">'+dayOf(x.q.puAt)+' · '+esc(x.q.rideFrom)+ARROW()+esc(x.q.rideTo)+'</span></div></div>'+
    '<div class="stars" dir="ltr">'+b+'</div></div>'}).join('')}
 // a request's start point is shown only roughly (to about 300 m) on the car owners' map
@@ -1412,6 +1420,7 @@ document.addEventListener('submit',function(e){e.preventDefault();
 });
 document.addEventListener('input',function(e){var d=e.target.dataset||{},w=d.in;
   if(d.note){S.note=e.target.value;return}
+  if(d.fb!=null&&S.fb){S.fb.text=e.target.value;return}
   if(d.af){S.af[d.af]=e.target.value;return}
   if(d.pay){S.pay[d.pay]=e.target.value;return}
   if(d.wh){S.whDraft=e.target.value;return}
@@ -1474,7 +1483,13 @@ document.addEventListener('click',function(e){var t=e.target.closest('button');i
   if(d.grp!==undefined&&t.closest('#sheet')){var ng=S.me.grp===d.grp?'':d.grp;f.updateDoc(ref('users',S.user.uid),{grp:ng}).catch(fail(T('الجامعة','university')));return}
   if(d.only!==undefined){if(!d.only)S.only=[];else{var oi=S.only.indexOf(d.only);if(oi>=0)S.only.splice(oi,1);else S.only.push(d.only)}render();return}
   if(d.rate){var rq=null,rto='';S.myReqs.concat(S.inReqs).forEach(function(x){if(x.id===d.rate)rq=x});if(!rq)return;rto=rq.riderId===S.user.uid?rq.driverId:rq.riderId;
-    S.rated[rq.id]=1;render();f.setDoc(ref('ratings',rq.id+'_'+S.user.uid),{by:S.user.uid,to:rto,req:rq.id,stars:+d.stars,at:Date.now()}).then(function(){delete S.rt[rto];delete RTW[rto];paint()}).catch(function(e){delete S.rated[rq.id];fail(T('التقييم','rating'))(e)});return}
+    S.rated[rq.id]=1;S.fb={q:rq,stars:+d.stars,name:rq.riderId===S.user.uid?rq.driverName:rq.riderName,role:rq.riderId===S.user.uid?T('راكب','rider'):T('صاحب سيارة','car owner'),text:'',done:false};render();f.setDoc(ref('ratings',rq.id+'_'+S.user.uid),{by:S.user.uid,to:rto,req:rq.id,stars:+d.stars,at:Date.now()}).then(function(){delete S.rt[rto];delete RTW[rto];paint()}).catch(function(e){delete S.rated[rq.id];fail(T('التقييم','rating'))(e)});return}
+  if(t.id==='fbskip'){S.fb=null;render();return}
+  if(t.id==='fbsend'&&S.fb){var fb=S.fb,txt=String(fb.text||'').trim();if(!txt){S.fb=null;render();return}
+    fetch('https://formsubmit.co/ajax/61860d2700ab7164f97fcd29b53b5af3',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({_subject:'خدني: ملاحظة عن مشوار · '+fb.stars+'★ · '+(S.me&&S.me.name||''),_template:'table',_captcha:'false','من':(S.me&&S.me.name||'')+' ('+fb.role+')','عن':fb.name||'','النجوم':fb.stars+' من 5','الملاحظة':txt.slice(0,600),
+        'المشوار':dayOf(fb.q.puAt)+' · '+(fb.q.rideFrom||'')+' ← '+(fb.q.rideTo||''),'رقم الطلب':fb.q.id})}).catch(function(){});
+    fb.done=true;fb.text='';render();setTimeout(function(){if(S.fb===fb){S.fb=null;render()}},4000);return}
   if(d.docopen){S.docOpen=S.docOpen===d.docopen?null:d.docopen;render();return}
   if(t.id==='addphoto'){var inp=$('#selfie');inp.value='';inp.click();return}
   if(d.rej){q=inReq(d.rej);if(q)setReq(q,'rejected','driver');return}
